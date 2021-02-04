@@ -15,6 +15,7 @@ from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 @ray.remote
 class RayExecutor:
     """A class to execute any arbitrary function remotely."""
+
     def set_env_var(self, key, value):
         os.environ[key] = value
 
@@ -30,10 +31,7 @@ class RayAccelerator(DDPSpawnAccelerator):
     accelerator except uses Ray to launch (distributed) processes instead of
     multiprocessing."""
 
-    def __init__(self,
-                 num_workers=1,
-                 num_cpus_per_worker=1,
-                 use_gpu=False):
+    def __init__(self, num_workers=1, num_cpus_per_worker=1, use_gpu=False):
         super().__init__(trainer=None, nprocs=0)
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
@@ -42,22 +40,23 @@ class RayAccelerator(DDPSpawnAccelerator):
         self.workers = []
 
     def _create_worker(self):
-        return RayExecutor.options(num_cpus=self.num_cpus_per_worker,
-                                         num_gpus=int(self.use_gpu)).remote()
+        return RayExecutor.options(
+            num_cpus=self.num_cpus_per_worker,
+            num_gpus=int(self.use_gpu)).remote()
 
     def setup(self, model):
         # Check that trainer attribute has been set when this method is called.
         assert hasattr(self, "trainer") and self.trainer is not None
         self.trainer.use_ddp = True
         self.trainer.model = model
-        self.workers = [self._create_worker() for _ in range(
-            self.num_workers)]
+        self.workers = [self._create_worker() for _ in range(self.num_workers)]
 
     def teardown(self):
         def shutdown_remote():
             torch.distributed.destroy_process_group()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+
         ray.get([w.execute.remote(shutdown_remote) for w in self.workers])
         for w in self.workers:
             ray.kill(w, no_restart=True)
@@ -88,12 +87,14 @@ class RayAccelerator(DDPSpawnAccelerator):
     def train(self):
         if "PL_GLOBAL_SEED" in os.environ:
             seed = os.environ["PL_GLOBAL_SEED"]
-            ray.get([w.set_env_var.remote("PL_GLOBAL_SEED", seed) for w in
-                     self.workers])
+            ray.get([
+                w.set_env_var.remote("PL_GLOBAL_SEED", seed)
+                for w in self.workers
+            ])
 
         # Get the rank 0 address for DDP connection.
-        self.ddp_address = ray.get(self.workers[0].execute.remote(
-            setup_address))
+        self.ddp_address = ray.get(
+            self.workers[0].execute.remote(setup_address))
 
         self.global_to_local = self.get_local_ranks()
 
@@ -109,9 +110,11 @@ class RayAccelerator(DDPSpawnAccelerator):
             # Create communication queue and send to all the workers.
             queue = Queue(actor_options={"num_cpus": 0})
 
-        futures = [self.workers[i].execute.remote(self.train_remote,
-                                                  trainer_ref, i, queue) for
-                   i in range(self.num_workers)]
+        futures = [
+            self.workers[i].execute.remote(self.train_remote, trainer_ref, i,
+                                           queue)
+            for i in range(self.num_workers)
+        ]
 
         results = process_results(futures, queue)
         results, best_path, state_dict = results[0]
@@ -137,20 +140,19 @@ class RayAccelerator(DDPSpawnAccelerator):
         # Calling ddp_train will call transfer_distrib_spawn_state_on_fit_end.
         # We override that method and have it just set attributes.
         # Then we can just return those attributes here.
-        super(RayAccelerator, self).ddp_train(process_idx=global_rank,
-                                              mp_queue=None, model=model)
+        super(RayAccelerator, self).ddp_train(
+            process_idx=global_rank, mp_queue=None, model=model)
         return self.results, self.best_model_path, self.model_state_dict
 
-    def init_ddp_connection(
-            self, global_rank: int, world_size: int, is_slurm_managing_tasks: bool = True
-    ) -> None:
+    def init_ddp_connection(self,
+                            global_rank: int,
+                            world_size: int,
+                            is_slurm_managing_tasks: bool = True) -> None:
         torch_backend = "nccl" if self.use_gpu else "gloo"
 
         if not torch.distributed.is_initialized():
-            log.info(
-                f"initializing ddp: GLOBAL_RANK: {global_rank}, MEMBER:"
-                f" {global_rank + 1}/{world_size}"
-            )
+            log.info(f"initializing ddp: GLOBAL_RANK: {global_rank}, MEMBER:"
+                     f" {global_rank + 1}/{world_size}")
             torch.distributed.init_process_group(
                 backend=torch_backend,
                 init_method=self.ddp_address,
@@ -184,7 +186,8 @@ class RayAccelerator(DDPSpawnAccelerator):
         else:
             model.cpu()
 
-    def transfer_distrib_spawn_state_on_fit_end(self, model, mp_queue, results):
+    def transfer_distrib_spawn_state_on_fit_end(self, model, mp_queue,
+                                                results):
         # Save training results as attributes.
         self.results = results
         self.model_state_dict = model.state_dict()
@@ -196,9 +199,7 @@ class RayAccelerator(DDPSpawnAccelerator):
     @property
     def distributed_sampler_kwargs(self):
         distributed_sampler_kwargs = dict(
-            num_replicas=self.num_workers,
-            rank=self.global_rank
-        )
+            num_replicas=self.num_workers, rank=self.global_rank)
         if self.ddp_plugin is not None:
             distributed_sampler_kwargs = self.ddp_plugin.distributed_sampler_kwargs(
                 distributed_sampler_kwargs)
@@ -207,4 +208,3 @@ class RayAccelerator(DDPSpawnAccelerator):
     @property
     def require_distributed_sampler(self):
         return True
-

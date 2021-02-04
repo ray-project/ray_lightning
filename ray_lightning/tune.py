@@ -18,8 +18,8 @@ except ImportError:
     is_session_enabled = lambda: False
     TUNE_INSTALLED = False
 
-
 if TUNE_INSTALLED:
+
     class TuneReportCallback(TuneCallback):
         """PyTorch Lightning to Ray Tune reporting callback
 
@@ -53,15 +53,17 @@ if TUNE_INSTALLED:
 
         """
 
-        def __init__(self,
-                     metrics: Union[None, str, List[str], Dict[str, str]] = None,
-                     on: Union[str, List[str]] = "validation_end"):
+        def __init__(
+                self,
+                metrics: Union[None, str, List[str], Dict[str, str]] = None,
+                on: Union[str, List[str]] = "validation_end"):
             super(TuneReportCallback, self).__init__(on)
             if isinstance(metrics, str):
                 metrics = [metrics]
             self._metrics = metrics
 
-        def _get_report_dict(self, trainer: Trainer, pl_module: LightningModule):
+        def _get_report_dict(self, trainer: Trainer,
+                             pl_module: LightningModule):
             # Don't report if just doing initial validation sanity checks.
             if trainer.running_sanity_check:
                 return
@@ -85,7 +87,6 @@ if TUNE_INSTALLED:
                 report_dict = self._get_report_dict(trainer, pl_module)
                 if report_dict is not None:
                     put_queue(lambda: tune.report(**report_dict))
-
 
     class _TuneCheckpointCallback(TuneCallback):
         """PyTorch Lightning checkpoint callback
@@ -112,10 +113,9 @@ if TUNE_INSTALLED:
             super(_TuneCheckpointCallback, self).__init__(on)
             self._filename = filename
 
-
         @staticmethod
         def _create_checkpoint(checkpoint_dict: dict, global_step: int,
-                filename: str):
+                               filename: str):
             with tune.checkpoint_dir(step=global_step) as checkpoint_dir:
                 file_path = os.path.join(checkpoint_dir, filename)
                 atomic_save(checkpoint_dict, file_path)
@@ -126,9 +126,8 @@ if TUNE_INSTALLED:
             checkpoint_dict = trainer.checkpoint_connector.dump_checkpoint()
             global_step = trainer.global_step
             if get_actor_rank() == 0:
-                put_queue(lambda: self._create_checkpoint(checkpoint_dict,
-                                                          global_step,
-                                                          self._filename))
+                put_queue(lambda: self._create_checkpoint(
+                    checkpoint_dict, global_step, self._filename))
 
     class TuneReportCheckpointCallback(TuneCallback):
         """PyTorch Lightning report and checkpoint callback
@@ -166,10 +165,11 @@ if TUNE_INSTALLED:
 
         """
 
-        def __init__(self,
-                     metrics: Union[None, str, List[str], Dict[str, str]] = None,
-                     filename: str = "checkpoint",
-                     on: Union[str, List[str]] = "validation_end"):
+        def __init__(
+                self,
+                metrics: Union[None, str, List[str], Dict[str, str]] = None,
+                filename: str = "checkpoint",
+                on: Union[str, List[str]] = "validation_end"):
             super(TuneReportCheckpointCallback, self).__init__(on)
             self._checkpoint = _TuneCheckpointCallback(filename, on)
             self._report = TuneReportCallback(metrics, on)

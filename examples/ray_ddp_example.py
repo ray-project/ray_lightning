@@ -167,9 +167,7 @@ if __name__ == "__main__":
     data_dir = os.path.join(tempfile.gettempdir(), "mnist_data_")
 
     if args.tune:
-        tune_mnist(data_dir, num_samples, num_epochs, num_workers,
-                   use_gpu)
+        tune_mnist(data_dir, num_samples, num_epochs, num_workers, use_gpu)
     else:
         config = {"layer_1": 32, "layer_2": 64, "lr": 1e-1, "batch_size": 32}
-        train_mnist(config, data_dir, num_epochs, num_workers,
-                    use_gpu)
+        train_mnist(config, data_dir, num_epochs, num_workers, use_gpu)
