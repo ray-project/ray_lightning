@@ -12,7 +12,7 @@ import ray
 from ray import tune
 from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 from ray.tune.integration.pytorch_lightning import TuneReportCallback
-from ray.util.lightning_accelerators import HorovodRayAccelerator
+from ray_lightning import HorovodRayAccelerator
 
 
 class MNISTClassifier(LightningMNISTClassifier):

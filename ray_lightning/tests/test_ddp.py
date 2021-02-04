@@ -23,6 +23,10 @@ def ray_start_2_cpus():
     yield address_info
     ray.shutdown()
 
+@pytest.fixture
+def seed():
+    pl.seed_everything(0)
+
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
     """Tests whether the appropriate number of training actors are created."""

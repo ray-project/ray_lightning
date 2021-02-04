@@ -121,7 +121,8 @@ def load_test(trainer, model):
     assert trained_model is not None, "loading model failed"
 
 def predict_test(trainer, model, dm):
-    trainer.fit(model, dm)
+    trainer.fit(model, datamodule=dm)
+    dm.setup(stage="test")
     test_loader = dm.test_dataloader()
     acc = pl.metrics.Accuracy()
     for batch in test_loader:
