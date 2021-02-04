@@ -63,12 +63,14 @@ def put_queue(*args, **kwargs):
     session = get_session()
     session.put_queue(*args, **kwargs)
 
+
 def _handle_queue(queue):
     # Process results from Queue.
     while not queue.empty():
         (actor_rank, item) = queue.get()
         if isinstance(item, Callable):
             item()
+
 
 def process_results(training_result_futures, queue):
     not_ready = training_result_futures
@@ -83,4 +85,3 @@ def process_results(training_result_futures, queue):
         # Process any remaining items in queue.
         _handle_queue(queue)
     return ray.get(training_result_futures)
-

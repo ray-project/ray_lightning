@@ -20,12 +20,15 @@ def get_executable_cls():
     # We need to override this in tests to ensure test path is set correctly.
     return None
 
+
 class CustomRayExecutor(RayExecutor):
     def run_async(self, fn, args=None, kwargs=None):
         args = args or []
         kwargs = kwargs or {}
-        return [worker.execute.remote(lambda w: fn(*args, **kwargs)) for
-                worker in self.workers]
+        return [
+            worker.execute.remote(lambda w: fn(*args, **kwargs))
+            for worker in self.workers
+        ]
 
 
 class HorovodRayAccelerator(HorovodAccelerator):
@@ -113,8 +116,8 @@ class HorovodRayAccelerator(HorovodAccelerator):
             # Create communication queue and send to all the workers.
             queue = Queue(actor_options={"num_cpus": 0})
 
-        result_futures = self.executor.run_async(self.train_remote,
-                                          args=[trainer_ref, queue])
+        result_futures = self.executor.run_async(
+            self.train_remote, args=[trainer_ref, queue])
 
         results = process_results(result_futures, queue)
 
