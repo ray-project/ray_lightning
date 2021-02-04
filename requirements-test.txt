@@ -1,0 +1,9 @@
+flake8==3.7.7
+flake8-comprehensions
+flake8-quotes==2.0.0
+yapf==0.23.0
+pytest
+pytorch-lightning==1.1.7
+pytorch-lightning-bolts==0.3.0
+ray[tune]
+torchvision
