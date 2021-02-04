@@ -2,7 +2,7 @@ import pytest
 import ray
 from ray import tune
 
-from ray_lightning import RayAccelerator
+from ray_lightning import RayAccelerator, HorovodRayAccelerator
 from ray_lightning.tests.utils import BoringModel, get_trainer
 from ray_lightning.tune import TuneReportCallback
 
@@ -23,12 +23,10 @@ def train_func(dir, accelerator, use_gpu=False, callbacks=None):
     return _inner_train
 
 
-def test_tune_iteration_ddp(tmpdir, ray_start_4_cpus):
-    """Tests whether RayAccelerator works with Ray Tune."""
-    accelerator = RayAccelerator(num_workers=2, use_gpu=False)
+def tune_test(dir, accelerator):
     callbacks = [TuneReportCallback(on="validation_end")]
     analysis = tune.run(
-        train_func(tmpdir, accelerator, callbacks=callbacks),
+        train_func(dir, accelerator, callbacks=callbacks),
         config={
             "max_epochs": tune.choice([1, 2, 3])
         },
@@ -40,3 +38,17 @@ def test_tune_iteration_ddp(tmpdir, ray_start_4_cpus):
     )
     assert all(analysis.results_df["training_iteration"] ==
                analysis.results_df["config.max_epochs"])
+
+def test_tune_iteration_ddp(tmpdir, ray_start_4_cpus):
+    """Tests whether RayAccelerator works with Ray Tune."""
+    accelerator = RayAccelerator(num_workers=2, use_gpu=False)
+    tune_test(tmpdir, accelerator)
+
+def test_tune_iteration_horovod(tmpdir, ray_start_4_cpus):
+    """Tests whether HorovodRayAccelerator works with Ray Tune."""
+    accelerator = HorovodRayAccelerator(num_hosts=1, num_slots=2,
+                                        use_gpu=False)
+    tune_test(tmpdir, accelerator)
+
+
+

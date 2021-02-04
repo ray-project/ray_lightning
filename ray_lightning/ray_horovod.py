@@ -1,6 +1,10 @@
 import ray
 from pytorch_lightning.accelerators.horovod_accelerator import \
     HorovodAccelerator
+from ray.util.queue import Queue
+
+from ray_lightning.session import process_results, init_session
+from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 try:
     import horovod.torch as hvd
@@ -15,6 +19,13 @@ def get_executable_cls():
     # Only used for testing purposes, currently.
     # We need to override this in tests to ensure test path is set correctly.
     return None
+
+class CustomRayExecutor(RayExecutor):
+    def run_async(self, fn, args=None, kwargs=None):
+        args = args or []
+        kwargs = kwargs or {}
+        return [worker.execute.remote(lambda w: fn(*args, **kwargs)) for
+                worker in self.workers]
 
 
 class HorovodRayAccelerator(HorovodAccelerator):
@@ -71,10 +82,20 @@ class HorovodRayAccelerator(HorovodAccelerator):
         self.num_slots = num_slots
         self.use_gpu = use_gpu
 
+    def __getstate__(self):
+        d = super(HorovodRayAccelerator, self).__getstate__()
+        d["num_hosts"] = self.num_hosts
+        d["num_slots"] = self.num_slots
+        d["use_gpu"] = self.use_gpu
+        return d
+
+    def __setstate__(self, d):
+        self.__dict__.update(d)
+
     def setup(self, model):
         self.trainer.use_horovod = True
-        settings = RayExecutor.create_settings(timeout_s=30)
-        self.executor = RayExecutor(
+        settings = CustomRayExecutor.create_settings(timeout_s=30)
+        self.executor = CustomRayExecutor(
             settings,
             num_hosts=self.num_hosts,
             num_slots=self.num_slots,
@@ -86,7 +107,17 @@ class HorovodRayAccelerator(HorovodAccelerator):
         trainer = self.trainer
         trainer_ref = ray.put(self.trainer)
         self.trainer = None
-        results = self.executor.run(self.train_remote, args=[trainer_ref])
+
+        queue = None
+        if TUNE_INSTALLED and is_session_enabled():
+            # Create communication queue and send to all the workers.
+            queue = Queue(actor_options={"num_cpus": 0})
+
+        result_futures = self.executor.run_async(self.train_remote,
+                                          args=[trainer_ref, queue])
+
+        results = process_results(result_futures, queue)
+
         results, state_dict, best_path = results[0]
 
         self.trainer = trainer
@@ -96,9 +127,12 @@ class HorovodRayAccelerator(HorovodAccelerator):
 
         return results
 
-    def train_remote(self, trainer_ref):
+    def train_remote(self, trainer_ref, queue=None):
         self.trainer = ray.get(trainer_ref)
         hvd.init()
+        if queue is not None:
+            # Initialize session.
+            init_session(rank=hvd.rank(), queue=queue)
         if self.trainer.on_gpu:
             # Horovod assigns one local GPU per process.
             self.trainer.root_gpu = hvd.local_rank()

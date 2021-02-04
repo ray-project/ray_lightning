@@ -8,7 +8,7 @@ from pytorch_lightning import _logger as log
 from ray.util.sgd.torch.utils import setup_address
 from ray.util.queue import Queue
 
-from ray_lightning.session import init_session, handle_queue
+from ray_lightning.session import init_session, process_results
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 
@@ -113,20 +113,7 @@ class RayAccelerator(DDPSpawnAccelerator):
                                                   trainer_ref, i, queue) for
                    i in range(self.num_workers)]
 
-        not_ready = futures
-        while not_ready:
-            if queue:
-                # Process results from Queue.
-                handle_queue(queue)
-            ready, not_ready = ray.wait(not_ready, timeout=0)
-            ray.get(ready)
-        ray.get(ready)
-
-        if queue:
-            # Process any remaining items in queue.
-            handle_queue(queue)
-
-        results = ray.get(futures)
+        results = process_results(futures, queue)
         results, best_path, state_dict = results[0]
         self.trainer = trainer
         self.trainer.model.load_state_dict(state_dict)

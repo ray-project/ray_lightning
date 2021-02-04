@@ -11,7 +11,7 @@ from torchvision import transforms
 import ray
 from ray import tune
 from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
-from ray.tune.integration.pytorch_lightning import TuneReportCallback
+from ray_lightning.tune import TuneReportCallback
 from ray_lightning import HorovodRayAccelerator
 
 
@@ -184,9 +184,6 @@ if __name__ == "__main__":
     data_dir = os.path.join(tempfile.gettempdir(), "mnist_data_")
 
     if args.tune:
-        raise NotImplementedError("Using Tune + Pytorch Lightning with "
-                                  "distributed training is currently not "
-                                  "supported.")
         tune_mnist(data_dir, num_samples, num_epochs, num_hosts, num_slots,
                    use_gpu)
     else:
