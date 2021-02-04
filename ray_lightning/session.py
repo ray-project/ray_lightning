@@ -1,6 +1,5 @@
-from typing import Optional, Callable
+from typing import Optional
 
-import ray
 from ray.util.queue import Queue
 
 
