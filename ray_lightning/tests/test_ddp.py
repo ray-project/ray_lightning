@@ -1,8 +1,3 @@
-# test correct gpu devices set
-# test model moved to gpu correctly
-# test multi-nodes gpu
-import os
-
 import pytest
 import ray
 import pytorch_lightning as pl

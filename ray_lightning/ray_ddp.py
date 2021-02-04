@@ -100,7 +100,6 @@ class RayAccelerator(DDPSpawnAccelerator):
 
         trainer = self.trainer
         assert trainer is not None
-        model = trainer.model
         trainer_ref = ray.put(trainer)
         # Don't pickle self.trainer when training remotely.
         self.trainer = None
@@ -201,8 +200,10 @@ class RayAccelerator(DDPSpawnAccelerator):
         distributed_sampler_kwargs = dict(
             num_replicas=self.num_workers, rank=self.global_rank)
         if self.ddp_plugin is not None:
-            distributed_sampler_kwargs = self.ddp_plugin.distributed_sampler_kwargs(
-                distributed_sampler_kwargs)
+            distributed_sampler_kwargs = \
+            self.ddp_plugin.distributed_sampler_kwargs(
+                distributed_sampler_kwargs
+            )
         return distributed_sampler_kwargs
 
     @property

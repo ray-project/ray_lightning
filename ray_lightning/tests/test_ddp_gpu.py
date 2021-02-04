@@ -85,13 +85,13 @@ def test_correct_devices(tmpdir, ray_start_2_gpus):
         def on_epoch_end(self, trainer, pl_module):
             assert trainer.root_gpu == 0
             assert int(os.environ["CUDA_VISIBLE_DEVICES"]) == \
-                   trainer.local_rank
+                trainer.local_rank
             assert trainer.root_gpu == pl_module.device.index
             assert torch.cuda.current_device() == trainer.root_gpu
 
     accelerator = RayAccelerator(num_workers=2, use_gpu=True)
-    trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True, \
-              callbacks=[CheckDevicesCallback()])
+    trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True,
+            callbacks=[CheckDevicesCallback()])
     trainer.fit(model)
 
 

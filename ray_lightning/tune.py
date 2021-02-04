@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 import os
 
@@ -15,44 +15,13 @@ try:
 except ImportError:
     tune = None
     TuneCallback = object
-    is_session_enabled = lambda: False
+    def is_seesion_enabled():
+        return False
     TUNE_INSTALLED = False
 
 if TUNE_INSTALLED:
 
     class TuneReportCallback(TuneCallback):
-        """PyTorch Lightning to Ray Tune reporting callback
-
-        Reports metrics to Ray Tune.
-
-        Args:
-            metrics (str|list|dict): Metrics to report to Tune. If this is a list,
-                each item describes the metric key reported to PyTorch Lightning,
-                and it will reported under the same name to Tune. If this is a
-                dict, each key will be the name reported to Tune and the respective
-                value will be the metric key reported to PyTorch Lightning.
-            on (str|list): When to trigger checkpoint creations. Must be one of
-                the PyTorch Lightning event hooks (less the ``on_``), e.g.
-                "batch_start", or "train_end". Defaults to "validation_end".
-
-        Example:
-
-        .. code-block:: python
-
-            import pytorch_lightning as pl
-            from ray.tune.integration.pytorch_lightning import TuneReportCallback
-
-            # Report loss and accuracy to Tune after each validation epoch:
-            trainer = pl.Trainer(callbacks=[TuneReportCallback(
-                    ["val_loss", "val_acc"], on="validation_end")])
-
-            # Same as above, but report as `loss` and `mean_accuracy`:
-            trainer = pl.Trainer(callbacks=[TuneReportCallback(
-                    {"loss": "val_loss", "mean_accuracy": "val_acc"},
-                    on="validation_end")])
-
-        """
-
         def __init__(
                 self,
                 metrics: Union[None, str, List[str], Dict[str, str]] = None,
@@ -89,24 +58,6 @@ if TUNE_INSTALLED:
                     put_queue(lambda: tune.report(**report_dict))
 
     class _TuneCheckpointCallback(TuneCallback):
-        """PyTorch Lightning checkpoint callback
-
-        Saves checkpoints after each validation step.
-
-        Checkpoint are currently not registered if no ``tune.report()`` call
-        is made afterwards. Consider using ``TuneReportCheckpointCallback``
-        instead.
-
-        Args:
-            filename (str): Filename of the checkpoint within the checkpoint
-                directory. Defaults to "checkpoint".
-            on (str|list): When to trigger checkpoint creations. Must be one of
-                the PyTorch Lightning event hooks (less the ``on_``), e.g.
-                "batch_start", or "train_end". Defaults to "validation_end".
-
-
-        """
-
         def __init__(self,
                      filename: str = "checkpoint",
                      on: Union[str, List[str]] = "validation_end"):
@@ -130,41 +81,6 @@ if TUNE_INSTALLED:
                     checkpoint_dict, global_step, self._filename))
 
     class TuneReportCheckpointCallback(TuneCallback):
-        """PyTorch Lightning report and checkpoint callback
-
-        Saves checkpoints after each validation step. Also reports metrics to Tune,
-        which is needed for checkpoint registration.
-
-        Args:
-            metrics (str|list|dict): Metrics to report to Tune. If this is a list,
-                each item describes the metric key reported to PyTorch Lightning,
-                and it will reported under the same name to Tune. If this is a
-                dict, each key will be the name reported to Tune and the respective
-                value will be the metric key reported to PyTorch Lightning.
-            filename (str): Filename of the checkpoint within the checkpoint
-                directory. Defaults to "checkpoint".
-            on (str|list): When to trigger checkpoint creations. Must be one of
-                the PyTorch Lightning event hooks (less the ``on_``), e.g.
-                "batch_start", or "train_end". Defaults to "validation_end".
-
-
-        Example:
-
-        .. code-block:: python
-
-            import pytorch_lightning as pl
-            from ray.tune.integration.pytorch_lightning import (
-                TuneReportCheckpointCallback)
-
-            # Save checkpoint after each training batch and after each
-            # validation epoch.
-            trainer = pl.Trainer(callbacks=[TuneReportCheckpointCallback(
-                metrics={"loss": "val_loss", "mean_accuracy": "val_acc"},
-                filename="trainer.ckpt", on="validation_end")])
-
-
-        """
-
         def __init__(
                 self,
                 metrics: Union[None, str, List[str], Dict[str, str]] = None,

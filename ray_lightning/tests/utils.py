@@ -26,7 +26,8 @@ class BoringModel(LightningModule):
         return self.layer(x)
 
     def loss(self, batch, prediction):
-        # An arbitrary loss to have a loss that updates the model weights during `Trainer.fit` calls
+        # Arbitrary loss to have a loss that updates the model weights
+        # during `Trainer.fit` calls
         return torch.nn.functional.mse_loss(prediction,
                                             torch.ones_like(prediction))
 
@@ -47,13 +48,13 @@ class BoringModel(LightningModule):
         torch.stack([x["loss"] for x in outputs]).mean()
 
     def validation_step(self, batch, batch_idx):
-        output = self.layer(batch)
+        self.layer(batch)
         loss = torch.tensor(1.0)
         self.log("val_loss", loss)
         return {"x": loss}
 
     def validation_epoch_end(self, outputs) -> None:
-        torch.stack([x['x'] for x in outputs]).mean()
+        torch.stack([x["x"] for x in outputs]).mean()
         self.val_epoch += 1
 
     def test_step(self, batch, batch_idx):
