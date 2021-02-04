@@ -4,7 +4,7 @@ import tempfile
 
 import pytorch_lightning as pl
 import torch
-from torch.utils.data import random_split, DataLoader, DistributedSampler
+from torch.utils.data import random_split, DataLoader
 from torchvision.datasets import MNIST
 from torchvision import transforms
 
@@ -29,14 +29,12 @@ class MNISTClassifier(LightningMNISTClassifier):
         dataset_train, _ = random_split(
             dataset, [train_length - 5000, 5000],
             generator=torch.Generator().manual_seed(0))
-        sampler = DistributedSampler(dataset_train, shuffle=True)
         loader = DataLoader(
             dataset_train,
             batch_size=self.batch_size,
             num_workers=1,
             drop_last=True,
             pin_memory=True,
-            sampler=sampler
         )
         return loader
 
@@ -46,14 +44,12 @@ class MNISTClassifier(LightningMNISTClassifier):
         _, dataset_val = random_split(
             dataset, [train_length - 5000, 5000],
             generator=torch.Generator().manual_seed(0))
-        sampler = DistributedSampler(dataset_val, shuffle=False)
         loader = DataLoader(
             dataset_val,
             batch_size=self.batch_size,
             num_workers=1,
             drop_last=True,
             pin_memory=True,
-            sampler=sampler
         )
         return loader
 
@@ -72,7 +68,6 @@ def train_mnist(config,
         max_epochs=num_epochs,
         gpus=int(use_gpu),
         callbacks=callbacks,
-        replace_sampler_ddp=False,
         accelerator=RayAccelerator(num_workers=num_workers, use_gpu=use_gpu))
     trainer.fit(model)
 

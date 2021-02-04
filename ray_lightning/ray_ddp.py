@@ -172,9 +172,23 @@ class RayAccelerator(DDPSpawnAccelerator):
         # Save training results as attributes.
         self.results = results
         self.model_state_dict = model.state_dict()
-        # Save the results as
         best_model_path = None
         if self.trainer.checkpoint_callback is not None:
             best_model_path = self.trainer.checkpoint_callback.best_model_path
         self.best_model_path = best_model_path
+
+    @property
+    def distributed_sampler_kwargs(self):
+        distributed_sampler_kwargs = dict(
+            num_replicas=self.num_workers,
+            rank=self.global_rank
+        )
+        if self.ddp_plugin is not None:
+            distributed_sampler_kwargs = self.ddp_plugin.distributed_sampler_kwargs(
+                distributed_sampler_kwargs)
+        return distributed_sampler_kwargs
+
+    @property
+    def require_distributed_sampler(self):
+        return True
 
