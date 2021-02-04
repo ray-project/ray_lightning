@@ -15,8 +15,8 @@ class RandomDataset(Dataset):
     def __len__(self):
         return self.len
 
-class BoringModel(LightningModule):
 
+class BoringModel(LightningModule):
     def __init__(self):
         super().__init__()
         self.layer = torch.nn.Linear(32, 2)
@@ -27,7 +27,8 @@ class BoringModel(LightningModule):
 
     def loss(self, batch, prediction):
         # An arbitrary loss to have a loss that updates the model weights during `Trainer.fit` calls
-        return torch.nn.functional.mse_loss(prediction, torch.ones_like(prediction))
+        return torch.nn.functional.mse_loss(prediction,
+                                            torch.ones_like(prediction))
 
     def step(self, x):
         x = self(x)
@@ -83,6 +84,7 @@ class BoringModel(LightningModule):
     def on_load_checkpoint(self, checkpoint) -> None:
         self.val_epoch = checkpoint["val_epoch"]
 
+
 def get_trainer(dir,
                 accelerator,
                 use_gpu=False,
@@ -104,6 +106,7 @@ def get_trainer(dir,
         accelerator=accelerator)
     return trainer
 
+
 def train_test(trainer, model):
     initial_values = torch.tensor(
         [torch.sum(torch.abs(x)) for x in model.parameters()])
@@ -114,11 +117,13 @@ def train_test(trainer, model):
     # Check that the model is actually changed post-training.
     assert torch.norm(initial_values - post_train_values) > 0.1
 
+
 def load_test(trainer, model):
     trainer.fit(model)
     trained_model = BoringModel.load_from_checkpoint(
         trainer.checkpoint_callback.best_model_path)
     assert trained_model is not None, "loading model failed"
+
 
 def predict_test(trainer, model, dm):
     trainer.fit(model, datamodule=dm)
