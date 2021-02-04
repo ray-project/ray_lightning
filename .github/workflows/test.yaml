@@ -68,7 +68,7 @@ jobs:
           python -m pip install codecov
           python -m pip install -U ray
           if [ -f requirements-test.txt ]; then python -m pip install -r requirements-test.txt; fi
-          HOROVOD_WITH_GLOO=1 HOROVOD_WITHOUT_MPI=1 HOROVOD_WITHOUT_MXNET=1 HOROVOD_GPU_OPERATIONS=NCCL python -m pip install -U git+https://github.com/horovod/horovod.git
+          HOROVOD_WITH_GLOO=1 HOROVOD_WITHOUT_MPI=1 HOROVOD_WITHOUT_MXNET=1 HOROVOD_GPU_OPERATIONS=NCCL pip install -U git+https://github.com/horovod/horovod.git
       - name: Install package
         run: |
           python -m pip install -e .
