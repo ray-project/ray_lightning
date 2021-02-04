@@ -15,8 +15,10 @@ try:
 except ImportError:
     tune = None
     TuneCallback = object
-    def is_seesion_enabled():
+
+    def is_session_enabled():
         return False
+
     TUNE_INSTALLED = False
 
 if TUNE_INSTALLED:

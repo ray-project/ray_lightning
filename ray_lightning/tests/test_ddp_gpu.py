@@ -90,8 +90,11 @@ def test_correct_devices(tmpdir, ray_start_2_gpus):
             assert torch.cuda.current_device() == trainer.root_gpu
 
     accelerator = RayAccelerator(num_workers=2, use_gpu=True)
-    trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True,
-            callbacks=[CheckDevicesCallback()])
+    trainer = get_trainer(
+        tmpdir,
+        accelerator=accelerator,
+        use_gpu=True,
+        callbacks=[CheckDevicesCallback()])
     trainer.fit(model)
 
 
