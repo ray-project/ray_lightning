@@ -83,8 +83,8 @@ jobs:
           popd
           pushd examples/
           ray stop || true
-          echo "running ray_ddp_example.py" && python ray_ddp_example.py --smoke-test
-          echo "running ray_ddp_example.py with Tune" && python ray_ddp_example.py --smoke-test --tune
-          echo "running ray_horovod_example.py" && python ray_horovod_example.py --smoke-test
-          echo "running ray_horovod_example.py with Tune" && python ray_horovod_example.py --smoke-test --tune
+#          echo "running ray_ddp_example.py" && python ray_ddp_example.py --smoke-test
+#          echo "running ray_ddp_example.py with Tune" && python ray_ddp_example.py --smoke-test --tune
+#          echo "running ray_horovod_example.py" && python ray_horovod_example.py --smoke-test
+#          echo "running ray_horovod_example.py with Tune" && python ray_horovod_example.py --smoke-test --tune
 
