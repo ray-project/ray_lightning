@@ -11,7 +11,7 @@ from torchvision import transforms
 import ray
 from ray import tune
 from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
-from ray.tune.integration.pytorch_lightning import TuneReportCallback
+from ray_lightning.tune import TuneReportCallback
 from ray_lightning import RayAccelerator
 
 
@@ -92,8 +92,7 @@ def tune_mnist(data_dir,
         train_mnist,
         data_dir=data_dir,
         num_epochs=num_epochs,
-        num_hosts=num_hosts,
-        num_slots=num_slots,
+        num_workers=num_workers,
         use_gpu=use_gpu,
         callbacks=callbacks)
     analysis = tune.run(
@@ -104,10 +103,8 @@ def tune_mnist(data_dir,
         num_samples=num_samples,
         resources_per_trial={
             "cpu": 1,
-            # Assume 1 cpu per slot.
-            "extra_cpu": num_hosts * num_slots,
-            # Assume 1 gpu per slot.
-            "extra_gpu": num_hosts * num_slots * int(use_gpu)
+            "extra_cpu": num_workers,
+            "extra_gpu": num_workers * int(use_gpu)
         },
         name="tune_mnist")
 
@@ -170,10 +167,7 @@ if __name__ == "__main__":
     data_dir = os.path.join(tempfile.gettempdir(), "mnist_data_")
 
     if args.tune:
-        raise NotImplementedError("Using Tune + Pytorch Lightning with "
-                                  "distributed training is currently not "
-                                  "supported.")
-        tune_mnist(data_dir, num_samples, num_epochs, num_hosts, num_slots,
+        tune_mnist(data_dir, num_samples, num_epochs, num_workers,
                    use_gpu)
     else:
         config = {"layer_1": 32, "layer_2": 64, "lr": 1e-1, "batch_size": 32}

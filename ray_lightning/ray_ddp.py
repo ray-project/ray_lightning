@@ -6,6 +6,10 @@ import torch
 from pytorch_lightning.accelerators import DDPSpawnAccelerator
 from pytorch_lightning import _logger as log
 from ray.util.sgd.torch.utils import setup_address
+from ray.util.queue import Queue
+
+from ray_lightning.session import init_session, handle_queue
+from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 
 @ray.remote
@@ -99,9 +103,29 @@ class RayAccelerator(DDPSpawnAccelerator):
         trainer_ref = ray.put(trainer)
         # Don't pickle self.trainer when training remotely.
         self.trainer = None
+
+        queue = None
+        if TUNE_INSTALLED and is_session_enabled():
+            # Create communication queue and send to all the workers.
+            queue = Queue(actor_options={"num_cpus": 0})
+
         futures = [self.workers[i].execute.remote(self.train_remote,
-                                                  trainer_ref, i) for
+                                                  trainer_ref, i, queue) for
                    i in range(self.num_workers)]
+
+        not_ready = futures
+        while not_ready:
+            if queue:
+                # Process results from Queue.
+                handle_queue(queue)
+            ready, not_ready = ray.wait(not_ready, timeout=0)
+            ray.get(ready)
+        ray.get(ready)
+
+        if queue:
+            # Process any remaining items in queue.
+            handle_queue(queue)
+
         results = ray.get(futures)
         results, best_path, state_dict = results[0]
         self.trainer = trainer
@@ -111,13 +135,18 @@ class RayAccelerator(DDPSpawnAccelerator):
 
     # All methods below are only executed in remote Ray workers.
 
-    def train_remote(self, trainer, global_rank):
+    def train_remote(self, trainer, global_rank, queue=None):
         assert isinstance(self, RayAccelerator)
         # This method should be executed remotely in each worker.
         self.trainer = trainer
         self.trainer.accelerator_backend = self
         self.global_rank = global_rank
         model = self.trainer.model
+
+        if queue is not None:
+            # Initialize session.
+            init_session(rank=global_rank, queue=queue)
+
         # Calling ddp_train will call transfer_distrib_spawn_state_on_fit_end.
         # We override that method and have it just set attributes.
         # Then we can just return those attributes here.
