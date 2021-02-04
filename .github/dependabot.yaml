@@ -1,0 +1,9 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    reviewers:
+      - "amogkam"
+    ignore:
+      - dependency-name: flake8
+      - dependency-name: flake8-quotes
+      - dependency-name: yapf
