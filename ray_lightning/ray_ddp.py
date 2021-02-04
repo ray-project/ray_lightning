@@ -6,9 +6,9 @@ import torch
 from pytorch_lightning.accelerators import DDPSpawnAccelerator
 from pytorch_lightning import _logger as log
 from ray.util.sgd.torch.utils import setup_address
-from ray.util.queue import Queue
 
-from ray_lightning.session import init_session, process_results
+from ray_lightning.session import init_session
+from ray_lightning.util import process_results, Queue
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 

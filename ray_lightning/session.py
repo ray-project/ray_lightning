@@ -62,26 +62,3 @@ def get_actor_rank() -> int:
 def put_queue(*args, **kwargs):
     session = get_session()
     session.put_queue(*args, **kwargs)
-
-
-def _handle_queue(queue):
-    # Process results from Queue.
-    while not queue.empty():
-        (actor_rank, item) = queue.get()
-        if isinstance(item, Callable):
-            item()
-
-
-def process_results(training_result_futures, queue):
-    not_ready = training_result_futures
-    while not_ready:
-        if queue:
-            _handle_queue(queue)
-        ready, not_ready = ray.wait(not_ready, timeout=0)
-        ray.get(ready)
-    ray.get(ready)
-
-    if queue:
-        # Process any remaining items in queue.
-        _handle_queue(queue)
-    return ray.get(training_result_futures)

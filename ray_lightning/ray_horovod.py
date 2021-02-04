@@ -1,9 +1,9 @@
 import ray
 from pytorch_lightning.accelerators.horovod_accelerator import \
     HorovodAccelerator
-from ray.util.queue import Queue
 
-from ray_lightning.session import process_results, init_session
+from ray_lightning.session import init_session
+from ray_lightning.util import process_results, Queue
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 try:
