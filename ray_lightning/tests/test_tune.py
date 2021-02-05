@@ -1,6 +1,6 @@
 import os
-
 import pytest
+
 import ray
 from ray import tune
 
@@ -45,13 +45,14 @@ def tune_test(dir, accelerator):
 
 
 def test_tune_iteration_ddp(tmpdir, ray_start_4_cpus):
+    """Tests if each RayAccelerator runs the correct number of iterations."""
     """Tests whether RayAccelerator works with Ray Tune."""
     accelerator = RayAccelerator(num_workers=2, use_gpu=False)
     tune_test(tmpdir, accelerator)
 
 
 def test_tune_iteration_horovod(tmpdir, ray_start_4_cpus):
-    """Tests whether HorovodRayAccelerator works with Ray Tune."""
+    """Tests if each HorovodRay trial runs the correct number of iterations."""
     accelerator = HorovodRayAccelerator(
         num_hosts=1, num_slots=2, use_gpu=False)
     tune_test(tmpdir, accelerator)
@@ -75,11 +76,13 @@ def checkpoint_test(dir, accelerator):
 
 
 def test_checkpoint_ddp(tmpdir, ray_start_4_cpus):
+    """Tests if Tune checkpointing works with RayAccelerator."""
     accelerator = RayAccelerator(num_workers=2, use_gpu=False)
     checkpoint_test(tmpdir, accelerator)
 
 
 def test_checkpoint_horovod(tmpdir, ray_start_4_cpus):
+    """Tests if Tune checkpointing works with HorovodRayAccelerator."""
     accelerator = HorovodRayAccelerator(
         num_hosts=1, num_slots=2, use_gpu=False)
     checkpoint_test(tmpdir, accelerator)

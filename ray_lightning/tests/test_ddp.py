@@ -1,11 +1,14 @@
 import pytest
-import ray
-import pytorch_lightning as pl
+from torch.utils.data import DistributedSampler
+
 from pl_bolts.datamodules import MNISTDataModule
+import pytorch_lightning as pl
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import EarlyStopping
+
+import ray
 from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
-from torch.utils.data import DistributedSampler
+
 
 from ray_lightning import RayAccelerator
 from ray_lightning.tests.utils import get_trainer, train_test, \
@@ -41,7 +44,7 @@ def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
 
 
 def test_distributed_sampler(tmpdir, ray_start_2_cpus):
-    """Makes sure the distributed sampler is properly set."""
+    """Tests if distributed sampler is properly set."""
     model = BoringModel()
     train_dataloader = model.train_dataloader()
     initial_sampler = train_dataloader.sampler
@@ -79,6 +82,7 @@ def test_distributed_sampler(tmpdir, ray_start_2_cpus):
 
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_train(tmpdir, ray_start_2_cpus, num_workers):
+    """Tests if training modifies model weights."""
     model = BoringModel()
     accelerator = RayAccelerator(num_workers=num_workers)
     trainer = get_trainer(tmpdir, accelerator=accelerator)
@@ -87,6 +91,7 @@ def test_train(tmpdir, ray_start_2_cpus, num_workers):
 
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_load(tmpdir, ray_start_2_cpus, num_workers):
+    """Tests if model checkpoint can be loaded."""
     model = BoringModel()
     accelerator = RayAccelerator(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(tmpdir, accelerator=accelerator)
@@ -95,6 +100,7 @@ def test_load(tmpdir, ray_start_2_cpus, num_workers):
 
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
+    """Tests if trained model has high accuracy on test set."""
     config = {
         "layer_1": 32,
         "layer_2": 32,
@@ -111,6 +117,7 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
 
 
 def test_early_stop(tmpdir, ray_start_2_cpus):
+    """Tests if early stopping callback works correctly."""
     model = BoringModel()
     accelerator = RayAccelerator(num_workers=1, use_gpu=False)
     early_stop = EarlyStopping(monitor="val_loss", patience=2, verbose=True)

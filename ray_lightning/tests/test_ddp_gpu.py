@@ -1,11 +1,12 @@
 import os
-
 import pytest
-import ray
-import pytorch_lightning as pl
 import torch
+
 from pl_bolts.datamodules import MNISTDataModule
+import pytorch_lightning as pl
 from pytorch_lightning import Callback
+
+import ray
 from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 
 from ray_lightning import RayAccelerator
@@ -29,6 +30,7 @@ def seed():
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_train(tmpdir, ray_start_2_gpus, num_workers):
+    """Tests if training modifies model weights."""
     model = BoringModel()
     accelerator = RayAccelerator(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True)
@@ -39,6 +41,7 @@ def test_train(tmpdir, ray_start_2_gpus, num_workers):
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_predict(tmpdir, ray_start_2_gpus, seed, num_workers):
+    """Tests if trained model has high accuracy on test set."""
     config = {
         "layer_1": 32,
         "layer_2": 32,
@@ -61,6 +64,7 @@ def test_predict(tmpdir, ray_start_2_gpus, seed, num_workers):
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 def test_model_to_gpu(tmpdir, ray_start_2_gpus):
+    """Tests if model is placed on CUDA device."""
     model = BoringModel()
 
     class CheckGPUCallback(Callback):
@@ -79,6 +83,7 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 def test_correct_devices(tmpdir, ray_start_2_gpus):
+    """Tests if GPU devices are correctly set."""
     model = BoringModel()
 
     class CheckDevicesCallback(Callback):
@@ -103,6 +108,7 @@ def test_correct_devices(tmpdir, ray_start_2_gpus):
     reason="Should not be run in CI. Requires multi-node Ray "
     "cluster.")
 def test_multi_node(tmpdir):
+    """Tests if multi-node GPU training works."""
     ray.init("auto")
     num_gpus = ray.available_resources()["GPU"]
     model = BoringModel()

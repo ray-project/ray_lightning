@@ -1,13 +1,8 @@
-import torch
 import pytest
-import ray
-from pl_bolts.datamodules.mnist_datamodule import MNISTDataModule
-from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
-from ray_lightning import HorovodRayAccelerator
-import pytorch_lightning as pl
+import torch
 
-from ray_lightning.tests.utils import get_trainer, BoringModel, \
-    train_test, load_test, predict_test
+from pl_bolts.datamodules.mnist_datamodule import MNISTDataModule
+import pytorch_lightning as pl
 
 try:
     import horovod  # noqa: F401
@@ -17,6 +12,12 @@ except ImportError:
 else:
     HOROVOD_AVAILABLE = True
 
+import ray
+from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
+
+from ray_lightning import HorovodRayAccelerator
+from ray_lightning.tests.utils import get_trainer, BoringModel, \
+    train_test, load_test, predict_test
 
 def _nccl_available():
     if not HOROVOD_AVAILABLE:
@@ -48,6 +49,7 @@ def seed():
 
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_train(tmpdir, ray_start_2_cpus, seed, num_slots):
+    """Tests if training modifies model weights."""
     model = BoringModel()
     accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=False)
     trainer = get_trainer(tmpdir, accelerator=accelerator)
@@ -56,6 +58,7 @@ def test_train(tmpdir, ray_start_2_cpus, seed, num_slots):
 
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_load(tmpdir, ray_start_2_cpus, seed, num_slots):
+    """Tests if model checkpoint can be loaded."""
     model = BoringModel()
     accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=False)
     trainer = get_trainer(tmpdir, accelerator=accelerator)
@@ -64,6 +67,7 @@ def test_load(tmpdir, ray_start_2_cpus, seed, num_slots):
 
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
+    """Tests if trained model has high accuracy on test set."""
     config = {
         "layer_1": 32,
         "layer_2": 32,
@@ -85,6 +89,7 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
+    """Tests if training modifies model weights."""
     model = BoringModel()
     accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=True)
     trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True)
@@ -97,6 +102,7 @@ def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
+    """Tests if model checkpoint can be loaded."""
     model = BoringModel()
     accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=True)
     trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True)
@@ -109,6 +115,7 @@ def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_predict_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
+    """Tests if trained model has high accuracy on test set."""
     config = {
         "layer_1": 32,
         "layer_2": 32,

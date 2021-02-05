@@ -1,15 +1,20 @@
+from typing import Optional, List
+
 import torch
-import pytorch_lightning as pl
-from pytorch_lightning import LightningModule
 from torch.utils.data import Dataset
+
+import pytorch_lightning as pl
+from pytorch_lightning import LightningModule, Callback, Trainer, \
+    LightningDataModule
+from pytorch_lightning.accelerators import Accelerator
 
 
 class RandomDataset(Dataset):
-    def __init__(self, size, length):
+    def __init__(self, size: int, length: int):
         self.len = length
         self.data = torch.randn(length, size)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         return self.data[index]
 
     def __len__(self):
@@ -87,13 +92,14 @@ class BoringModel(LightningModule):
 
 
 def get_trainer(dir,
-                accelerator,
-                use_gpu=False,
-                max_epochs=1,
-                limit_train_batches=10,
-                limit_val_batches=10,
-                progress_bar_refresh_rate=0,
-                callbacks=None):
+                accelerator: Accelerator,
+                use_gpu: bool = False,
+                max_epochs: int = 1,
+                limit_train_batches: int = 10,
+                limit_val_batches: int = 10,
+                progress_bar_refresh_rate: int = 0,
+                callbacks: Optional[List[Callback]] = None) -> Trainer:
+    """Returns a Pytorch Lightning Trainer with the provided arguments."""
     callbacks = [] if not callbacks else callbacks
     trainer = pl.Trainer(
         default_root_dir=dir,
@@ -108,7 +114,8 @@ def get_trainer(dir,
     return trainer
 
 
-def train_test(trainer, model):
+def train_test(trainer: Trainer, model: LightningModule):
+    """Checks if training the provided model updates its weights."""
     initial_values = torch.tensor(
         [torch.sum(torch.abs(x)) for x in model.parameters()])
     result = trainer.fit(model)
@@ -119,14 +126,17 @@ def train_test(trainer, model):
     assert torch.norm(initial_values - post_train_values) > 0.1
 
 
-def load_test(trainer, model):
+def load_test(trainer: Trainer, model: LightningModule):
+    """Checks if the model checkpoint can be loaded."""
     trainer.fit(model)
     trained_model = BoringModel.load_from_checkpoint(
         trainer.checkpoint_callback.best_model_path)
     assert trained_model is not None, "loading model failed"
 
 
-def predict_test(trainer, model, dm):
+def predict_test(trainer: Trainer, model: LightningModule,
+                 dm: LightningDataModule):
+    """Checks if the trained model has high accuracy on the test set."""
     trainer.fit(model, datamodule=dm)
     dm.setup(stage="test")
     test_loader = dm.test_dataloader()
