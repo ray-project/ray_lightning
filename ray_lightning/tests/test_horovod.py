@@ -19,6 +19,7 @@ from ray_lightning import HorovodRayAccelerator
 from ray_lightning.tests.utils import get_trainer, BoringModel, \
     train_test, load_test, predict_test
 
+
 def _nccl_available():
     if not HOROVOD_AVAILABLE:
         return False

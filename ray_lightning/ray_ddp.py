@@ -19,21 +19,63 @@ class RayExecutor:
     """A class to execute any arbitrary function remotely."""
 
     def set_env_var(self, key: str, value: str):
+        """Set an environment variable with the provided values."""
         os.environ[key] = value
 
     def get_node_ip(self):
+        """Returns the IP address of the node that this Ray actor is on."""
         return ray.services.get_node_ip_address()
 
     def execute(self, fn: Callable, *args, **kwargs):
+        """Execute the provided function and return the result."""
         return fn(*args, **kwargs)
 
 
 class RayAccelerator(DDPSpawnAccelerator):
-    """Pytorch Lightning DDP Accelerator using Ray. Similar to DDP_Spawn
-    accelerator except uses Ray to launch (distributed) processes instead of
-    multiprocessing."""
+    """Pytorch Lightning Accelerator for Horovod training on a Ray cluster.
 
-    def __init__(self, num_workers=1, num_cpus_per_worker=1, use_gpu=False):
+    This accelerator is used to manage distributed training on a Ray cluster
+    via the Horovod training framework. Internally, the specified number of
+    Ray actors are launched in the cluster and are configured as part of the
+    Horovod ring. The Pytorch Lightning trainer is instantiated on the
+    driver and sent to each of these training workers where training is
+    executed. The distributed training protocol is handled by Horovod.
+
+    Each training worker is configured to reserve 1 CPU and if 1 GPU if
+    ``use_gpu`` is set to ``True``.
+
+    If using this accelerator, you should run your code like a normal Python
+    script: ``python train.py``, and not with ``horovodrun``.
+
+    Args:
+        num_hosts (int): The number of nodes/machines to execute the job on.
+        num_slots (int): Number of workers to be placed on each machine.
+        use_gpu (bool): Whether to use GPU for allocation. For GPU to be
+            used, you must also set the ``gpus`` arg in your Pytorch Lightning
+            Trainer to a value > 0.
+
+    Example:
+
+        .. code_block:: python
+
+            import pytorch_lightning as ptl
+            from ray.util.lightning_accelerators import HorovodRayAccelerator
+
+            ptl_model = MNISTClassifier(...)
+            # 2 nodes, 4 workers per node, each using 1 CPU and 1 GPU.
+            accelerator = HorovodRayAccelerator(num_hosts=2, num_slots=4,
+                use_gpu=True).
+
+            # If using GPUs, set the ``gpus`` arg to a value > 0.
+            # The actual number of GPUs is determined by ``num_slots``.
+            trainer = pl.Trainer(..., gpus=1, accelerator=accelerator).
+            trainer.fit(ptl_model).
+
+    """
+
+    def __init__(self, num_workers: int = 1, num_cpus_per_worker: int = 1, \
+                                                              use_gpu:
+                                                              bool = False):
         super().__init__(trainer=None, nprocs=0)
         self.nickname = "ddp_ray"
         self.num_workers = num_workers

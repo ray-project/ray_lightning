@@ -9,7 +9,6 @@ from pytorch_lightning.callbacks import EarlyStopping
 import ray
 from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 
-
 from ray_lightning import RayAccelerator
 from ray_lightning.tests.utils import get_trainer, train_test, \
     load_test, predict_test, BoringModel
