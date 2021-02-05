@@ -1,3 +1,5 @@
+from typing import Callable
+
 import os
 from collections import defaultdict
 
@@ -16,13 +18,13 @@ from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 class RayExecutor:
     """A class to execute any arbitrary function remotely."""
 
-    def set_env_var(self, key, value):
+    def set_env_var(self, key: str, value: str):
         os.environ[key] = value
 
     def get_node_ip(self):
         return ray.services.get_node_ip_address()
 
-    def execute(self, fn, *args, **kwargs):
+    def execute(self, fn: Callable, *args, **kwargs):
         return fn(*args, **kwargs)
 
 
