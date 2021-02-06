@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Dict
 
 import os
 from collections import defaultdict
@@ -6,7 +6,7 @@ from collections import defaultdict
 import ray
 import torch
 from pytorch_lightning.accelerators import DDPSpawnAccelerator
-from pytorch_lightning import _logger as log
+from pytorch_lightning import _logger as log, LightningModule, Trainer
 from ray.util.sgd.torch.utils import setup_address
 
 from ray_lightning.session import init_session
@@ -32,24 +32,26 @@ class RayExecutor:
 
 
 class RayAccelerator(DDPSpawnAccelerator):
-    """Pytorch Lightning Accelerator for Horovod training on a Ray cluster.
+    """Pytorch Lightning accelerator for DDP training on a Ray cluster.
 
-    This accelerator is used to manage distributed training on a Ray cluster
-    via the Horovod training framework. Internally, the specified number of
-    Ray actors are launched in the cluster and are configured as part of the
-    Horovod ring. The Pytorch Lightning trainer is instantiated on the
-    driver and sent to each of these training workers where training is
-    executed. The distributed training protocol is handled by Horovod.
+    This accelerator is used to manage distributed training using DDP and
+    Ray for process launching. Internally, the specified number of
+    Ray actors are launched in the cluster and are registered as part of a
+    Pytorch DDP process group. The Pytorch Lightning trainer is instantiated
+    on the driver and sent to each of these training workers where training is
+    executed. The distributed training protocol is handled by Pytorch DDP.
 
-    Each training worker is configured to reserve 1 CPU and if 1 GPU if
-    ``use_gpu`` is set to ``True``.
+    Each training worker is configured to reserve ``num_cpus_per_worker``
+    CPUS and 1 GPU if ``use_gpu`` is set to ``True``.
 
     If using this accelerator, you should run your code like a normal Python
-    script: ``python train.py``, and not with ``horovodrun``.
+    script: ``python train.py``, and only on the head node if running in a
+    distributed Ray cluster. There is no need to run this script on every
+    single node.
 
     Args:
-        num_hosts (int): The number of nodes/machines to execute the job on.
-        num_slots (int): Number of workers to be placed on each machine.
+        num_workers (int): Number of training workers to use.
+        num_cpus_per_worker (int): Number of CPUs per worker.
         use_gpu (bool): Whether to use GPU for allocation. For GPU to be
             used, you must also set the ``gpus`` arg in your Pytorch Lightning
             Trainer to a value > 0.
@@ -59,15 +61,14 @@ class RayAccelerator(DDPSpawnAccelerator):
         .. code_block:: python
 
             import pytorch_lightning as ptl
-            from ray.util.lightning_accelerators import HorovodRayAccelerator
+            from rray_lightning import RayAccelerator
 
             ptl_model = MNISTClassifier(...)
-            # 2 nodes, 4 workers per node, each using 1 CPU and 1 GPU.
-            accelerator = HorovodRayAccelerator(num_hosts=2, num_slots=4,
+            accelerator = RayAccelerator(num_workers=4, cpus_per_worker=1,
                 use_gpu=True).
 
             # If using GPUs, set the ``gpus`` arg to a value > 0.
-            # The actual number of GPUs is determined by ``num_slots``.
+            # The actual number of GPUs is determined by ``num_workers``.
             trainer = pl.Trainer(..., gpus=1, accelerator=accelerator).
             trainer.fit(ptl_model).
 
@@ -84,11 +85,13 @@ class RayAccelerator(DDPSpawnAccelerator):
         self.workers = []
 
     def _create_worker(self):
+        """Creates Ray actor."""
         return RayExecutor.options(
             num_cpus=self.num_cpus_per_worker,
             num_gpus=int(self.use_gpu)).remote()
 
-    def setup(self, model):
+    def setup(self, model: LightningModule):
+        """Sets up PTL Trainer and creates the Ray actors."""
         # Check that trainer attribute has been set when this method is called.
         assert hasattr(self, "trainer") and self.trainer is not None
         self.trainer.use_ddp = True
@@ -96,6 +99,7 @@ class RayAccelerator(DDPSpawnAccelerator):
         self.workers = [self._create_worker() for _ in range(self.num_workers)]
 
     def teardown(self):
+        """Shutdown the DDP process group and all the Ray actors. """
         def shutdown_remote():
             torch.distributed.destroy_process_group()
             if torch.cuda.is_available():
@@ -116,7 +120,8 @@ class RayAccelerator(DDPSpawnAccelerator):
         d["workers"] = []
         self.__dict__.update(d)
 
-    def get_local_ranks(self):
+    def get_local_ranks(self) -> Dict[int, int]:
+        """Creates a mapping of global ranks to local ranks."""
         # Get the local ranks for all the workers and store as a dict.
         # First get the IP address of each remote worker.
         node_ips = ray.get([w.get_node_ip.remote() for w in self.workers])
@@ -129,6 +134,14 @@ class RayAccelerator(DDPSpawnAccelerator):
         return global_to_local
 
     def train(self):
+        """Main training loop.
+
+        Sets up the torch.distributed process group for each training
+        worker. Then trigger remote training via ``train_remote`` on each
+        worker. If using with Ray Tune, create a communication queue to
+        revieve intermediate results, and process those results. Finally
+        retrieve the training results from the rank 0 worker and return."""
+
         if "PL_GLOBAL_SEED" in os.environ:
             seed = os.environ["PL_GLOBAL_SEED"]
             ray.get([
@@ -166,9 +179,17 @@ class RayAccelerator(DDPSpawnAccelerator):
         if self.trainer.checkpoint_callback:
             self.trainer.checkpoint_callback.best_model_path = best_path
 
+        if queue:
+            # Shutdown the queue.
+            queue.shutdown()
+
+        return results
+
     # All methods below are only executed in remote Ray workers.
 
-    def train_remote(self, trainer, global_rank, queue=None):
+    def train_remote(self, trainer: Trainer, global_rank: int, queue:
+    Queue = None):
+        """Training function to be executed on each remote worker."""
         assert isinstance(self, RayAccelerator)
         # This method should be executed remotely in each worker.
         self.trainer = trainer
@@ -191,6 +212,7 @@ class RayAccelerator(DDPSpawnAccelerator):
                             global_rank: int,
                             world_size: int,
                             is_slurm_managing_tasks: bool = True) -> None:
+        """Process group creation to be executed on each remote worker."""
         torch_backend = "nccl" if self.use_gpu else "gloo"
 
         if not torch.distributed.is_initialized():
@@ -203,12 +225,14 @@ class RayAccelerator(DDPSpawnAccelerator):
                 world_size=world_size,
             )
 
-    def set_world_ranks(self, process_idx):
+    def set_world_ranks(self, process_idx: int):
+        """Set the appropriate rank attribues for the trainer."""
         self.trainer.local_rank = self.global_to_local[self.global_rank]
         self.trainer.global_rank = self.global_rank
         self.trainer.world_size = self.num_workers
 
-    def init_device(self, process_idx, is_master):
+    def init_device(self, process_idx: int, is_master: bool):
+        """Sets the correct GPU device for the trainer and torch."""
         if self.use_gpu:
             # Ray sets CUDA_VISIBLE_DEVICES already.
             gpu_idx = 0
@@ -218,12 +242,14 @@ class RayAccelerator(DDPSpawnAccelerator):
             pass
 
     def get_device_ids(self):
+        """Get the GPU device id of this worker, or None if on CPU only."""
         if self.use_gpu:
             return super(RayAccelerator, self).get_device_ids()
         else:
             return None
 
-    def model_to_device(self, model):
+    def model_to_device(self, model: LightningModule):
+        """Moves the model to the appropriate device."""
         if self.use_gpu:
             model.cuda(self.trainer.root_gpu)
         else:
@@ -231,6 +257,7 @@ class RayAccelerator(DDPSpawnAccelerator):
 
     def transfer_distrib_spawn_state_on_fit_end(self, model, mp_queue,
                                                 results):
+        """Sets the training output as attributes so it can be retrieved."""
         # Save training results as attributes.
         self.results = results
         self.model_state_dict = model.state_dict()
@@ -241,6 +268,7 @@ class RayAccelerator(DDPSpawnAccelerator):
 
     @property
     def distributed_sampler_kwargs(self):
+        """Returns the args to use for torch.data.DistributedSampler."""
         distributed_sampler_kwargs = dict(
             num_replicas=self.num_workers, rank=self.global_rank)
         if self.ddp_plugin is not None:
@@ -252,4 +280,5 @@ class RayAccelerator(DDPSpawnAccelerator):
 
     @property
     def require_distributed_sampler(self):
+        """This accelerator requires a distributed sampler."""
         return True

@@ -3,7 +3,7 @@ from pytorch_lightning.accelerators.horovod_accelerator import \
     HorovodAccelerator
 
 from ray_lightning.session import init_session
-from ray_lightning.util import process_results, Queue
+from ray_lightning.util import process_results, Queue, Unavailable
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 try:
@@ -21,14 +21,17 @@ def get_executable_cls():
     return None
 
 
-class CustomRayExecutor(RayExecutor):
-    def run_async(self, fn, args=None, kwargs=None):
-        args = args or []
-        kwargs = kwargs or {}
-        return [
-            worker.execute.remote(lambda w: fn(*args, **kwargs))
-            for worker in self.workers
-        ]
+if HOROVOD_AVAILABLE:
+    class CustomRayExecutor(RayExecutor):
+        def run_async(self, fn, args=None, kwargs=None):
+            args = args or []
+            kwargs = kwargs or {}
+            return [
+                worker.execute.remote(lambda w: fn(*args, **kwargs))
+                for worker in self.workers
+            ]
+else:
+    CustomRayExecutor = Unavailable
 
 
 class HorovodRayAccelerator(HorovodAccelerator):

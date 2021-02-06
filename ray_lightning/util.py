@@ -5,6 +5,12 @@ from typing import Optional, Dict, Callable
 import ray
 from ray.util.queue import Queue as RayQueue, Empty, Full
 
+class Unavailable:
+    """No object should be instance of this class"""
+
+    def __init__(self):
+        raise RuntimeError("This class should never be instantiated.")
+
 # Remove after Ray 1.2 release.
 if getattr(RayQueue, "shutdown", None) is not None:
     from ray.util.queue import _QueueActor
