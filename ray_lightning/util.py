@@ -8,7 +8,7 @@ from ray.util.queue import Queue as RayQueue, Empty, Full
 class Unavailable:
     """No object should be instance of this class"""
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         raise RuntimeError("This class should never be instantiated.")
 
 # Remove after Ray 1.2 release.

@@ -1,6 +1,8 @@
 import ray
+from pytorch_lightning import LightningModule
 from pytorch_lightning.accelerators.horovod_accelerator import \
     HorovodAccelerator
+from ray import ObjectRef
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Queue, Unavailable
@@ -78,9 +80,9 @@ class HorovodRayAccelerator(HorovodAccelerator):
 
     def __init__(self,
                  *args,
-                 num_hosts=1,
-                 num_slots=1,
-                 use_gpu=False,
+                 num_hosts: int = 1,
+                 num_slots: int = 1,
+                 use_gpu: bool = False,
                  **kwargs):
         super().__init__(*args, trainer=None, **kwargs)
         self.nickname = "horovod_ray"
@@ -98,7 +100,8 @@ class HorovodRayAccelerator(HorovodAccelerator):
     def __setstate__(self, d):
         self.__dict__.update(d)
 
-    def setup(self, model):
+    def setup(self, model: LightningModule):
+        """Sets up the trainer and creates the RayExecutor object."""
         self.trainer.use_horovod = True
         settings = CustomRayExecutor.create_settings(timeout_s=30)
         self.executor = CustomRayExecutor(
@@ -110,6 +113,12 @@ class HorovodRayAccelerator(HorovodAccelerator):
         self.executor.start(executable_cls=get_executable_cls())
 
     def train(self):
+        """Main training loop.
+
+        Trigger remote training via ``train_remote`` on each
+        worker. If using with Ray Tune, create a communication queue to
+        revieve intermediate results, and process those results. Finally
+        retrieve the training results from the rank 0 worker and return."""
         trainer = self.trainer
         trainer_ref = ray.put(self.trainer)
         self.trainer = None
@@ -133,7 +142,8 @@ class HorovodRayAccelerator(HorovodAccelerator):
 
         return results
 
-    def train_remote(self, trainer_ref, queue=None):
+    def train_remote(self, trainer_ref: ObjectRef, queue: Queue = None):
+        """Training function to be executed on each remote worker."""
         self.trainer = ray.get(trainer_ref)
         hvd.init()
         if queue is not None:
@@ -158,4 +168,5 @@ class HorovodRayAccelerator(HorovodAccelerator):
         return results, model.state_dict(), best_model_path
 
     def teardown(self):
+        """Shuts down the RayExecutor."""
         self.executor.shutdown()

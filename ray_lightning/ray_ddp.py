@@ -188,7 +188,7 @@ class RayAccelerator(DDPSpawnAccelerator):
     # All methods below are only executed in remote Ray workers.
 
     def train_remote(self, trainer: Trainer, global_rank: int, queue:
-    Queue = None):
+            Queue = None):
         """Training function to be executed on each remote worker."""
         assert isinstance(self, RayAccelerator)
         # This method should be executed remotely in each worker.
