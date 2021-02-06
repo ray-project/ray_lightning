@@ -15,9 +15,10 @@ class Unavailable:
 if getattr(RayQueue, "shutdown", None) is not None:
     from ray.util.queue import _QueueActor
 else:
-    # Have to copy the class here so that we can subclass this for mocking.
-    # If we have the @ray.remote decorator, then we can't subclass it.
+    # On Ray <v1.2, we have to create our own class so we can create it with
+    # custom resources.
     class _QueueActor:
+        """A class with basic Queue functionality."""
         def __init__(self, maxsize):
             self.maxsize = maxsize
             self.queue = asyncio.Queue(self.maxsize)
@@ -82,7 +83,7 @@ class Queue(RayQueue):
 
 
 def _handle_queue(queue):
-    # Process results from Queue.
+    """Process results from the queue."""
     while not queue.empty():
         (actor_rank, item) = queue.get()
         if isinstance(item, Callable):
@@ -90,6 +91,7 @@ def _handle_queue(queue):
 
 
 def process_results(training_result_futures, queue):
+    """Process results from the queue, and return results from the futures."""
     not_ready = training_result_futures
     while not_ready:
         if queue:
