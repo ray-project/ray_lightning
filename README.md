@@ -30,6 +30,10 @@ trainer = pl.Trainer(..., gpus=1, accelerator=accelerator)
 trainer.fit(ptl_model)
 ```
 
+Because Ray is used to launch processes, instead of the same script being called multiple times, you CAN use this accelerator even in cases when you cannot use the standard `DDPAccelerator` such as 
+- Jupyter Notebooks, Google Colab, Kaggle
+- Calling `fit` or `test` multiple times in the same script
+
 ## Horovod Accelerator on Ray
 Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayAccelerator` instead.
 ```
