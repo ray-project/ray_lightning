@@ -69,12 +69,12 @@ class HorovodRayAccelerator(HorovodAccelerator):
             ptl_model = MNISTClassifier(...)
             # 2 nodes, 4 workers per node, each using 1 CPU and 1 GPU.
             accelerator = HorovodRayAccelerator(num_hosts=2, num_slots=4,
-                use_gpu=True).
+                use_gpu=True)
 
             # If using GPUs, set the ``gpus`` arg to a value > 0.
             # The actual number of GPUs is determined by ``num_slots``.
-            trainer = pl.Trainer(..., gpus=1, accelerator=accelerator).
-            trainer.fit(ptl_model).
+            trainer = pl.Trainer(..., gpus=1, accelerator=accelerator)
+            trainer.fit(ptl_model)
 
     """
 

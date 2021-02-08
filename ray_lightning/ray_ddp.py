@@ -61,16 +61,16 @@ class RayAccelerator(DDPSpawnAccelerator):
         .. code_block:: python
 
             import pytorch_lightning as ptl
-            from rray_lightning import RayAccelerator
+            from ray_lightning import RayAccelerator
 
             ptl_model = MNISTClassifier(...)
             accelerator = RayAccelerator(num_workers=4, cpus_per_worker=1,
-                use_gpu=True).
+                use_gpu=True)
 
             # If using GPUs, set the ``gpus`` arg to a value > 0.
             # The actual number of GPUs is determined by ``num_workers``.
-            trainer = pl.Trainer(..., gpus=1, accelerator=accelerator).
-            trainer.fit(ptl_model).
+            trainer = pl.Trainer(..., gpus=1, accelerator=accelerator)
+            trainer.fit(ptl_model)
 
     """
 
