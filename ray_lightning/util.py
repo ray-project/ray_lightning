@@ -22,7 +22,6 @@ else:
     class _QueueActor:
         """A class with basic Queue functionality."""
 
-
         def __init__(self, maxsize):
             self.maxsize = maxsize
             self.queue = asyncio.Queue(self.maxsize)
