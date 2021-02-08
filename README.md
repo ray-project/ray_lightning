@@ -16,9 +16,10 @@ You can install the master branch of ray_lightning_accelerators like so:
 The `RayAccelerator` provides Distributed Data Parallel training on a Ray cluster. PyTorch DDP is used as the distributed training protocol, and Ray is used to launch and manage the training worker processes.
 
 Here is a simplified example:
-```
+
+```python
 import pytorch_lightning as ptl
-from rray_lightning import RayAccelerator
+from ray_lightning import RayAccelerator
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
@@ -36,7 +37,8 @@ Because Ray is used to launch processes, instead of the same script being called
 
 ## Horovod Accelerator on Ray
 Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayAccelerator` instead.
-```
+
+```python
 import pytorch_lightning as ptl
 from ray.util.lightning_accelerators import HorovodRayAccelerator
 
@@ -51,6 +53,7 @@ accelerator = HorovodRayAccelerator(num_hosts=2, num_slots=4, use_gpu=True)
 trainer = pl.Trainer(..., gpus=1, accelerator=accelerator)
 trainer.fit(ptl_model)
 ```
+
 ## Multi-node Distributed Training
 Using the same examples above, you can run distributed training on a multi-node cluster with just 2 simple steps.
 1) [Use Ray's cluster launcher](https://docs.ray.io/en/master/cluster/launcher.html) to start a Ray cluster- `ray up my_cluster_config.yaml`.
@@ -61,7 +64,8 @@ You no longer have to set environment variables or configurations and run your t
 `ray_lightning` also integrates with Ray Tune to provide distributed hyperparameter tuning for your distributed model training. You can run multiple PyTorch Lightning training runs in parallel, each with a different hyperparameter configuration, and each training run parallelized by itself. All you have to do is move your training code to a function, pass the function to tune.run, and make sure to add the appropriate callback (Either `TuneReportCallback` or `TuneReportCheckpointCallback`) to your PyTorch Lightning Trainer.
 
 Example using `ray_lightning` with Tune:
-```
+
+```python
 def train_mnist(config):
     
     # Create your PTL model.
@@ -78,11 +82,11 @@ def train_mnist(config):
     trainer.fit(model)
     
 config = {
-        "layer_1": tune.choice([32, 64, 128]),
-        "layer_2": tune.choice([64, 128, 256]),
-        "lr": tune.loguniform(1e-4, 1e-1),
-        "batch_size": tune.choice([32, 64, 128]),
-    }
+    "layer_1": tune.choice([32, 64, 128]),
+    "layer_2": tune.choice([64, 128, 256]),
+    "lr": tune.loguniform(1e-4, 1e-1),
+    "batch_size": tune.choice([32, 64, 128]),
+}
 
 # Make sure to specify how many actors each training run will create via the "extra_cpu" field.
 analysis = tune.run(
