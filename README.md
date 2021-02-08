@@ -9,6 +9,7 @@ This library also comes with an integration with [Ray Tune](tune.io) for distrib
 
 ## Installation
 You can install the master branch of ray_lightning_accelerators like so:
+
 `pip install git+https://github.com/ray-project/ray_lightning_accelerators#ray_lightning`
 
 ## PyTorch Distributed Data Parallel Accelerator on Ray
