@@ -111,8 +111,8 @@ if TUNE_INSTALLED:
             ``TuneReportCheckpointCallback`` instead.
 
             Args:
-                filename (str): Filename of the checkpoint within the checkpoint
-                    directory. Defaults to "checkpoint".
+                filename (str): Filename of the checkpoint within the
+                    checkpoint directory. Defaults to "checkpoint".
                 on (str|list): When to trigger checkpoint creations.
                     Must be one of the PyTorch Lightning event hooks (less
                     the ``on_``), e.g. "batch_start", or "train_end".

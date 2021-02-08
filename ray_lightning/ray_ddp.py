@@ -74,9 +74,10 @@ class RayAccelerator(DDPSpawnAccelerator):
 
     """
 
-    def __init__(self, num_workers: int = 1, num_cpus_per_worker: int = 1, \
-                                                              use_gpu:
-                                                              bool = False):
+    def __init__(self,
+                 num_workers: int = 1,
+                 num_cpus_per_worker: int = 1,
+                 use_gpu: bool = False):
         super().__init__(trainer=None, nprocs=0)
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
