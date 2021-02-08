@@ -5,6 +5,7 @@ from typing import Optional, Dict, Callable
 import ray
 from ray.util.queue import Queue as RayQueue, Empty, Full
 
+
 class Unavailable:
     """No object should be instance of this class"""
 
@@ -19,6 +20,7 @@ else:
     # custom resources.
     class _QueueActor:
         """A class with basic Queue functionality."""
+        
         def __init__(self, maxsize):
             self.maxsize = maxsize
             self.queue = asyncio.Queue(self.maxsize)

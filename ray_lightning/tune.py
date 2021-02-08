@@ -64,6 +64,7 @@ if TUNE_INSTALLED:
                         on="validation_end")])
 
             """
+
         def __init__(
                 self,
                 metrics: Union[None, str, List[str], Dict[str, str]] = None,
@@ -117,6 +118,7 @@ if TUNE_INSTALLED:
                     the ``on_``), e.g. "batch_start", or "train_end".
                     Defaults to "validation_end".
         """
+
         def __init__(self,
                      filename: str = "checkpoint",
                      on: Union[str, List[str]] = "validation_end"):
@@ -182,6 +184,7 @@ if TUNE_INSTALLED:
 
 
             """
+
         def __init__(
                 self,
                 metrics: Union[None, str, List[str], Dict[str, str]] = None,

@@ -24,6 +24,7 @@ def get_executable_cls():
 
 
 if HOROVOD_AVAILABLE:
+
     class CustomRayExecutor(RayExecutor):
         def run_async(self, fn, args=None, kwargs=None):
             args = args or []

@@ -100,6 +100,7 @@ class RayAccelerator(DDPSpawnAccelerator):
 
     def teardown(self):
         """Shutdown the DDP process group and all the Ray actors. """
+
         def shutdown_remote():
             torch.distributed.destroy_process_group()
             if torch.cuda.is_available():
@@ -187,8 +188,10 @@ class RayAccelerator(DDPSpawnAccelerator):
 
     # All methods below are only executed in remote Ray workers.
 
-    def train_remote(self, trainer: Trainer, global_rank: int, queue:
-            Queue = None):
+    def train_remote(self,
+                     trainer: Trainer,
+                     global_rank: int,
+                     queue: Queue = None):
         """Training function to be executed on each remote worker."""
         assert isinstance(self, RayAccelerator)
         # This method should be executed remotely in each worker.
