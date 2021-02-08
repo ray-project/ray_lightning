@@ -12,6 +12,7 @@ class Unavailable:
     def __init__(self, *args, **kwargs):
         raise RuntimeError("This class should never be instantiated.")
 
+
 # Remove after Ray 1.2 release.
 if getattr(RayQueue, "shutdown", None) is not None:
     from ray.util.queue import _QueueActor
@@ -20,7 +21,8 @@ else:
     # custom resources.
     class _QueueActor:
         """A class with basic Queue functionality."""
-        
+
+
         def __init__(self, maxsize):
             self.maxsize = maxsize
             self.queue = asyncio.Queue(self.maxsize)
