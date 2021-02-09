@@ -55,6 +55,8 @@ class RayAccelerator(DDPSpawnAccelerator):
         use_gpu (bool): Whether to use GPU for allocation. For GPU to be
             used, you must also set the ``gpus`` arg in your Pytorch Lightning
             Trainer to a value > 0.
+        init_hook (Callable): A function to run on each worker
+            upon instantiation.
 
     Example:
 
