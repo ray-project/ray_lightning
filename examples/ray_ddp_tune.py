@@ -12,12 +12,6 @@ from ray_lightning.tune import TuneReportCallback
 from ray_lightning import RayAccelerator
 
 
-def download_data():
-    from filelock import FileLock
-    with FileLock("./data"):
-        dm = MNISTDataModule(data_dir=data_dir, num_workers=1, batch_size=1)
-        dm.prepare_data()
-    return
 
 
 def train_mnist(config,
@@ -26,6 +20,11 @@ def train_mnist(config,
                 num_workers=1,
                 use_gpu=False,
                 callbacks=None):
+    def download_data():
+        from filelock import FileLock
+        with FileLock(os.path.join(data_dir, ".lock")):
+            MNISTDataModule(data_dir=data_dir).prepare_data()
+
     model = LightningMNISTClassifier(config, data_dir)
 
     callbacks = callbacks or []
