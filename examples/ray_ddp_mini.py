@@ -2,6 +2,9 @@
 import os
 import tempfile
 
+from pl_bolts.datamodules.mnist_datamodule import MNISTDataModule
+
+
 import pytorch_lightning as pl
 import torch
 from torch.utils.data import random_split, DataLoader
@@ -15,52 +18,13 @@ from ray_lightning.tune import TuneReportCallback
 from ray_lightning import RayAccelerator
 
 
-class MNISTClassifier(LightningMNISTClassifier):
-    def prepare_data(self):
-        self.dataset = MNIST(
-            self.data_dir,
-            train=True,
-            download=True,
-            transform=transforms.ToTensor())
-
-    def train_dataloader(self):
-        dataset = self.dataset
-        train_length = len(dataset)
-        dataset_train, _ = random_split(
-            dataset, [train_length - 5000, 5000],
-            generator=torch.Generator().manual_seed(0))
-        loader = DataLoader(
-            dataset_train,
-            batch_size=self.batch_size,
-            num_workers=1,
-            drop_last=True,
-            pin_memory=True,
-        )
-        return loader
-
-    def val_dataloader(self):
-        dataset = self.dataset
-        train_length = len(dataset)
-        _, dataset_val = random_split(
-            dataset, [train_length - 5000, 5000],
-            generator=torch.Generator().manual_seed(0))
-        loader = DataLoader(
-            dataset_val,
-            batch_size=self.batch_size,
-            num_workers=1,
-            drop_last=True,
-            pin_memory=True,
-        )
-        return loader
-
-
 def train_mnist(config,
                 data_dir=None,
                 num_epochs=10,
                 num_workers=1,
                 use_gpu=False,
                 callbacks=None):
-    model = MNISTClassifier(config, data_dir)
+    model = LightningMNISTClassifier(config, data_dir)
 
     callbacks = callbacks or []
 
@@ -68,8 +32,11 @@ def train_mnist(config,
         max_epochs=num_epochs,
         gpus=int(use_gpu),
         callbacks=callbacks,
+        progress_bar_refresh_rate=0,
         accelerator=RayAccelerator(num_workers=num_workers, use_gpu=use_gpu))
-    trainer.fit(model)
+    dm = MNISTDataModule(
+        data_dir=data_dir, num_workers=1, batch_size=config["batch_size"])
+    trainer.fit(model, dm)
 
 
 def tune_mnist(data_dir,
@@ -165,7 +132,16 @@ if __name__ == "__main__":
         ray.init(address=args.address)
 
     data_dir = os.path.join(tempfile.gettempdir(), "mnist_data_")
-
+    @ray.remote
+    def map_download():
+        from filelock import FileLock
+        with FileLock("./data"):
+            dm = MNISTDataModule(
+                data_dir=data_dir, num_workers=1, batch_size=1)
+            dm.prepare_data()
+        return
+    ray.get([map_download.options(resources={NODE_ID: 1}).remote()
+        for NODE_ID in ray.cluster_resources() if "node:" in NODE_ID])
     if args.tune:
         tune_mnist(data_dir, num_samples, num_epochs, num_workers, use_gpu)
     else:
