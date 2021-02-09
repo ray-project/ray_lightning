@@ -95,7 +95,7 @@ class RayAccelerator(DDPSpawnAccelerator):
             num_cpus=self.num_cpus_per_worker,
             num_gpus=int(self.use_gpu)).remote()
         if self.init_hook:
-            worker.execute.remote(self.init_hook)
+            ray.get(worker.execute.remote(self.init_hook))
         return worker
 
     def setup(self, model: LightningModule):
