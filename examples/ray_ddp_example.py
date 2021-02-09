@@ -121,30 +121,21 @@ if __name__ == "__main__":
         help="Number of training workers to use.",
         default=1)
     parser.add_argument(
-        "--use-gpu", action="store_true", help="Use GPU for "
-        "training.")
+        "--use-gpu", action="store_true", help="Use GPU for training.")
     parser.add_argument(
         "--tune",
         action="store_true",
-        help="Use Ray Tune "
-        "for "
-        "hyperparameter "
-        "tuning.")
+        help="Use Ray Tune for hyperparameter tuning.")
     parser.add_argument(
         "--num-samples",
         type=int,
         default=10,
-        help="Number "
-        "of "
-        "samples to tune.")
+        help="Number of samples to tune.")
     parser.add_argument(
         "--num-epochs",
         type=int,
         default=10,
-        help="Number "
-        "of "
-        "epochs "
-        "to train for.")
+        help="Number of epochs to train for.")
     parser.add_argument(
         "--smoke-test", action="store_true", help="Finish quickly for testing")
     parser.add_argument(
