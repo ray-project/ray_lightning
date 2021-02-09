@@ -55,6 +55,8 @@ class RayAccelerator(DDPSpawnAccelerator):
         use_gpu (bool): Whether to use GPU for allocation. For GPU to be
             used, you must also set the ``gpus`` arg in your Pytorch Lightning
             Trainer to a value > 0.
+        init_hook (Callable): A function to run on each worker
+            upon instantiation.
 
     Example:
 
@@ -77,19 +79,24 @@ class RayAccelerator(DDPSpawnAccelerator):
     def __init__(self,
                  num_workers: int = 1,
                  num_cpus_per_worker: int = 1,
-                 use_gpu: bool = False):
+                 use_gpu: bool = False,
+                 init_hook: Callable = None):
         super().__init__(trainer=None, nprocs=0)
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
         self.num_cpus_per_worker = num_cpus_per_worker
         self.use_gpu = use_gpu
         self.workers = []
+        self.init_hook = init_hook
 
     def _create_worker(self):
         """Creates Ray actor."""
-        return RayExecutor.options(
+        worker = RayExecutor.options(
             num_cpus=self.num_cpus_per_worker,
             num_gpus=int(self.use_gpu)).remote()
+        if self.init_hook:
+            ray.get(worker.execute.remote(self.init_hook))
+        return worker
 
     def setup(self, model: LightningModule):
         """Sets up PTL Trainer and creates the Ray actors."""
