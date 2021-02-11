@@ -103,3 +103,17 @@ analysis = tune.run(
         
 print("Best hyperparameters found were: ", analysis.best_config)
 ```
+## FAQ
+> RaySGD already has a [Pytorch Lightning integration](https://docs.ray.io/en/master/raysgd/raysgd_ptl.html). What's the difference between this integration and that?
+
+The key difference is which Trainer you'll be interacting with. In this library, you will still be using Pytorch Lightning's `Trainer`. You'll be able to leverage all the features of Pytorch Lightning, and Ray is used just as a backend to handle distributed training.
+
+With RaySGD's integration, you'll be converting your `LightningModule` to be RaySGD compatible, and will be interacting with RaySGD's `TorchTrainer`. RaySGD's `TorchTrainer` is not as feature rich nor as easy to use as Pytorch Lightning's `Trainer` (no built in support for logging, early stopping, etc.). However, it does have built in support for fault-tolerant and elastic training. If these are hard requirements for you, then RaySGD's integration with PTL might be a better option.
+
+> I see that `RayAccelerator` is based off of Pytorch Lightning's `DDPSpawnAccelerator`. However, doesn't the PTL team discourage the use of spawn?
+
+As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment-773539003), using a spawn approach instead of launch is not all that detrimental. The original factors for discouraging spawn were:
+1. not being able to use 'spawn' in a Jupyter or Colab notebook, and 
+2. not being able to use multiple workers for data loading. 
+
+Neither of these should be an issue with the `RayAccelerator` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this accelerator, your model does have to be serializable/pickleable.
