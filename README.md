@@ -112,4 +112,8 @@ With RaySGD's integration, you'll be converting your `LightningModule` to be Ray
 
 > I see that `RayAccelerator` is based off of Pytorch Lightning's `DDPSpawnAccelerator`. However, doesn't the PTL team discourage the use of spawn?
 
-As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment-773539003), using a spawn approach instead of launch is not all that detrimental. The main factors that PTL discussed were not being able to use this in a Jupyter or Colab notebook, and not being able to use multiple workers for data loading. Neither of these should be an issue with the `RayAccelerator`. The only thing to keep in mind is that when using this accelerator, your model does have to be serializable/pickleable.
+As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment-773539003), using a spawn approach instead of launch is not all that detrimental. The original factors for discouraging spawn were:
+1. not being able to use 'spawn' in a Jupyter or Colab notebook, and 
+2. not being able to use multiple workers for data loading. 
+
+Neither of these should be an issue with the `RayAccelerator` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this accelerator, your model does have to be serializable/pickleable.
