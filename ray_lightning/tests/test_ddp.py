@@ -41,6 +41,7 @@ def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
     assert all(actor["State"] == ray.gcs_utils.ActorTableData.DEAD
                for actor in list(ray.actors().values()))
 
+
 def test_distributed_sampler(tmpdir, ray_start_2_cpus):
     """Tests if distributed sampler is properly set."""
     model = BoringModel()
