@@ -16,6 +16,10 @@ from ray_lightning import HorovodRayAccelerator
 
 
 class MNISTClassifier(LightningMNISTClassifier):
+    def __init__(self, config, data_dir=None):
+        super().__init__(config, data_dir)
+        self.batch_size = config["batch_size"]
+
     def prepare_data(self):
         self.dataset = MNIST(
             self.data_dir,

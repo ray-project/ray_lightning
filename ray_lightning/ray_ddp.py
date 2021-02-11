@@ -94,8 +94,6 @@ class RayAccelerator(DDPSpawnAccelerator):
         worker = RayExecutor.options(
             num_cpus=self.num_cpus_per_worker,
             num_gpus=int(self.use_gpu)).remote()
-        if self.init_hook:
-            ray.get(worker.execute.remote(self.init_hook))
         return worker
 
     def setup(self, model: LightningModule):
@@ -105,6 +103,8 @@ class RayAccelerator(DDPSpawnAccelerator):
         self.trainer.use_ddp = True
         self.trainer.model = model
         self.workers = [self._create_worker() for _ in range(self.num_workers)]
+        if self.init_hook:
+            ray.get([w.execute.remote(self.init_hook) for w in self.workers])
 
     def teardown(self):
         """Shutdown the DDP process group and all the Ray actors. """

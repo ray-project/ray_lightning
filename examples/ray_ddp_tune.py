@@ -1,4 +1,4 @@
-"""Example using Pytorch Lightning with Pytorch DDP on Ray Accelerator."""
+"""Simple example using RayAccelerator and Ray Tune"""
 import os
 import tempfile
 
@@ -20,6 +20,7 @@ def train_mnist(config,
                 num_workers=1,
                 use_gpu=False,
                 callbacks=None):
+    # Make sure data is downloaded on all nodes.
     def download_data():
         from filelock import FileLock
         with FileLock(os.path.join(data_dir, ".lock")):
