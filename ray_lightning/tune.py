@@ -1,3 +1,4 @@
+import math
 from typing import Dict, List, Union
 
 import os
@@ -6,6 +7,7 @@ from pytorch_lightning.utilities.cloud_io import atomic_save
 from pytorch_lightning import Trainer, LightningModule
 
 from ray_lightning.session import put_queue, get_actor_rank
+from ray_lightning.util import Unavailable
 
 try:
     from ray import tune
@@ -20,6 +22,19 @@ except ImportError:
         return False
 
     TUNE_INSTALLED = False
+
+def get_tune_ddp_resources(num_workers: int = 1, cpus_per_worker: int = 1,
+                           use_gpu:
+bool = False) -> Dict[str, int]:
+    """Returns the resources dictionary to use for Ray Tune."""
+    resources = {}
+    resources["cpu"] = 1
+    resources["extra_cpu"] = num_workers * cpus_per_worker
+    if use_gpu:
+        total_worker_gpus = num_workers * 0.99
+        resources["extra_gpu"] = total_worker_gpus
+        resources["gpu"] = math.ceil(total_worker_gpus) - total_worker_gpus
+
 
 if TUNE_INSTALLED:
 
@@ -197,3 +212,8 @@ if TUNE_INSTALLED:
         def _handle(self, trainer: Trainer, pl_module: LightningModule):
             self._checkpoint._handle(trainer, pl_module)
             self._report._handle(trainer, pl_module)
+
+else:
+    # If Tune is not installed.
+    TuneReportCallback = Unavailable
+    TuneReportCheckpointCallback = Unavailable

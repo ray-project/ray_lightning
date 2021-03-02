@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Tuple
 
 import os
 from collections import defaultdict
@@ -164,6 +164,7 @@ class RayAccelerator(DDPSpawnAccelerator):
 
         self.global_to_local = self.get_local_ranks()
 
+        import pdb; pdb.set_trace()
         trainer = self.trainer
         assert trainer is not None
         trainer_ref = ray.put(trainer)

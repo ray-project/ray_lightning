@@ -132,3 +132,6 @@ def test_early_stop(tmpdir, ray_start_2_cpus):
     trained_model = BoringModel.load_from_checkpoint(
         trainer.checkpoint_callback.best_model_path)
     assert trained_model.val_epoch == 2, trained_model.val_epoch
+
+
+

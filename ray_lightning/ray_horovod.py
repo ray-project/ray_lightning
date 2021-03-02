@@ -85,6 +85,11 @@ class HorovodRayAccelerator(HorovodAccelerator):
                  num_slots: int = 1,
                  use_gpu: bool = False,
                  **kwargs):
+        if not HOROVOD_AVAILABLE:
+            raise RuntimeError("Horovod is not installed. Please intall it "
+                               "(https://horovod.readthedocs.io/en/stable/"
+                               "install_include.html"
+                               ") to use the HorovodRayAccelerator.")
         super().__init__(*args, trainer=None, **kwargs)
         self.nickname = "horovod_ray"
         self.num_hosts = num_hosts
