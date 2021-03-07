@@ -65,6 +65,7 @@ def test_load(tmpdir, ray_start_2_cpus, seed, num_slots):
     trainer = get_trainer(tmpdir, accelerator=accelerator)
     load_test(trainer, model)
 
+
 @pytest.mark.skip("Re-enable after upgrading to torch 1.8")
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
