@@ -85,6 +85,8 @@ class HorovodRayAccelerator(HorovodAccelerator):
                  num_slots: int = 1,
                  use_gpu: bool = False,
                  **kwargs):
+        if not ray.is_initialized():
+            ray.init()
         super().__init__(*args, trainer=None, **kwargs)
         self.nickname = "horovod_ray"
         self.num_hosts = num_hosts
