@@ -6,4 +6,5 @@ pytest
 pytorch-lightning==1.1.7
 pytorch-lightning-bolts==0.3.0
 ray[tune]
+torch==1.7.1
 torchvision
