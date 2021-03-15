@@ -81,6 +81,8 @@ class RayPlugin(DDPSpawnPlugin):
                  num_cpus_per_worker: int = 1,
                  use_gpu: bool = False,
                  init_hook: Callable = None):
+        if not ray.is_initialized():
+            ray.init()
         super().__init__(sync_batchnorm=False, parallel_devices=[])
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
