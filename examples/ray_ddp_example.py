@@ -12,7 +12,7 @@ import ray
 from ray import tune
 from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 from ray_lightning.tune import TuneReportCallback
-from ray_lightning import RayAccelerator
+from ray_lightning import RayPlugin
 
 
 class MNISTClassifier(LightningMNISTClassifier):
@@ -72,7 +72,7 @@ def train_mnist(config,
         max_epochs=num_epochs,
         gpus=int(use_gpu),
         callbacks=callbacks,
-        accelerator=RayAccelerator(num_workers=num_workers, use_gpu=use_gpu))
+        plugins=[RayPlugin(num_workers=num_workers, use_gpu=use_gpu)])
     trainer.fit(model)
 
 

@@ -184,6 +184,7 @@ class RayPlugin(DDPSpawnPlugin):
 
         results = process_results(futures, queue)
         results, best_path, state_dict = results[0]
+        self._results = results
         self._model = model
         self._model.load_state_dict(state_dict)
         if self.lightning_module.trainer.checkpoint_callback:
@@ -197,7 +198,7 @@ class RayPlugin(DDPSpawnPlugin):
         return results
 
     def post_dispatch(self):
-        pass
+        self.teardown()
 
     # All methods below are only executed in remote Ray workers.
 
@@ -209,7 +210,7 @@ class RayPlugin(DDPSpawnPlugin):
         assert isinstance(self, RayPlugin)
         # This method should be executed remotely in each worker.
         self._model = model
-        self.lightning_module.trainer.accelerator._training_type_plugin = self
+        self.lightning_module.trainer.accelerator.training_type_plugin = self
         self.global_rank = global_rank
 
         if queue is not None:
@@ -221,7 +222,7 @@ class RayPlugin(DDPSpawnPlugin):
         # We override that method and have it just set attributes.
         # Then we can just return those attributes here.
         super(RayPlugin, self).new_process(
-            process_idx=global_rank, trainer=model.trainer, mp_queue=None)
+            process_idx=global_rank, trainer=self.lightning_module.trainer, mp_queue=None)
         return self.results, self.best_model_path, self.model_state_dict
 
     def init_ddp_connection(self,
@@ -258,7 +259,7 @@ class RayPlugin(DDPSpawnPlugin):
     def transfer_distrib_spawn_state_on_fit_end(self, results):
         """Sets the training output as attributes so it can be retrieved."""
         # Save training results as attributes.
-        self.results = results
+        self._results = results
         self.model_state_dict = self.lightning_module.state_dict()
         best_model_path = None
         if self.lightning_module.trainer.checkpoint_callback is not None:
@@ -272,11 +273,6 @@ class RayPlugin(DDPSpawnPlugin):
         """Returns the args to use for torch.data.DistributedSampler."""
         distributed_sampler_kwargs = dict(
             num_replicas=self.num_workers, rank=self.global_rank)
-        if self.ddp_plugin is not None:
-            distributed_sampler_kwargs = \
-                self.ddp_plugin.distributed_sampler_kwargs(
-                    distributed_sampler_kwargs
-                )
         return distributed_sampler_kwargs
 
     @property
