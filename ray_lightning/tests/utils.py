@@ -7,7 +7,6 @@ from torch.utils.data import Dataset
 import pytorch_lightning as pl
 from pytorch_lightning import LightningModule, Callback, Trainer, \
     LightningDataModule
-from pytorch_lightning.accelerators import Accelerator
 
 
 class RandomDataset(Dataset):

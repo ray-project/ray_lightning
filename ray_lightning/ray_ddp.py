@@ -83,7 +83,7 @@ class RayPlugin(DDPSpawnPlugin):
                  init_hook: Callable = None):
         if not ray.is_initialized():
             ray.init()
-        super().__init__(sync_batchnorm=False, parallel_devices=[])
+        super().__init__(sync_batchnorm=None, parallel_devices=[])
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
         self.num_cpus_per_worker = num_cpus_per_worker
@@ -101,9 +101,6 @@ class RayPlugin(DDPSpawnPlugin):
     def setup(self, model: LightningModule):
         """Sets up PTL Trainer and creates the Ray actors."""
         # Check that trainer attribute has been set when this method is called.
-        # assert hasattr(self, "trainer") and self.trainer is not None
-        # self.trainer.use_ddp = True
-        # self.trainer.model = model
         self._model = model
         self.workers = [self._create_worker() for _ in range(self.num_workers)]
         if self.init_hook:
@@ -171,7 +168,6 @@ class RayPlugin(DDPSpawnPlugin):
         model_ref = ray.put(model)
         # Don't pickle the model when training remotely.
         self._model = None
-        trainer = None
 
         queue = None
         if TUNE_INSTALLED and is_session_enabled():
@@ -281,3 +277,7 @@ class RayPlugin(DDPSpawnPlugin):
     def require_distributed_sampler(self):
         """This plugin requires a distributed sampler."""
         return True
+
+    @property
+    def is_distributed(self):
+        return self.num_workers > 1
