@@ -111,8 +111,6 @@ def get_trainer(dir,
         progress_bar_refresh_rate=progress_bar_refresh_rate,
         checkpoint_callback=True,
         callbacks=callbacks,
-        num_processes=2,
-        accelerator="ddp_spawn",
         plugins=plugins)
     return trainer
 
