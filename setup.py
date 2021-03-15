@@ -9,4 +9,4 @@ setup(
     long_description="Custom Pytorch Lightning distributed accelerators for "
     "built on top of distributed computing framework Ray.",
     url="https://github.com/ray-project/ray_lightning_accelerators",
-    install_requires=["pytorch-lightning<1.2", "ray"])
+    install_requires=["pytorch-lightning", "ray"])
