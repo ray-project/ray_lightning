@@ -1,6 +1,7 @@
 from typing import Optional, List
 
 import torch
+from pytorch_lightning.plugins import Plugin
 from torch.utils.data import Dataset
 
 import pytorch_lightning as pl
@@ -92,7 +93,7 @@ class BoringModel(LightningModule):
 
 
 def get_trainer(dir,
-                accelerator: Accelerator,
+                plugins: List[Plugin],
                 use_gpu: bool = False,
                 max_epochs: int = 1,
                 limit_train_batches: int = 10,
@@ -110,7 +111,9 @@ def get_trainer(dir,
         progress_bar_refresh_rate=progress_bar_refresh_rate,
         checkpoint_callback=True,
         callbacks=callbacks,
-        accelerator=accelerator)
+        num_processes=2,
+        accelerator="ddp_spawn",
+        plugins=plugins)
     return trainer
 
 

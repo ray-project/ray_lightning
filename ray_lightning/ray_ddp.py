@@ -5,8 +5,8 @@ from collections import defaultdict
 
 import ray
 import torch
-from pytorch_lightning.accelerators import DDPSpawnAccelerator
-from pytorch_lightning import _logger as log, LightningModule, Trainer
+from pytorch_lightning.plugins import DDPSpawnPlugin
+from pytorch_lightning import _logger as log, LightningModule
 from ray.util.sgd.torch.utils import setup_address
 
 from ray_lightning.session import init_session
@@ -31,10 +31,10 @@ class RayExecutor:
         return fn(*args, **kwargs)
 
 
-class RayAccelerator(DDPSpawnAccelerator):
-    """Pytorch Lightning accelerator for DDP training on a Ray cluster.
+class RayPlugin(DDPSpawnPlugin):
+    """Pytorch Lightning plugikn for DDP training on a Ray cluster.
 
-    This accelerator is used to manage distributed training using DDP and
+    This plugin is used to manage distributed training using DDP and
     Ray for process launching. Internally, the specified number of
     Ray actors are launched in the cluster and are registered as part of a
     Pytorch DDP process group. The Pytorch Lightning trainer is instantiated
@@ -44,7 +44,7 @@ class RayAccelerator(DDPSpawnAccelerator):
     Each training worker is configured to reserve ``num_cpus_per_worker``
     CPUS and 1 GPU if ``use_gpu`` is set to ``True``.
 
-    If using this accelerator, you should run your code like a normal Python
+    If using this plugin, you should run your code like a normal Python
     script: ``python train.py``, and only on the head node if running in a
     distributed Ray cluster. There is no need to run this script on every
     single node.
@@ -66,12 +66,12 @@ class RayAccelerator(DDPSpawnAccelerator):
             from ray_lightning import RayAccelerator
 
             ptl_model = MNISTClassifier(...)
-            accelerator = RayAccelerator(num_workers=4, cpus_per_worker=1,
+            plugin = RayPlugin(num_workers=4, cpus_per_worker=1,
                 use_gpu=True)
 
             # If using GPUs, set the ``gpus`` arg to a value > 0.
             # The actual number of GPUs is determined by ``num_workers``.
-            trainer = pl.Trainer(..., gpus=1, accelerator=accelerator)
+            trainer = pl.Trainer(..., gpus=1, plugins=[plugin])
             trainer.fit(ptl_model)
 
     """
@@ -81,7 +81,7 @@ class RayAccelerator(DDPSpawnAccelerator):
                  num_cpus_per_worker: int = 1,
                  use_gpu: bool = False,
                  init_hook: Callable = None):
-        super().__init__(trainer=None, nprocs=0)
+        super().__init__(sync_batchnorm=False, parallel_devices=[])
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
         self.num_cpus_per_worker = num_cpus_per_worker
@@ -99,9 +99,10 @@ class RayAccelerator(DDPSpawnAccelerator):
     def setup(self, model: LightningModule):
         """Sets up PTL Trainer and creates the Ray actors."""
         # Check that trainer attribute has been set when this method is called.
-        assert hasattr(self, "trainer") and self.trainer is not None
-        self.trainer.use_ddp = True
-        self.trainer.model = model
+        # assert hasattr(self, "trainer") and self.trainer is not None
+        # self.trainer.use_ddp = True
+        # self.trainer.model = model
+        self._model = model
         self.workers = [self._create_worker() for _ in range(self.num_workers)]
         if self.init_hook:
             ray.get([w.execute.remote(self.init_hook) for w in self.workers])
@@ -142,7 +143,7 @@ class RayAccelerator(DDPSpawnAccelerator):
             rank_counter_dict[ip] += 1
         return global_to_local
 
-    def train(self):
+    def start_training(self, trainer):
         """Main training loop.
 
         Sets up the torch.distributed process group for each training
@@ -164,11 +165,11 @@ class RayAccelerator(DDPSpawnAccelerator):
 
         self.global_to_local = self.get_local_ranks()
 
-        trainer = self.trainer
-        assert trainer is not None
-        trainer_ref = ray.put(trainer)
-        # Don't pickle self.trainer when training remotely.
-        self.trainer = None
+        model = self._model
+        model_ref = ray.put(model)
+        # Don't pickle the model when training remotely.
+        self._model = None
+        trainer = None
 
         queue = None
         if TUNE_INSTALLED and is_session_enabled():
@@ -176,17 +177,18 @@ class RayAccelerator(DDPSpawnAccelerator):
             queue = Queue(actor_options={"num_cpus": 0})
 
         futures = [
-            self.workers[i].execute.remote(self.train_remote, trainer_ref, i,
+            self.workers[i].execute.remote(self.train_remote, model_ref, i,
                                            queue)
             for i in range(self.num_workers)
         ]
 
         results = process_results(futures, queue)
         results, best_path, state_dict = results[0]
-        self.trainer = trainer
-        self.trainer.model.load_state_dict(state_dict)
-        if self.trainer.checkpoint_callback:
-            self.trainer.checkpoint_callback.best_model_path = best_path
+        self._model = model
+        self._model.load_state_dict(state_dict)
+        if self.lightning_module.trainer.checkpoint_callback:
+            self.lightning_module.trainer.checkpoint_callback\
+                .best_model_path = best_path
 
         if queue:
             # Shutdown the queue.
@@ -194,35 +196,38 @@ class RayAccelerator(DDPSpawnAccelerator):
 
         return results
 
+    def post_dispatch(self):
+        pass
+
     # All methods below are only executed in remote Ray workers.
 
     def train_remote(self,
-                     trainer: Trainer,
+                     model: LightningModule,
                      global_rank: int,
                      queue: Queue = None):
         """Training function to be executed on each remote worker."""
-        assert isinstance(self, RayAccelerator)
+        assert isinstance(self, RayPlugin)
         # This method should be executed remotely in each worker.
-        self.trainer = trainer
-        self.trainer.accelerator_backend = self
+        self._model = model
+        self.lightning_module.trainer.accelerator._training_type_plugin = self
         self.global_rank = global_rank
-        model = self.trainer.model
 
         if queue is not None:
             # Initialize session.
             init_session(rank=global_rank, queue=queue)
 
-        # Calling ddp_train will call transfer_distrib_spawn_state_on_fit_end.
+        # Calling new_process will call
+        # transfer_distrib_spawn_state_on_fit_end.
         # We override that method and have it just set attributes.
         # Then we can just return those attributes here.
-        super(RayAccelerator, self).ddp_train(
-            process_idx=global_rank, mp_queue=None, model=model)
+        super(RayPlugin, self).new_process(
+            process_idx=global_rank, trainer=model.trainer, mp_queue=None)
         return self.results, self.best_model_path, self.model_state_dict
 
     def init_ddp_connection(self,
                             global_rank: int,
                             world_size: int,
-                            is_slurm_managing_tasks: bool = True) -> None:
+                            is_slurm_managing_tasks: bool = False) -> None:
         """Process group creation to be executed on each remote worker."""
         torch_backend = "nccl" if self.use_gpu else "gloo"
 
@@ -238,43 +243,28 @@ class RayAccelerator(DDPSpawnAccelerator):
 
     def set_world_ranks(self, process_idx: int):
         """Set the appropriate rank attribues for the trainer."""
-        self.trainer.local_rank = self.global_to_local[self.global_rank]
-        self.trainer.global_rank = self.global_rank
-        self.trainer.world_size = self.num_workers
+        self.local_rank = self.global_to_local[self.global_rank]
+        self.global_rank = self.global_rank
+        self.world_size = self.num_workers
 
-    def init_device(self, process_idx: int, is_master: bool):
-        """Sets the correct GPU device for the trainer and torch."""
-        if self.use_gpu:
-            # Ray sets CUDA_VISIBLE_DEVICES already.
-            gpu_idx = 0
-            self.trainer.root_gpu = gpu_idx
-            torch.cuda.set_device(self.trainer.root_gpu)
+    @property
+    def root_device(self):
+        # Ray already sets CUDA_VISIBLE_DEVICES for each process.
+        if self.use_gpu and torch.cuda.is_available():
+            return torch.device("cuda", 0)
         else:
-            pass
+            return torch.device("cpu")
 
-    def get_device_ids(self):
-        """Get the GPU device id of this worker, or None if on CPU only."""
-        if self.use_gpu:
-            return super(RayAccelerator, self).get_device_ids()
-        else:
-            return None
-
-    def model_to_device(self, model: LightningModule):
-        """Moves the model to the appropriate device."""
-        if self.use_gpu:
-            model.cuda(self.trainer.root_gpu)
-        else:
-            model.cpu()
-
-    def transfer_distrib_spawn_state_on_fit_end(self, model, mp_queue,
-                                                results):
+    def transfer_distrib_spawn_state_on_fit_end(self, results):
         """Sets the training output as attributes so it can be retrieved."""
         # Save training results as attributes.
         self.results = results
-        self.model_state_dict = model.state_dict()
+        self.model_state_dict = self.lightning_module.state_dict()
         best_model_path = None
-        if self.trainer.checkpoint_callback is not None:
-            best_model_path = self.trainer.checkpoint_callback.best_model_path
+        if self.lightning_module.trainer.checkpoint_callback is not None:
+            best_model_path = \
+                self.lightning_module.trainer.checkpoint_callback\
+                    .best_model_path
         self.best_model_path = best_model_path
 
     @property
@@ -291,5 +281,5 @@ class RayAccelerator(DDPSpawnAccelerator):
 
     @property
     def require_distributed_sampler(self):
-        """This accelerator requires a distributed sampler."""
+        """This plugin requires a distributed sampler."""
         return True
