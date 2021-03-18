@@ -1,11 +1,10 @@
 import ray
 import torch
 from pytorch_lightning import LightningModule
-from pytorch_lightning.plugins import HorovodPlugin, ParallelPlugin
+from pytorch_lightning.plugins import HorovodPlugin
 from pytorch_lightning.utilities import rank_zero_only
 from ray import ObjectRef
 
-from ray_lightning import RayPlugin
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Queue, Unavailable
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
