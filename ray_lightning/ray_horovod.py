@@ -81,6 +81,7 @@ class HorovodRayPlugin(HorovodPlugin):
         self.num_hosts = num_hosts
         self.num_slots = num_slots
         self.use_gpu = use_gpu
+        self.executor = None
 
     def __getstate__(self):
         d = self.__dict__.copy()
