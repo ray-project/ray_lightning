@@ -52,8 +52,7 @@ def test_tune_iteration_ddp(tmpdir, ray_start_4_cpus):
 
 def test_tune_iteration_horovod(tmpdir, ray_start_4_cpus):
     """Tests if each HorovodRay trial runs the correct number of iterations."""
-    plugin = HorovodRayPlugin(
-        num_hosts=1, num_slots=2, use_gpu=False)
+    plugin = HorovodRayPlugin(num_hosts=1, num_slots=2, use_gpu=False)
     tune_test(tmpdir, plugin)
 
 
@@ -82,6 +81,5 @@ def test_checkpoint_ddp(tmpdir, ray_start_4_cpus):
 
 def test_checkpoint_horovod(tmpdir, ray_start_4_cpus):
     """Tests if Tune checkpointing works with HorovodRayAccelerator."""
-    plugin = HorovodRayPlugin(
-        num_hosts=1, num_slots=2, use_gpu=False)
+    plugin = HorovodRayPlugin(num_hosts=1, num_slots=2, use_gpu=False)
     checkpoint_test(tmpdir, plugin)
