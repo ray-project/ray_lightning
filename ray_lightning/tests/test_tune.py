@@ -24,6 +24,7 @@ def train_func(dir, plugin, use_gpu=False, callbacks=None):
             use_gpu=use_gpu,
             callbacks=callbacks,
             plugins=[plugin],
+            checkpoint_callback=False,
             **config)
         trainer.fit(model)
 
