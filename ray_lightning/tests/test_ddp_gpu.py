@@ -73,10 +73,7 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
 
     plugin = RayPlugin(num_workers=2, use_gpu=True)
     trainer = get_trainer(
-        tmpdir,
-        plugins=[plugin],
-        use_gpu=True,
-        callbacks=[CheckGPUCallback()])
+        tmpdir, plugins=[plugin], use_gpu=True, callbacks=[CheckGPUCallback()])
     trainer.fit(model)
 
 

@@ -75,8 +75,10 @@ def train_mnist(config,
         max_epochs=num_epochs,
         gpus=int(use_gpu),
         callbacks=callbacks,
-        plugins=[HorovodRayPlugin(num_hosts=num_hosts, num_slots=num_slots,
-                                  use_gpu=use_gpu)])
+        plugins=[
+            HorovodRayPlugin(
+                num_hosts=num_hosts, num_slots=num_slots, use_gpu=use_gpu)
+        ])
     trainer.fit(model)
 
 

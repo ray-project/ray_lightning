@@ -219,7 +219,9 @@ class RayPlugin(DDPSpawnPlugin):
         # We override that method and have it just set attributes.
         # Then we can just return those attributes here.
         super(RayPlugin, self).new_process(
-            process_idx=global_rank, trainer=self.lightning_module.trainer, mp_queue=None)
+            process_idx=global_rank,
+            trainer=self.lightning_module.trainer,
+            mp_queue=None)
         # Only need results from worker 0.
         if self.global_rank == 0:
             return self.results, self.best_model_path, self.model_state_dict

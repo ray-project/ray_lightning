@@ -73,9 +73,7 @@ def test_distributed_sampler(tmpdir, ray_start_2_cpus):
 
     plugin = RayPlugin(num_workers=2)
     trainer = get_trainer(
-        tmpdir,
-        plugins=[plugin],
-        callbacks=[DistributedSamplerCallback()])
+        tmpdir, plugins=[plugin], callbacks=[DistributedSamplerCallback()])
     trainer.fit(model)
 
 

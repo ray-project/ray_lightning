@@ -166,8 +166,8 @@ class HorovodRayPlugin(HorovodPlugin):
 
         # TODO: Make changes in PTL to clean this up.
         super(HorovodRayPlugin, self).pre_dispatch()
-        results = super(HorovodRayPlugin, self).start_training(
-            self.lightning_module.trainer)
+        results = super(HorovodRayPlugin,
+                        self).start_training(self.lightning_module.trainer)
         if self.global_rank != 0:
             # Only want results from the first worker.
             return None
