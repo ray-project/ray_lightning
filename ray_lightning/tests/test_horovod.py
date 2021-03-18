@@ -15,7 +15,7 @@ else:
 import ray
 from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 
-from ray_lightning import HorovodRayAccelerator
+from ray_lightning import HorovodRayPlugin
 from ray_lightning.tests.utils import get_trainer, BoringModel, \
     train_test, load_test, predict_test
 
@@ -52,8 +52,8 @@ def seed():
 def test_train(tmpdir, ray_start_2_cpus, seed, num_slots):
     """Tests if training modifies model weights."""
     model = BoringModel()
-    accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=False)
-    trainer = get_trainer(tmpdir, accelerator=accelerator)
+    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
+    trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
 
@@ -61,11 +61,12 @@ def test_train(tmpdir, ray_start_2_cpus, seed, num_slots):
 def test_load(tmpdir, ray_start_2_cpus, seed, num_slots):
     """Tests if model checkpoint can be loaded."""
     model = BoringModel()
-    accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=False)
-    trainer = get_trainer(tmpdir, accelerator=accelerator)
+    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
+    trainer = get_trainer(tmpdir, plugins=[plugin])
     load_test(trainer, model)
 
 
+@pytest.mark.skip("Skip until next torchvision release.")
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
     """Tests if trained model has high accuracy on test set."""
@@ -78,9 +79,9 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-    accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=False)
-    trainer = get_trainer(
-        tmpdir, limit_train_batches=10, max_epochs=1, accelerator=accelerator)
+    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
+    trainer = get_trainer(tmpdir, limit_train_batches=10,
+                          max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
 
 
@@ -92,8 +93,8 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
 def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
     """Tests if training modifies model weights."""
     model = BoringModel()
-    accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=True)
-    trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True)
+    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
     train_test(trainer, model)
 
 
@@ -105,8 +106,8 @@ def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
 def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
     """Tests if model checkpoint can be loaded."""
     model = BoringModel()
-    accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=True)
-    trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True)
+    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
     load_test(trainer, model)
 
 
@@ -126,11 +127,7 @@ def test_predict_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-    accelerator = HorovodRayAccelerator(num_slots=num_slots, use_gpu=True)
-    trainer = get_trainer(
-        tmpdir,
-        limit_train_batches=10,
-        max_epochs=1,
-        accelerator=accelerator,
-        use_gpu=True)
+    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=True)
+    trainer = get_trainer(tmpdir, limit_train_batches=10,
+                          max_epochs=1, plugins=[plugin], use_gpu=True)
     predict_test(trainer, model, dm)

@@ -83,7 +83,7 @@ class RayPlugin(DDPSpawnPlugin):
                  init_hook: Callable = None):
         if not ray.is_initialized():
             ray.init()
-        super().__init__(sync_batchnorm=None, parallel_devices=[])
+        super().__init__(sync_batchnorm=None)
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
         self.num_cpus_per_worker = num_cpus_per_worker
@@ -106,24 +106,10 @@ class RayPlugin(DDPSpawnPlugin):
         if self.init_hook:
             ray.get([w.execute.remote(self.init_hook) for w in self.workers])
 
-    def teardown(self):
-        """Shutdown the DDP process group and all the Ray actors. """
-
-        def shutdown_remote():
-            torch.distributed.destroy_process_group()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-        ray.get([w.execute.remote(shutdown_remote) for w in self.workers])
-        for w in self.workers:
-            ray.kill(w, no_restart=True)
-            del w
-        self.workers = []
-
     def __getstate__(self):
         d = self.__dict__.copy()
         del d["workers"]
-        return self.__dict__
+        return d
 
     def __setstate__(self, d):
         d["workers"] = []
@@ -196,7 +182,18 @@ class RayPlugin(DDPSpawnPlugin):
         return results
 
     def post_dispatch(self):
-        self.teardown()
+        """Shutdown the DDP process group and all the Ray actors. """
+
+        def shutdown_remote():
+            torch.distributed.destroy_process_group()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        ray.get([w.execute.remote(shutdown_remote) for w in self.workers])
+        for w in self.workers:
+            ray.kill(w, no_restart=True)
+            del w
+        self.workers = []
 
     # All methods below are only executed in remote Ray workers.
 
@@ -208,6 +205,8 @@ class RayPlugin(DDPSpawnPlugin):
         assert isinstance(self, RayPlugin)
         # This method should be executed remotely in each worker.
         self._model = model
+        self.lightning_module.trainer.accelerator_connector\
+            ._training_type_plugin = self
         self.lightning_module.trainer.accelerator.training_type_plugin = self
         self.global_rank = global_rank
 
@@ -221,7 +220,11 @@ class RayPlugin(DDPSpawnPlugin):
         # Then we can just return those attributes here.
         super(RayPlugin, self).new_process(
             process_idx=global_rank, trainer=self.lightning_module.trainer, mp_queue=None)
-        return self.results, self.best_model_path, self.model_state_dict
+        # Only need results from worker 0.
+        if self.global_rank == 0:
+            return self.results, self.best_model_path, self.model_state_dict
+        else:
+            return None
 
     def init_ddp_connection(self,
                             global_rank: int,
@@ -256,15 +259,16 @@ class RayPlugin(DDPSpawnPlugin):
 
     def transfer_distrib_spawn_state_on_fit_end(self, results):
         """Sets the training output as attributes so it can be retrieved."""
-        # Save training results as attributes.
-        self._results = results
-        self.model_state_dict = self.lightning_module.state_dict()
-        best_model_path = None
-        if self.lightning_module.trainer.checkpoint_callback is not None:
-            best_model_path = \
-                self.lightning_module.trainer.checkpoint_callback\
-                    .best_model_path
-        self.best_model_path = best_model_path
+        if self.global_rank == 0:
+            # Save training results as attributes.
+            self._results = results
+            self.model_state_dict = self.lightning_module.state_dict()
+            best_model_path = None
+            if self.lightning_module.trainer.checkpoint_callback is not None:
+                best_model_path = \
+                    self.lightning_module.trainer.checkpoint_callback\
+                        .best_model_path
+            self.best_model_path = best_model_path
 
     @property
     def distributed_sampler_kwargs(self):
@@ -280,4 +284,4 @@ class RayPlugin(DDPSpawnPlugin):
 
     @property
     def is_distributed(self):
-        return self.num_workers > 1
+        return True

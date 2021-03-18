@@ -97,6 +97,7 @@ def test_load(tmpdir, ray_start_2_cpus, num_workers):
     load_test(trainer, model)
 
 
+@pytest.mark.skip("Skip until next torchvision release.")
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
     """Tests if trained model has high accuracy on test set."""
