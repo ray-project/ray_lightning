@@ -167,7 +167,9 @@ class RayPlugin(DDPSpawnPlugin):
         ]
 
         results = process_results(futures, queue)
+        # Get the results, checkpoint path, and model weights from worker 0.
         results, best_path, state_dict = results[0]
+        # Set the state for PTL using the output from remote training.
         self._results = results
         self._model = model
         self._model.load_state_dict(state_dict)
