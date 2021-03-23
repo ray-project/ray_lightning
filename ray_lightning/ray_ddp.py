@@ -32,7 +32,7 @@ class RayExecutor:
 
 
 class RayPlugin(DDPSpawnPlugin):
-    """Pytorch Lightning plugikn for DDP training on a Ray cluster.
+    """Pytorch Lightning plugin for DDP training on a Ray cluster.
 
     This plugin is used to manage distributed training using DDP and
     Ray for process launching. Internally, the specified number of
