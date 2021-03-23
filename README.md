@@ -10,7 +10,7 @@ This library also comes with an integration with [Ray Tune](tune.io) for distrib
 ## Installation
 You can install the master branch of ray_lightning_accelerators like so:
 
-`pip install git+https://github.com/ray-project/ray_lightning_accelerators#ray_lightning`
+`pip install git+https://github.com/ray-project/ray_lightning#ray_lightning`
 
 ## PyTorch Distributed Data Parallel Plugin on Ray
 The `RayPlugin` provides Distributed Data Parallel training on a Ray cluster. PyTorch DDP is used as the distributed training protocol, and Ray is used to launch and manage the training worker processes.
