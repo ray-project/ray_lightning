@@ -1,12 +1,12 @@
 from typing import Optional, List
 
 import torch
+from pytorch_lightning.plugins import Plugin
 from torch.utils.data import Dataset
 
 import pytorch_lightning as pl
 from pytorch_lightning import LightningModule, Callback, Trainer, \
     LightningDataModule
-from pytorch_lightning.accelerators import Accelerator
 
 
 class RandomDataset(Dataset):
@@ -92,13 +92,14 @@ class BoringModel(LightningModule):
 
 
 def get_trainer(dir,
-                accelerator: Accelerator,
+                plugins: List[Plugin],
                 use_gpu: bool = False,
                 max_epochs: int = 1,
                 limit_train_batches: int = 10,
                 limit_val_batches: int = 10,
                 progress_bar_refresh_rate: int = 0,
-                callbacks: Optional[List[Callback]] = None) -> Trainer:
+                callbacks: Optional[List[Callback]] = None,
+                checkpoint_callback: bool = True) -> Trainer:
     """Returns a Pytorch Lightning Trainer with the provided arguments."""
     callbacks = [] if not callbacks else callbacks
     trainer = pl.Trainer(
@@ -108,9 +109,9 @@ def get_trainer(dir,
         limit_train_batches=limit_train_batches,
         limit_val_batches=limit_val_batches,
         progress_bar_refresh_rate=progress_bar_refresh_rate,
-        checkpoint_callback=True,
+        checkpoint_callback=checkpoint_callback,
         callbacks=callbacks,
-        accelerator=accelerator)
+        plugins=plugins)
     return trainer
 
 

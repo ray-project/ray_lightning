@@ -1,9 +1,9 @@
 # Distributed PyTorch Lightning Training on Ray
-This library adds new PyTorch Lightning accelerators for distributed training using the Ray distributed computing framework.
+This library adds new PyTorch Lightning plugins for distributed training using the Ray distributed computing framework.
 
-These PyTorch Lightning Accelerators on Ray enable quick and easy parallel training while still leveraging all the benefits of PyTorch Lightning and using your desired training protocol, either [PyTorch Distributed Data Parallel](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) or [Horovod](https://github.com/horovod/horovod). 
+These PyTorch Lightning Plugins on Ray enable quick and easy parallel training while still leveraging all the benefits of PyTorch Lightning and using your desired training protocol, either [PyTorch Distributed Data Parallel](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) or [Horovod](https://github.com/horovod/horovod). 
 
-Once you add your accelerator to the PyTorch Lightning Trainer, you can parallelize training to all the cores in your laptop, or across a massive multi-node, multi-GPU cluster with no additional code changes.
+Once you add your plugin to the PyTorch Lightning Trainer, you can parallelize training to all the cores in your laptop, or across a massive multi-node, multi-GPU cluster with no additional code changes.
 
 This library also comes with an integration with [Ray Tune](tune.io) for distributed hyperparameter tuning experiments.
 
@@ -12,45 +12,45 @@ You can install the master branch of ray_lightning_accelerators like so:
 
 `pip install git+https://github.com/ray-project/ray_lightning_accelerators#ray_lightning`
 
-## PyTorch Distributed Data Parallel Accelerator on Ray
-The `RayAccelerator` provides Distributed Data Parallel training on a Ray cluster. PyTorch DDP is used as the distributed training protocol, and Ray is used to launch and manage the training worker processes.
+## PyTorch Distributed Data Parallel Plugin on Ray
+The `RayPlugin` provides Distributed Data Parallel training on a Ray cluster. PyTorch DDP is used as the distributed training protocol, and Ray is used to launch and manage the training worker processes.
 
 Here is a simplified example:
 
 ```python
 import pytorch_lightning as ptl
-from ray_lightning import RayAccelerator
+from ray_lightning import RayPlugin
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
-accelerator = RayAccelerator(num_workers=4, cpus_per_worker=1, use_gpu=True)
+plugin = RayPlugin(num_workers=4, cpus_per_worker=1, use_gpu=True)
 
 # If using GPUs, set the ``gpus`` arg to a value > 0.
 # The actual number of GPUs is determined by ``num_workers``.
-trainer = pl.Trainer(..., gpus=1, accelerator=accelerator)
+trainer = pl.Trainer(..., gpus=1, plugins=[plugin])
 trainer.fit(ptl_model)
 ```
 
-Because Ray is used to launch processes, instead of the same script being called multiple times, you CAN use this accelerator even in cases when you cannot use the standard `DDPAccelerator` such as 
+Because Ray is used to launch processes, instead of the same script being called multiple times, you CAN use this plugin even in cases when you cannot use the standard `DDPPlugin` such as 
 - Jupyter Notebooks, Google Colab, Kaggle
 - Calling `fit` or `test` multiple times in the same script
 
-## Horovod Accelerator on Ray
-Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayAccelerator` instead.
+## Horovod Plugin on Ray
+Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayPlugin` instead.
 
 ```python
 import pytorch_lightning as ptl
-from ray.util.lightning_accelerators import HorovodRayAccelerator
+from ray_lightning import HorovodRayPlugin
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
 
 # 2 nodes, 4 workers per node, each using 1 CPU and 1 GPU.
-accelerator = HorovodRayAccelerator(num_hosts=2, num_slots=4, use_gpu=True)
+plugin = HorovodRayPlugin(num_hosts=2, num_slots=4, use_gpu=True)
 
 # If using GPUs, set the ``gpus`` arg to a value > 0.
 # The actual number of GPUs is determined by ``num_slots``.
-trainer = pl.Trainer(..., gpus=1, accelerator=accelerator)
+trainer = pl.Trainer(..., gpus=1, plugins=[plugin])
 trainer.fit(ptl_model)
 ```
 
@@ -78,7 +78,7 @@ def train_mnist(config):
     trainer = pl.Trainer(
         max_epochs=4,
         callbacks=callbacks,
-        accelerator=RayAccelerator(num_workers=4, use_gpu=False))
+        plugins=[RayPlugin(num_workers=4, use_gpu=False)])
     trainer.fit(model)
     
 config = {
@@ -110,10 +110,10 @@ The key difference is which Trainer you'll be interacting with. In this library,
 
 With RaySGD's integration, you'll be converting your `LightningModule` to be RaySGD compatible, and will be interacting with RaySGD's `TorchTrainer`. RaySGD's `TorchTrainer` is not as feature rich nor as easy to use as Pytorch Lightning's `Trainer` (no built in support for logging, early stopping, etc.). However, it does have built in support for fault-tolerant and elastic training. If these are hard requirements for you, then RaySGD's integration with PTL might be a better option.
 
-> I see that `RayAccelerator` is based off of Pytorch Lightning's `DDPSpawnAccelerator`. However, doesn't the PTL team discourage the use of spawn?
+> I see that `RayPlugin` is based off of Pytorch Lightning's `DDPSpawnPlugin`. However, doesn't the PTL team discourage the use of spawn?
 
 As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment-773539003), using a spawn approach instead of launch is not all that detrimental. The original factors for discouraging spawn were:
 1. not being able to use 'spawn' in a Jupyter or Colab notebook, and 
 2. not being able to use multiple workers for data loading. 
 
-Neither of these should be an issue with the `RayAccelerator` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this accelerator, your model does have to be serializable/pickleable.
+Neither of these should be an issue with the `RayPlugin` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this plugin, your model does have to be serializable/pickleable.

@@ -9,7 +9,7 @@ from pytorch_lightning import Callback
 import ray
 from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 
-from ray_lightning import RayAccelerator
+from ray_lightning import RayPlugin
 from ray_lightning.tests.utils import get_trainer, train_test, BoringModel, \
     predict_test
 
@@ -32,8 +32,8 @@ def seed():
 def test_train(tmpdir, ray_start_2_gpus, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
-    accelerator = RayAccelerator(num_workers=num_workers, use_gpu=True)
-    trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True)
+    plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
     train_test(trainer, model)
 
 
@@ -51,12 +51,12 @@ def test_predict(tmpdir, ray_start_2_gpus, seed, num_workers):
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-    accelerator = RayAccelerator(num_workers=num_workers, use_gpu=True)
+    plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(
         tmpdir,
         limit_train_batches=10,
         max_epochs=1,
-        accelerator=accelerator,
+        plugins=[plugin],
         use_gpu=True)
     predict_test(trainer, model, dm)
 
@@ -71,12 +71,9 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
         def on_epoch_end(self, trainer, pl_module):
             assert next(pl_module.parameters()).is_cuda
 
-    accelerator = RayAccelerator(num_workers=2, use_gpu=True)
+    plugin = RayPlugin(num_workers=2, use_gpu=True)
     trainer = get_trainer(
-        tmpdir,
-        accelerator=accelerator,
-        use_gpu=True,
-        callbacks=[CheckGPUCallback()])
+        tmpdir, plugins=[plugin], use_gpu=True, callbacks=[CheckGPUCallback()])
     trainer.fit(model)
 
 
@@ -94,10 +91,10 @@ def test_correct_devices(tmpdir, ray_start_2_gpus):
             assert trainer.root_gpu == pl_module.device.index
             assert torch.cuda.current_device() == trainer.root_gpu
 
-    accelerator = RayAccelerator(num_workers=2, use_gpu=True)
+    plugin = RayPlugin(num_workers=2, use_gpu=True)
     trainer = get_trainer(
         tmpdir,
-        accelerator=accelerator,
+        plugins=plugin,
         use_gpu=True,
         callbacks=[CheckDevicesCallback()])
     trainer.fit(model)
@@ -112,6 +109,6 @@ def test_multi_node(tmpdir):
     ray.init("auto")
     num_gpus = ray.available_resources()["GPU"]
     model = BoringModel()
-    accelerator = RayAccelerator(num_workers=num_gpus, use_gpu=True)
-    trainer = get_trainer(tmpdir, accelerator=accelerator, use_gpu=True)
+    plugin = RayPlugin(num_workers=num_gpus, use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
     train_test(trainer, model)
