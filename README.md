@@ -8,7 +8,7 @@ Once you add your plugin to the PyTorch Lightning Trainer, you can parallelize t
 This library also comes with an integration with [Ray Tune](tune.io) for distributed hyperparameter tuning experiments.
 
 ## Installation
-You can install the master branch of ray_lightning_accelerators like so:
+You can install the master branch of ray_lightning like so:
 
 `pip install git+https://github.com/ray-project/ray_lightning#ray_lightning`
 
