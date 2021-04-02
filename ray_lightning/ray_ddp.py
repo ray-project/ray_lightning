@@ -20,7 +20,9 @@ class RayExecutor:
 
     def set_env_var(self, key: str, value: str):
         """Set an environment variable with the provided values."""
-        os.environ[key] = value
+        if value is not None:
+            value = str(value)
+            os.environ[key] = value
 
     def set_env_vars(self, keys: List[str], values: List[str]):
         """Sets multiple env vars with the provided values"""
@@ -146,8 +148,8 @@ class RayPlugin(DDPSpawnPlugin):
         # Get rank 0 worker address and port for DDP connection.
         os.environ["MASTER_ADDR"] = ray.get(
             self.workers[0].get_node_ip.remote())
-        os.environ["MASTER_PORT"] = ray.get(self.workers[0].execute.remote(
-            find_free_port()))
+        os.environ["MASTER_PORT"] = str(ray.get(self.workers[0].execute.remote(
+            find_free_port)))
 
         # Set environment variables for remote workers.
         keys = [
