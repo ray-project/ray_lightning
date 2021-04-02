@@ -148,8 +148,8 @@ class RayPlugin(DDPSpawnPlugin):
         # Get rank 0 worker address and port for DDP connection.
         os.environ["MASTER_ADDR"] = ray.get(
             self.workers[0].get_node_ip.remote())
-        os.environ["MASTER_PORT"] = str(ray.get(self.workers[0].execute.remote(
-            find_free_port)))
+        os.environ["MASTER_PORT"] = str(
+            ray.get(self.workers[0].execute.remote(find_free_port)))
 
         # Set environment variables for remote workers.
         keys = [
