@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import os
 from collections import defaultdict
@@ -21,6 +21,12 @@ class RayExecutor:
     def set_env_var(self, key: str, value: str):
         """Set an environment variable with the provided values."""
         os.environ[key] = value
+
+    def set_env_vars(self, keys: List[str], values: List[str]):
+        """Sets multiple env vars with the provided values"""
+        assert len(keys) == len(values)
+        for key, value in zip(keys, values):
+            self.set_env_var(key, value)
 
     def get_node_ip(self):
         """Returns the IP address of the node that this Ray actor is on."""
@@ -137,12 +143,13 @@ class RayPlugin(DDPSpawnPlugin):
         revieve intermediate results, and process those results. Finally
         retrieve the training results from the rank 0 worker and return."""
 
-        if "PL_GLOBAL_SEED" in os.environ:
-            seed = os.environ["PL_GLOBAL_SEED"]
-            ray.get([
-                w.set_env_var.remote("PL_GLOBAL_SEED", seed)
-                for w in self.workers
-            ])
+
+        # Set environment variables for remote workers.
+        keys = ["PL_GLOBAL_SEED", "PL_TORCH_DISTRIBUTED_BACKEND"]
+        values = [os.getenv(k) for k in keys]
+        ray.get([
+            w.set_env_vars.remote(keys, values) for w in self.workers
+        ])
 
         # Get the rank 0 address for DDP connection.
         self.ddp_address = ray.get(
@@ -235,7 +242,9 @@ class RayPlugin(DDPSpawnPlugin):
                             world_size: int,
                             is_slurm_managing_tasks: bool = False) -> None:
         """Process group creation to be executed on each remote worker."""
-        torch_backend = "nccl" if self.use_gpu else "gloo"
+        torch_backend = os.getenv("PL_TORCH_DISTRIBUTED_BACKEND")
+        if torch_backend is None:
+            torch_backend = "nccl" if self.use_gpu else "gloo"
 
         if not torch.distributed.is_initialized():
             log.info(f"initializing ddp: GLOBAL_RANK: {global_rank}, MEMBER:"
