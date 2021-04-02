@@ -7,7 +7,7 @@ import ray
 import torch
 from pytorch_lightning.plugins import DDPSpawnPlugin
 from pytorch_lightning import _logger as log, LightningModule
-from ray.util.sgd.torch.utils import setup_address
+from ray.util.sgd.utils import find_free_port
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Queue
@@ -143,14 +143,19 @@ class RayPlugin(DDPSpawnPlugin):
         revieve intermediate results, and process those results. Finally
         retrieve the training results from the rank 0 worker and return."""
 
+        # Get rank 0 worker address and port for DDP connection.
+        os.environ["MASTER_ADDR"] = ray.get(
+            self.workers[0].get_node_ip.remote())
+        os.environ["MASTER_PORT"] = ray.get(self.workers[0].execute.remote(
+            find_free_port()))
+
         # Set environment variables for remote workers.
-        keys = ["PL_GLOBAL_SEED", "PL_TORCH_DISTRIBUTED_BACKEND"]
+        keys = [
+            "PL_GLOBAL_SEED", "PL_TORCH_DISTRIBUTED_BACKEND", "MASTER_ADDR",
+            "MASTER_PORT"
+        ]
         values = [os.getenv(k) for k in keys]
         ray.get([w.set_env_vars.remote(keys, values) for w in self.workers])
-
-        # Get the rank 0 address for DDP connection.
-        self.ddp_address = ray.get(
-            self.workers[0].execute.remote(setup_address))
 
         self.global_to_local = self.get_local_ranks()
 
@@ -248,7 +253,6 @@ class RayPlugin(DDPSpawnPlugin):
                      f" {global_rank + 1}/{world_size}")
             torch.distributed.init_process_group(
                 backend=torch_backend,
-                init_method=self.ddp_address,
                 rank=global_rank,
                 world_size=world_size,
             )
