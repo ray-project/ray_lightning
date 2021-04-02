@@ -10,9 +10,9 @@ from torchvision import transforms
 
 import ray
 from ray import tune
-from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 from ray_lightning.tune import TuneReportCallback
 from ray_lightning import HorovodRayPlugin
+from ray_lightning.tests.utils import LightningMNISTClassifier
 
 
 class MNISTClassifier(LightningMNISTClassifier):
