@@ -143,13 +143,10 @@ class RayPlugin(DDPSpawnPlugin):
         revieve intermediate results, and process those results. Finally
         retrieve the training results from the rank 0 worker and return."""
 
-
         # Set environment variables for remote workers.
         keys = ["PL_GLOBAL_SEED", "PL_TORCH_DISTRIBUTED_BACKEND"]
         values = [os.getenv(k) for k in keys]
-        ray.get([
-            w.set_env_vars.remote(keys, values) for w in self.workers
-        ])
+        ray.get([w.set_env_vars.remote(keys, values) for w in self.workers])
 
         # Get the rank 0 address for DDP connection.
         self.ddp_address = ray.get(
