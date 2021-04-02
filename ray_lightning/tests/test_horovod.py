@@ -13,11 +13,10 @@ else:
     HOROVOD_AVAILABLE = True
 
 import ray
-from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 
 from ray_lightning import HorovodRayPlugin
 from ray_lightning.tests.utils import get_trainer, BoringModel, \
-    train_test, load_test, predict_test
+    train_test, load_test, predict_test, LightningMNISTClassifier
 
 
 def _nccl_available():
