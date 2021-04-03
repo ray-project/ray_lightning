@@ -22,7 +22,7 @@ jobs:
         ./format.sh --all
   test_linux_ray_master:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.7
@@ -78,7 +78,7 @@ jobs:
 
   test_linux_ray_release:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.7
