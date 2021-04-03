@@ -106,7 +106,7 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
 
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
-        data_dir="./", num_workers=1, batch_size=config["batch_size"])
+        data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
     plugin = RayPlugin(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(
         tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
