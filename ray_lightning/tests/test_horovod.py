@@ -13,11 +13,10 @@ else:
     HOROVOD_AVAILABLE = True
 
 import ray
-from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 
 from ray_lightning import HorovodRayPlugin
 from ray_lightning.tests.utils import get_trainer, BoringModel, \
-    train_test, load_test, predict_test
+    train_test, load_test, predict_test, LightningMNISTClassifier
 
 
 def _nccl_available():
@@ -66,7 +65,6 @@ def test_load(tmpdir, ray_start_2_cpus, seed, num_slots):
     load_test(trainer, model)
 
 
-@pytest.mark.skip("Skip until next torchvision release.")
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
     """Tests if trained model has high accuracy on test set."""
@@ -81,7 +79,7 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
     plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
     trainer = get_trainer(
-        tmpdir, limit_train_batches=10, max_epochs=1, plugins=[plugin])
+        tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
 
 
@@ -130,7 +128,7 @@ def test_predict_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
     plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=True)
     trainer = get_trainer(
         tmpdir,
-        limit_train_batches=10,
+        limit_train_batches=20,
         max_epochs=1,
         plugins=[plugin],
         use_gpu=True)

@@ -7,11 +7,10 @@ import pytorch_lightning as pl
 from pytorch_lightning import Callback
 
 import ray
-from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 
 from ray_lightning import RayPlugin
 from ray_lightning.tests.utils import get_trainer, train_test, BoringModel, \
-    predict_test
+    predict_test, LightningMNISTClassifier
 
 
 @pytest.fixture
@@ -54,7 +53,7 @@ def test_predict(tmpdir, ray_start_2_gpus, seed, num_workers):
     plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(
         tmpdir,
-        limit_train_batches=10,
+        limit_train_batches=20,
         max_epochs=1,
         plugins=[plugin],
         use_gpu=True)

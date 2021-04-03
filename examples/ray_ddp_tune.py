@@ -7,9 +7,9 @@ from pl_bolts.datamodules.mnist_datamodule import MNISTDataModule
 import pytorch_lightning as pl
 import ray
 from ray import tune
-from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 from ray_lightning.tune import TuneReportCallback
 from ray_lightning import RayPlugin
+from ray_lightning.tests.utils import LightningMNISTClassifier
 
 
 def train_mnist(config,

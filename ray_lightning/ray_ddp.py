@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 import os
 from collections import defaultdict
@@ -7,7 +7,7 @@ import ray
 import torch
 from pytorch_lightning.plugins import DDPSpawnPlugin
 from pytorch_lightning import _logger as log, LightningModule
-from ray.util.sgd.torch.utils import setup_address
+from ray.util.sgd.utils import find_free_port
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Queue
@@ -20,7 +20,15 @@ class RayExecutor:
 
     def set_env_var(self, key: str, value: str):
         """Set an environment variable with the provided values."""
-        os.environ[key] = value
+        if value is not None:
+            value = str(value)
+            os.environ[key] = value
+
+    def set_env_vars(self, keys: List[str], values: List[str]):
+        """Sets multiple env vars with the provided values"""
+        assert len(keys) == len(values)
+        for key, value in zip(keys, values):
+            self.set_env_var(key, value)
 
     def get_node_ip(self):
         """Returns the IP address of the node that this Ray actor is on."""
@@ -137,16 +145,19 @@ class RayPlugin(DDPSpawnPlugin):
         revieve intermediate results, and process those results. Finally
         retrieve the training results from the rank 0 worker and return."""
 
-        if "PL_GLOBAL_SEED" in os.environ:
-            seed = os.environ["PL_GLOBAL_SEED"]
-            ray.get([
-                w.set_env_var.remote("PL_GLOBAL_SEED", seed)
-                for w in self.workers
-            ])
+        # Get rank 0 worker address and port for DDP connection.
+        os.environ["MASTER_ADDR"] = ray.get(
+            self.workers[0].get_node_ip.remote())
+        os.environ["MASTER_PORT"] = str(
+            ray.get(self.workers[0].execute.remote(find_free_port)))
 
-        # Get the rank 0 address for DDP connection.
-        self.ddp_address = ray.get(
-            self.workers[0].execute.remote(setup_address))
+        # Set environment variables for remote workers.
+        keys = [
+            "PL_GLOBAL_SEED", "PL_TORCH_DISTRIBUTED_BACKEND", "MASTER_ADDR",
+            "MASTER_PORT"
+        ]
+        values = [os.getenv(k) for k in keys]
+        ray.get([w.set_env_vars.remote(keys, values) for w in self.workers])
 
         self.global_to_local = self.get_local_ranks()
 
@@ -235,14 +246,15 @@ class RayPlugin(DDPSpawnPlugin):
                             world_size: int,
                             is_slurm_managing_tasks: bool = False) -> None:
         """Process group creation to be executed on each remote worker."""
-        torch_backend = "nccl" if self.use_gpu else "gloo"
+        torch_backend = os.getenv("PL_TORCH_DISTRIBUTED_BACKEND")
+        if torch_backend is None:
+            torch_backend = "nccl" if self.use_gpu else "gloo"
 
         if not torch.distributed.is_initialized():
             log.info(f"initializing ddp: GLOBAL_RANK: {global_rank}, MEMBER:"
                      f" {global_rank + 1}/{world_size}")
             torch.distributed.init_process_group(
                 backend=torch_backend,
-                init_method=self.ddp_address,
                 rank=global_rank,
                 world_size=world_size,
             )

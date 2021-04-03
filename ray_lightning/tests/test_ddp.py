@@ -7,11 +7,10 @@ from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import EarlyStopping
 
 import ray
-from ray.tune.examples.mnist_ptl_mini import LightningMNISTClassifier
 
 from ray_lightning import RayPlugin
 from ray_lightning.tests.utils import get_trainer, train_test, \
-    load_test, predict_test, BoringModel
+    load_test, predict_test, BoringModel, LightningMNISTClassifier
 
 
 @pytest.fixture
@@ -95,7 +94,6 @@ def test_load(tmpdir, ray_start_2_cpus, num_workers):
     load_test(trainer, model)
 
 
-@pytest.mark.skip("Skip until next torchvision release.")
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
     """Tests if trained model has high accuracy on test set."""
@@ -105,12 +103,13 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
         "lr": 1e-2,
         "batch_size": 32,
     }
+
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
     plugin = RayPlugin(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(
-        tmpdir, limit_train_batches=10, max_epochs=1, plugins=[plugin])
+        tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
 
 
