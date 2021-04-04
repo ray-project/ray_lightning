@@ -130,3 +130,18 @@ def test_early_stop(tmpdir, ray_start_2_cpus):
     trained_model = BoringModel.load_from_checkpoint(
         trainer.checkpoint_callback.best_model_path)
     assert trained_model.val_epoch == 2, trained_model.val_epoch
+
+
+def test_unused_parameters(tmpdir, ray_start_2_cpus):
+    """Tests if find_unused_parameters is properly passed to model."""
+    model = BoringModel()
+    plugin = RayPlugin(
+        num_workers=2, use_gpu=False, find_unused_parameters=False)
+
+    class UnusedParameterCallback(Callback):
+        def on_train_start(self, trainer, pl_module):
+            assert trainer.model.find_unused_parameters is False
+
+    trainer = get_trainer(
+        tmpdir, plugins=[plugin], callbacks=[UnusedParameterCallback()])
+    trainer.fit(model)
