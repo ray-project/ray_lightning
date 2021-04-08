@@ -18,7 +18,7 @@ The `RayPlugin` provides Distributed Data Parallel training on a Ray cluster. Py
 Here is a simplified example:
 
 ```python
-import pytorch_lightning as ptl
+import pytorch_lightning as pl
 from ray_lightning import RayPlugin
 
 # Create your PyTorch Lightning model here.
