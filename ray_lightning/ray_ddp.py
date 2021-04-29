@@ -7,11 +7,13 @@ import ray
 import torch
 from pytorch_lightning.plugins import DDPSpawnPlugin
 from pytorch_lightning import _logger as log, LightningModule
+from pytorch_lightning.utilities import rank_zero_only
 from ray.util.sgd.utils import find_free_port
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Queue
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
+from ray_lightning.ray_environment import RayEnvironment
 
 
 @ray.remote
@@ -95,13 +97,16 @@ class RayPlugin(DDPSpawnPlugin):
         if not ray.is_initialized():
             ray.init()
         super().__init__(
-            sync_batchnorm=None, parallel_devices=[], **ddp_kwargs)
+            sync_batchnorm=None, parallel_devices=[],
+            cluster_environment=RayEnvironment(
+                world_size=num_workers), **ddp_kwargs)
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
         self.num_cpus_per_worker = num_cpus_per_worker
         self.use_gpu = use_gpu
         self.workers = []
         self.init_hook = init_hook
+        self._local_rank = 0
 
     def _create_worker(self):
         """Creates Ray actor."""
@@ -126,6 +131,7 @@ class RayPlugin(DDPSpawnPlugin):
     def __setstate__(self, d):
         d["workers"] = []
         self.__dict__.update(d)
+
 
     def get_local_ranks(self) -> Dict[int, int]:
         """Creates a mapping of global ranks to local ranks."""
@@ -225,7 +231,7 @@ class RayPlugin(DDPSpawnPlugin):
         self.lightning_module.trainer.accelerator_connector\
             ._training_type_plugin = self
         self.lightning_module.trainer.accelerator.training_type_plugin = self
-        self.global_rank = global_rank
+        self.cluster_environment.set_global_rank(global_rank)
 
         if queue is not None:
             # Initialize session.
@@ -263,11 +269,14 @@ class RayPlugin(DDPSpawnPlugin):
                 world_size=world_size,
             )
 
-    def set_world_ranks(self, process_idx: int):
+    def set_world_ranks(self, process_idx: int = 0):
         """Set the appropriate rank attribues for the trainer."""
-        self.local_rank = self.global_to_local[self.global_rank]
-        self.global_rank = self.global_rank
-        self.world_size = self.num_workers
+        assert self.cluster_environment is not None
+        if self.global_rank is not None:
+            self._local_rank = self.global_to_local[self.global_rank]
+            self.cluster_environment.set_global_rank(self.global_rank)
+            self.cluster_environment.set_world_size(self.num_workers)
+            rank_zero_only.rank = self.cluster_environment.global_rank()
 
     @property
     def root_device(self):

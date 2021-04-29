@@ -76,6 +76,7 @@ class HorovodRayPlugin(HorovodPlugin):
             raise RuntimeError("Please intall Horovod to use this plugin.")
         if not ray.is_initialized():
             ray.init()
+        hvd.init()
         super().__init__()
         self.nickname = "horovod_ray"
         self.num_hosts = num_hosts
@@ -152,9 +153,6 @@ class HorovodRayPlugin(HorovodPlugin):
         self.lightning_module.trainer.accelerator.training_type_plugin = self
 
         hvd.init()
-        self.global_rank = hvd.rank()
-        self.local_rank = hvd.local_rank()
-        self.world_size = hvd.size()
         rank_zero_only.rank = self.global_rank
 
         if queue is not None:
