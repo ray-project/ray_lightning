@@ -36,4 +36,3 @@ class RayEnvironment(ClusterEnvironment):
 
     def node_rank(self) -> int:
         raise NotImplementedError
-

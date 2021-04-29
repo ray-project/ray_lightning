@@ -97,9 +97,10 @@ class RayPlugin(DDPSpawnPlugin):
         if not ray.is_initialized():
             ray.init()
         super().__init__(
-            sync_batchnorm=None, parallel_devices=[],
-            cluster_environment=RayEnvironment(
-                world_size=num_workers), **ddp_kwargs)
+            sync_batchnorm=None,
+            parallel_devices=[],
+            cluster_environment=RayEnvironment(world_size=num_workers),
+            **ddp_kwargs)
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
         self.num_cpus_per_worker = num_cpus_per_worker
@@ -131,7 +132,6 @@ class RayPlugin(DDPSpawnPlugin):
     def __setstate__(self, d):
         d["workers"] = []
         self.__dict__.update(d)
-
 
     def get_local_ranks(self) -> Dict[int, int]:
         """Creates a mapping of global ranks to local ranks."""
