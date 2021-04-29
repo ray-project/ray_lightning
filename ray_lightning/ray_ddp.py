@@ -272,7 +272,7 @@ class RayPlugin(DDPSpawnPlugin):
     def set_world_ranks(self, process_idx: int = 0):
         """Set the appropriate rank attribues for the trainer."""
         assert self.cluster_environment is not None
-        if self.global_rank is not None:
+        if self.global_rank :
             self._local_rank = self.global_to_local[self.global_rank]
             self.cluster_environment.set_global_rank(self.global_rank)
             self.cluster_environment.set_world_size(self.num_workers)

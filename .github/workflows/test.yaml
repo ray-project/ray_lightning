@@ -46,6 +46,7 @@ jobs:
           python -m pytest -v --durations=0 -x test_ddp.py
           python -m pytest -v --durations=0 -x test_horovod.py
           python -m pytest -v --durations=0 -x test_tune.py
+          python -m pytest -v --durations=0 -x test_ddp_sharded.py
 
   test_linux_ray_master_examples:
     runs-on: ubuntu-latest
@@ -102,6 +103,7 @@ jobs:
           python -m pytest -v --durations=0 -x test_ddp.py
           python -m pytest -v --durations=0 -x test_horovod.py
           python -m pytest -v --durations=0 -x test_tune.py
+          python -m pytest -v --durations=0 -x test_ddp_sharded.py
 
 
   test_linux_ray_release_examples:

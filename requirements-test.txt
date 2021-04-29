@@ -1,3 +1,4 @@
+fairscale
 flake8==3.9.1
 flake8-comprehensions
 flake8-quotes

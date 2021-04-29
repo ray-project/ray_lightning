@@ -7,7 +7,7 @@ class RayEnvironment(ClusterEnvironment):
 
     def __init__(self, world_size):
         self.set_world_size(world_size)
-        self._global_rank = None
+        self._global_rank = 0
 
     def creates_children(self) -> bool:
         return False
