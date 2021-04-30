@@ -26,6 +26,7 @@ def seed():
 
 def test_ddp_choice_sharded(tmpdir, ray_start_2_cpus, seed):
     """Tests if sharded plugin is properly recognized."""
+
     class CB(Callback):
         def on_fit_start(self, trainer, pl_module):
             assert isinstance(trainer.accelerator.training_type_plugin,
@@ -120,8 +121,7 @@ def test_ddp_sharded_plugin_resume_from_checkpoint_downsize(
     """Tests if we can save and resume training with less workers."""
     model = BoringModel()
     trainer = Trainer(
-        plugins=[RayShardedPlugin(num_workers=2)],
-        fast_dev_run=True)
+        plugins=[RayShardedPlugin(num_workers=2)], fast_dev_run=True)
 
     trainer.fit(model)
 

@@ -162,7 +162,6 @@ class RayPlugin(DDPSpawnPlugin):
         values = [os.getenv(k) for k in keys]
         ray.get([w.set_env_vars.remote(keys, values) for w in self.workers])
 
-
     def execution_loop(self, trainer, tune_enabled: bool = True):
         """Main execution loop for training, testing, & prediction.
 
@@ -213,14 +212,14 @@ class RayPlugin(DDPSpawnPlugin):
 
     def start_training(self, trainer):
         results = self.execution_loop(trainer, tune_enabled=True)
-        # reset optimizers, since main process is never used for training and thus does not have a valid optim state
+        # reset optimizers, since main process is never used for training and
+        # thus does not have a valid optim state.
         trainer.optimizers = []
         return results
 
     def start_testing(self, trainer):
         results = self.execution_loop(trainer, tune_enabled=False)
         return results
-
 
     def start_predicting(self, trainer):
         results = self.execution_loop(trainer, tune_enabled=False)
@@ -243,9 +242,9 @@ class RayPlugin(DDPSpawnPlugin):
     # All methods below are only executed in remote Ray workers.
 
     def execute_remote(self,
-                     model: LightningModule,
-                     global_rank: int,
-                     queue: Queue = None):
+                       model: LightningModule,
+                       global_rank: int,
+                       queue: Queue = None):
         """Train/test/eval function to be executed on each remote worker."""
         assert isinstance(self, RayPlugin)
         # This method should be executed remotely in each worker.
