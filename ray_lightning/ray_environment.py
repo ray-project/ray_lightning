@@ -8,6 +8,7 @@ class RayEnvironment(ClusterEnvironment):
     def __init__(self, world_size):
         self.set_world_size(world_size)
         self._global_rank = 0
+        self._is_remote = False
 
     def creates_children(self) -> bool:
         return False
@@ -30,6 +31,12 @@ class RayEnvironment(ClusterEnvironment):
     def set_global_rank(self, rank: int) -> None:
         self._global_rank = rank
         rank_zero_only.rank = rank
+
+    def set_remote_execution(self, is_remote: bool) -> None:
+        self._is_remote = is_remote
+
+    def is_remote(self) -> bool:
+        return self._is_remote
 
     def local_rank(self) -> int:
         raise NotImplementedError

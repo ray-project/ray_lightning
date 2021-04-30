@@ -67,8 +67,7 @@ def test_ddp_sharded_plugin_finetune(tmpdir, ray_start_2_cpus, seed):
     """Tests if we can save and restart training."""
     model = BoringModel()
     trainer = Trainer(
-        accelerator=RayAccelerator(num_workers=2),
-        plugins=[DDPShardedPlugin()],
+        plugins=[RayShardedPlugin(num_workers=2)],
         fast_dev_run=True,
     )
     trainer.fit(model)
@@ -86,8 +85,7 @@ def test_ddp_sharded_plugin_resume_from_checkpoint(tmpdir, ray_start_2_cpus,
     """Tests if resuming from checkpoint works."""
     model = BoringModel()
     trainer = Trainer(
-        accelerator=RayAccelerator(num_workers=2),
-        plugins=[DDPShardedPlugin()],
+        plugins=[RayShardedPlugin(num_workers=2)],
         fast_dev_run=True,
     )
 
@@ -99,8 +97,7 @@ def test_ddp_sharded_plugin_resume_from_checkpoint(tmpdir, ray_start_2_cpus,
     model = BoringModel()
 
     trainer = Trainer(
-        accelerator=RayAccelerator(num_workers=2),
-        plugins=[DDPShardedPlugin()],
+        plugins=[RayShardedPlugin(num_workers=2)],
         fast_dev_run=True,
         resume_from_checkpoint=checkpoint_path)
 
@@ -111,8 +108,7 @@ def test_ddp_sharded_plugin_test(tmpdir, ray_start_2_cpus, seed):
     """Tests if test works without fit."""
     model = BoringModel()
     trainer = Trainer(
-        accelerator=RayAccelerator(num_workers=2),
-        plugins=[DDPShardedPlugin()],
+        plugins=[RayShardedPlugin(num_workers=2)],
         fast_dev_run=True,
     )
 
@@ -124,8 +120,7 @@ def test_ddp_sharded_plugin_resume_from_checkpoint_downsize(
     """Tests if we can save and resume training with less workers."""
     model = BoringModel()
     trainer = Trainer(
-        accelerator=RayAccelerator(num_workers=2),
-        plugins=[DDPShardedPlugin()],
+        plugins=[RayShardedPlugin(num_workers=2)],
         fast_dev_run=True)
 
     trainer.fit(model)
@@ -136,8 +131,7 @@ def test_ddp_sharded_plugin_resume_from_checkpoint_downsize(
     model = BoringModel()
 
     trainer = Trainer(
-        accelerator=RayAccelerator(num_workers=1),
-        plugins=[DDPShardedPlugin()],
+        plugins=[RayShardedPlugin(num_workers=1)],
         fast_dev_run=True,
         resume_from_checkpoint=checkpoint_path)
 

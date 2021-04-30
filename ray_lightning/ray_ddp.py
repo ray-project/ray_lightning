@@ -108,6 +108,7 @@ class RayPlugin(DDPSpawnPlugin):
         self.workers = []
         self.init_hook = init_hook
         self._local_rank = 0
+        self._is_remote_training = False
 
     def _create_worker(self):
         """Creates Ray actor."""
@@ -146,15 +147,7 @@ class RayPlugin(DDPSpawnPlugin):
             rank_counter_dict[ip] += 1
         return global_to_local
 
-    def start_training(self, trainer):
-        """Main training loop.
-
-        Sets up the torch.distributed process group for each training
-        worker. Then trigger remote training via ``train_remote`` on each
-        worker. If using with Ray Tune, create a communication queue to
-        revieve intermediate results, and process those results. Finally
-        retrieve the training results from the rank 0 worker and return."""
-
+    def _setup_env_vars(self):
         # Get rank 0 worker address and port for DDP connection.
         os.environ["MASTER_ADDR"] = ray.get(
             self.workers[0].get_node_ip.remote())
@@ -169,6 +162,20 @@ class RayPlugin(DDPSpawnPlugin):
         values = [os.getenv(k) for k in keys]
         ray.get([w.set_env_vars.remote(keys, values) for w in self.workers])
 
+
+    def execution_loop(self, trainer, tune_enabled: bool = True):
+        """Main execution loop for training, testing, & prediction.
+
+        Sets up the torch.distributed process group for each
+        worker. Then trigger remote training/testing/eval via
+        ``train_remote`` on each worker. If using with Ray Tune, create a
+        communication queue to retrieve intermediate results, and process
+        those results. Finally retrieve the training results from the rank 0
+        worker and return."""
+
+        # Sets environment variables for all workers.
+        self._setup_env_vars()
+
         self.global_to_local = self.get_local_ranks()
 
         model = self._model
@@ -177,12 +184,12 @@ class RayPlugin(DDPSpawnPlugin):
         self._model = None
 
         queue = None
-        if TUNE_INSTALLED and is_session_enabled():
+        if tune_enabled and TUNE_INSTALLED and is_session_enabled():
             # Create communication queue and send to all the workers.
             queue = Queue(actor_options={"num_cpus": 0})
 
         futures = [
-            self.workers[i].execute.remote(self.train_remote, model_ref, i,
+            self.workers[i].execute.remote(self.execute_remote, model_ref, i,
                                            queue)
             for i in range(self.num_workers)
         ]
@@ -195,13 +202,28 @@ class RayPlugin(DDPSpawnPlugin):
         self._model = model
         self._model.load_state_dict(state_dict)
         if self.lightning_module.trainer.checkpoint_callback:
-            self.lightning_module.trainer.checkpoint_callback\
+            self.lightning_module.trainer.checkpoint_callback \
                 .best_model_path = best_path
 
         if queue:
             # Shutdown the queue.
             queue.shutdown()
 
+        return results
+
+    def start_training(self, trainer):
+        results = self.execution_loop(trainer, tune_enabled=True)
+        # reset optimizers, since main process is never used for training and thus does not have a valid optim state
+        trainer.optimizers = []
+        return results
+
+    def start_testing(self, trainer):
+        results = self.execution_loop(trainer, tune_enabled=False)
+        return results
+
+
+    def start_predicting(self, trainer):
+        results = self.execution_loop(trainer, tune_enabled=False)
         return results
 
     def post_dispatch(self):
@@ -220,11 +242,11 @@ class RayPlugin(DDPSpawnPlugin):
 
     # All methods below are only executed in remote Ray workers.
 
-    def train_remote(self,
+    def execute_remote(self,
                      model: LightningModule,
                      global_rank: int,
                      queue: Queue = None):
-        """Training function to be executed on each remote worker."""
+        """Train/test/eval function to be executed on each remote worker."""
         assert isinstance(self, RayPlugin)
         # This method should be executed remotely in each worker.
         self._model = model
@@ -232,6 +254,7 @@ class RayPlugin(DDPSpawnPlugin):
             ._training_type_plugin = self
         self.lightning_module.trainer.accelerator.training_type_plugin = self
         self.cluster_environment.set_global_rank(global_rank)
+        self.cluster_environment.set_remote_execution(True)
 
         if queue is not None:
             # Initialize session.
@@ -272,7 +295,7 @@ class RayPlugin(DDPSpawnPlugin):
     def set_world_ranks(self, process_idx: int = 0):
         """Set the appropriate rank attribues for the trainer."""
         assert self.cluster_environment is not None
-        if self.global_rank :
+        if self.cluster_environment.is_remote():
             self._local_rank = self.global_to_local[self.global_rank]
             self.cluster_environment.set_global_rank(self.global_rank)
             self.cluster_environment.set_world_size(self.num_workers)
