@@ -76,7 +76,6 @@ class HorovodRayPlugin(HorovodPlugin):
             raise RuntimeError("Please intall Horovod to use this plugin.")
         if not ray.is_initialized():
             ray.init()
-        hvd.init()
         super().__init__()
         self.nickname = "horovod_ray"
         self.num_hosts = num_hosts
