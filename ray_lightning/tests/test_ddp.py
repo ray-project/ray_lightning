@@ -31,14 +31,14 @@ def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
     model = BoringModel()
 
     def check_num_actor():
-        assert len(ray.actors()) == num_workers
+        assert len(ray.state.actors()) == num_workers
 
     model.on_epoch_end = check_num_actor
     plugin = RayPlugin(num_workers=num_workers)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     trainer.fit(model)
     assert all(actor["State"] == ray.gcs_utils.ActorTableData.DEAD
-               for actor in list(ray.actors().values()))
+               for actor in list(ray.state.actors().values()))
 
 
 def test_distributed_sampler(tmpdir, ray_start_2_cpus):

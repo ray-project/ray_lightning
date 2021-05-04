@@ -92,6 +92,24 @@ class HorovodRayPlugin(HorovodPlugin):
         d["executor"] = None
         self.__dict__.update(d)
 
+    @property
+    def global_rank(self) -> int:
+        if not hvd.is_initialized():
+            return 0
+        return hvd.rank()
+
+    @property
+    def local_rank(self) -> int:
+        if not hvd.is_initialized():
+            return 0
+        return hvd.local_rank()
+
+    @property
+    def world_size(self) -> int:
+        if not hvd.is_initialized():
+            return self.num_hosts * self.num_slots
+        return hvd.size()
+
     def setup(self, model: LightningModule):
         """Creates the RayExecutor object."""
         self._model = model
@@ -152,9 +170,6 @@ class HorovodRayPlugin(HorovodPlugin):
         self.lightning_module.trainer.accelerator.training_type_plugin = self
 
         hvd.init()
-        self.global_rank = hvd.rank()
-        self.local_rank = hvd.local_rank()
-        self.world_size = hvd.size()
         rank_zero_only.rank = self.global_rank
 
         if queue is not None:
