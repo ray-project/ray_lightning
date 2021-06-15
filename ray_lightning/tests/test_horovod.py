@@ -42,6 +42,7 @@ def ray_start_2_gpus():
     yield address_info
     ray.shutdown()
 
+
 @pytest.fixture
 def start_ray_client_server_2_cpus():
     ray.init(num_cpus=2)
@@ -61,6 +62,7 @@ def test_train(tmpdir, ray_start_2_cpus, seed, num_slots):
     plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
+
 
 @pytest.mark.parametrize("num_slots", [1, 2])
 def test_train_client(tmpdir, start_ray_client_server_2_cpus, seed, num_slots):
@@ -98,8 +100,10 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
         tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
 
+
 @pytest.mark.parametrize("num_slots", [1, 2])
-def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed, num_slots):
+def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
+                        num_slots):
     assert ray.util.client.ray.is_connected()
     config = {
         "layer_1": 32,
