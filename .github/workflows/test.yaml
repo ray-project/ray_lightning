@@ -70,12 +70,16 @@ jobs:
           python -m pip install -e .
       - name: Run Examples
         run: |
-          pushd examples/
+          pushd ray_lightning/examples
           echo "running ray_ddp_example.py" && python ray_ddp_example.py --smoke-test
           echo "running ray_ddp_example.py with Tune" && python ray_ddp_example.py --smoke-test --tune
           echo "running ray_ddp_tune.py" && python ray_ddp_tune.py --smoke-test
           echo "running ray_horovod_example.py" && python ray_horovod_example.py --smoke-test
           echo "running ray_horovod_example.py with Tune" && python ray_horovod_example.py --smoke-test --tune
+          popd
+          pushd ray_lightning/tests
+          echo "running examples with Ray Client" && python -m pytest -v --durations=0 -x test_client.py
+
 
   test_linux_ray_release:
     runs-on: ubuntu-latest
@@ -128,9 +132,12 @@ jobs:
           python -m pip install -e .
       - name: Run Examples
         run: |
-          pushd examples/
+          pushd ray_lightning/examples
           echo "running ray_ddp_example.py" && python ray_ddp_example.py --smoke-test
           echo "running ray_ddp_example.py with Tune" && python ray_ddp_example.py --smoke-test --tune
           echo "running ray_ddp_tune.py" && python ray_ddp_tune.py --smoke-test
           echo "running ray_horovod_example.py" && python ray_horovod_example.py --smoke-test
           echo "running ray_horovod_example.py with Tune" && python ray_horovod_example.py --smoke-test --tune
+          popd
+          pushd ray_lightning/tests
+          echo "running examples with Ray Client" && python -m pytest -v --durations=0 -x test_client.py
