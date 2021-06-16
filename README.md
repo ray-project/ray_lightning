@@ -86,6 +86,8 @@ You no longer have to set environment variables or configurations and run your t
 Example using `ray_lightning` with Tune:
 
 ```python
+from ray_lightning.tune import TuneReportCallback
+
 def train_mnist(config):
     
     # Create your PTL model.
