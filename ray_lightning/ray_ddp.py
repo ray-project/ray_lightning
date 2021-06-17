@@ -94,6 +94,7 @@ class RayPlugin(DDPSpawnPlugin):
                  use_gpu: bool = False,
                  init_hook: Callable = None,
                  **ddp_kwargs: Union[Any, Dict[str, Any]]):
+        import pdb; pdb.set_trace()
         if not ray.is_initialized():
             ray.init()
         super().__init__(
@@ -208,6 +209,29 @@ class RayPlugin(DDPSpawnPlugin):
             queue.shutdown()
 
         return results
+
+    def pre_dispatch(self) -> None:
+        # Swap out the accelerator if necessary.
+        # This is needed to support CPU head with GPU workers or Ray Client.
+        import pdb;
+        pdb.set_trace()
+        current_accelerator = self.lightning_module.trainer.accelerator
+        # if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
+        if True:
+            from ray_lightning.util import DelayedGPUAccelerator
+            precision_plugin = \
+                self.lightning_module.trainer.accelerator_connector \
+                    .precision_plugin
+            new_accelerator = DelayedGPUAccelerator(
+                precision_plugin=precision_plugin, training_type_plugin=self)
+            new_accelerator.model = current_accelerator.model
+            new_accelerator.optimizers = current_accelerator.optimizers
+            new_accelerator.schedulers = current_accelerator.schedulers
+            new_accelerator.lr_schedulers = current_accelerator.lr_schedulers
+            new_accelerator.optimizer_frequencies = \
+                current_accelerator.optimizer_frequencies
+            self.lightning_module.trainer.accelerator_connector.accelerator \
+                = new_accelerator
 
     def start_training(self, trainer):
         results = self.execution_loop(trainer, tune_enabled=True)

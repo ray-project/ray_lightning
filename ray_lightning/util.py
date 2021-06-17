@@ -3,8 +3,29 @@ import asyncio
 from typing import Optional, Dict, Callable
 
 import ray
+import torch
+from pytorch_lightning.accelerators import GPUAccelerator
+from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from ray.util.queue import Queue as RayQueue, Empty, Full
 
+class DelayedGPUAccelerator(GPUAccelerator):
+    """Same as GPUAccelerator, but doesn't setup CUDA until training begins.
+
+    This allows the driver script to be launched from CPU-only machines (
+    like the laptop) but have training still execute on GPU.
+    """
+
+    def setup(self, trainer: 'Trainer', model: 'LightningModule') -> None:
+        return super(GPUAccelerator, self).setup(trainer, model)
+
+    def on_train_start(self) -> None:
+        # Below code was originally in the setup method.
+        if "cuda" not in str(self.root_device):
+            raise MisconfigurationException(f"Device should be GPU, got {self.root_device} instead")
+        self.set_nvidia_flags()
+        torch.cuda.set_device(self.root_device)
+
+        super(DelayedGPUAccelerator, self).on_train_start()
 
 class Unavailable:
     """No object should be instance of this class"""

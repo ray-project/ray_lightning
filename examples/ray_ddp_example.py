@@ -70,7 +70,7 @@ def train_mnist(config,
 
     trainer = pl.Trainer(
         max_epochs=num_epochs,
-        gpus=int(use_gpu),
+        #gpus=int(use_gpu),
         callbacks=callbacks,
         plugins=[RayPlugin(num_workers=num_workers, use_gpu=use_gpu)])
     trainer.fit(model)
@@ -151,13 +151,14 @@ if __name__ == "__main__":
 
     num_epochs = 1 if args.smoke_test else args.num_epochs
     num_workers = 1 if args.smoke_test else args.num_workers
-    use_gpu = False if args.smoke_test else args.use_gpu
+    #use_gpu = False if args.smoke_test else args.use_gpu
+    use_gpu = True
     num_samples = 1 if args.smoke_test else args.num_samples
 
-    if args.smoke_test:
-        ray.init(num_cpus=2)
-    else:
-        ray.init(address=args.address)
+    # if args.smoke_test:
+    #     ray.init(num_cpus=2)
+    # else:
+    ray.init(address=args.address)
 
     data_dir = os.path.join(tempfile.gettempdir(), "mnist_data_")
 
