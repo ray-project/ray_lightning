@@ -50,7 +50,7 @@ jobs:
 
   test_linux_ray_master_examples:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.7
@@ -78,7 +78,9 @@ jobs:
           echo "running ray_horovod_example.py with Tune" && python ray_horovod_example.py --smoke-test --tune
           popd
           pushd ray_lightning/tests
-          echo "running examples with Ray Client" && python -m pytest -v --durations=0 -x test_client.py
+          echo "running examples with Ray Client 1" && python -m pytest -v --durations=0 -x test_client.py
+          echo "running examples with Ray Client 2" && python -m pytest -v --durations=0 -x test_client_2.py
+          echo "running examples with Ray Client 3" && python -m pytest -v --durations=0 -x test_client_3.py
 
 
   test_linux_ray_release:
@@ -112,7 +114,7 @@ jobs:
 
   test_linux_ray_release_examples:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.7
@@ -140,4 +142,6 @@ jobs:
           echo "running ray_horovod_example.py with Tune" && python ray_horovod_example.py --smoke-test --tune
           popd
           pushd ray_lightning/tests
-          echo "running examples with Ray Client" && python -m pytest -v --durations=0 -x test_client.py
+          echo "running examples with Ray Client 1" && python -m pytest -v --durations=0 -x test_client.py
+          echo "running examples with Ray Client 2" && python -m pytest -v --durations=0 -x test_client_2.py
+          echo "running examples with Ray Client 3" && python -m pytest -v --durations=0 -x test_client_3.py
