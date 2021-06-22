@@ -1,15 +1,61 @@
-"""Simple example using RayAccelerator and Ray Tune"""
+"""Example using Pytorch Lightning with Pytorch DDP on Ray Accelerator."""
 import os
 import tempfile
 
-from pl_bolts.datamodules.mnist_datamodule import MNISTDataModule
-
 import pytorch_lightning as pl
+import torch
+from torch.utils.data import random_split, DataLoader
+from torchvision.datasets import MNIST
+from torchvision import transforms
+
 import ray
 from ray import tune
 from ray_lightning.tune import TuneReportCallback
 from ray_lightning import RayPlugin
 from ray_lightning.tests.utils import LightningMNISTClassifier
+
+
+class MNISTClassifier(LightningMNISTClassifier):
+    def __init__(self, config, data_dir=None):
+        super().__init__(config, data_dir)
+        self.batch_size = config["batch_size"]
+
+    def prepare_data(self):
+        self.dataset = MNIST(
+            self.data_dir,
+            train=True,
+            download=True,
+            transform=transforms.ToTensor())
+
+    def train_dataloader(self):
+        dataset = self.dataset
+        train_length = len(dataset)
+        dataset_train, _ = random_split(
+            dataset, [train_length - 5000, 5000],
+            generator=torch.Generator().manual_seed(0))
+        loader = DataLoader(
+            dataset_train,
+            batch_size=self.batch_size,
+            num_workers=1,
+            drop_last=True,
+            pin_memory=True,
+        )
+        return loader
+
+    def val_dataloader(self):
+        dataset = self.dataset
+        train_length = len(dataset)
+        _, dataset_val = random_split(
+            dataset, [train_length - 5000, 5000],
+            generator=torch.Generator().manual_seed(0))
+        loader = DataLoader(
+            dataset_val,
+            batch_size=self.batch_size,
+            num_workers=1,
+            drop_last=True,
+            pin_memory=True,
+        )
+        return loader
 
 
 def train_mnist(config,
@@ -18,13 +64,7 @@ def train_mnist(config,
                 num_workers=1,
                 use_gpu=False,
                 callbacks=None):
-    # Make sure data is downloaded on all nodes.
-    def download_data():
-        from filelock import FileLock
-        with FileLock(os.path.join(data_dir, ".lock")):
-            MNISTDataModule(data_dir=data_dir).prepare_data()
-
-    model = LightningMNISTClassifier(config, data_dir)
+    model = MNISTClassifier(config, data_dir)
 
     callbacks = callbacks or []
 
@@ -32,16 +72,8 @@ def train_mnist(config,
         max_epochs=num_epochs,
         gpus=int(use_gpu),
         callbacks=callbacks,
-        progress_bar_refresh_rate=0,
-        plugins=[
-            RayPlugin(
-                num_workers=num_workers,
-                use_gpu=use_gpu,
-                init_hook=download_data)
-        ])
-    dm = MNISTDataModule(
-        data_dir=data_dir, num_workers=1, batch_size=config["batch_size"])
-    trainer.fit(model, dm)
+        plugins=[RayPlugin(num_workers=num_workers, use_gpu=use_gpu)])
+    trainer.fit(model)
 
 
 def tune_mnist(data_dir,
@@ -95,6 +127,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--use-gpu", action="store_true", help="Use GPU for training.")
     parser.add_argument(
+        "--tune",
+        action="store_true",
+        help="Use Ray Tune for hyperparameter tuning.")
+    parser.add_argument(
         "--num-samples",
         type=int,
         default=10,
@@ -111,6 +147,11 @@ if __name__ == "__main__":
         required=False,
         type=str,
         help="the address to use for Ray")
+    parser.add_argument(
+        "--server-address",
+        required=False,
+        type=str,
+        help="If using Ray Client, the address of the server to connect to. ")
     args, _ = parser.parse_known_args()
 
     num_epochs = 1 if args.smoke_test else args.num_epochs
@@ -120,8 +161,15 @@ if __name__ == "__main__":
 
     if args.smoke_test:
         ray.init(num_cpus=2)
+    elif args.server_address:
+        ray.util.connect(args.server_address)
     else:
         ray.init(address=args.address)
 
     data_dir = os.path.join(tempfile.gettempdir(), "mnist_data_")
-    tune_mnist(data_dir, num_samples, num_epochs, num_workers, use_gpu)
+
+    if args.tune:
+        tune_mnist(data_dir, num_samples, num_epochs, num_workers, use_gpu)
+    else:
+        config = {"layer_1": 32, "layer_2": 64, "lr": 1e-1, "batch_size": 32}
+        train_mnist(config, data_dir, num_epochs, num_workers, use_gpu)
