@@ -63,7 +63,8 @@ def train_mnist(config,
                 num_epochs=10,
                 num_workers=1,
                 use_gpu=False,
-                callbacks=None):
+                callbacks=None,
+                **trainer_kwargs):
     model = MNISTClassifier(config, data_dir)
 
     callbacks = callbacks or []
@@ -72,7 +73,8 @@ def train_mnist(config,
         max_epochs=num_epochs,
         gpus=int(use_gpu),
         callbacks=callbacks,
-        plugins=[RayPlugin(num_workers=num_workers, use_gpu=use_gpu)])
+        plugins=[RayPlugin(num_workers=num_workers, use_gpu=use_gpu)],
+        **trainer_kwargs)
     trainer.fit(model)
 
 
@@ -80,7 +82,8 @@ def tune_mnist(data_dir,
                num_samples=10,
                num_epochs=10,
                num_workers=1,
-               use_gpu=False):
+               use_gpu=False,
+               **trainer_kwargs):
     config = {
         "layer_1": tune.choice([32, 64, 128]),
         "layer_2": tune.choice([64, 128, 256]),
@@ -97,7 +100,8 @@ def tune_mnist(data_dir,
         num_epochs=num_epochs,
         num_workers=num_workers,
         use_gpu=use_gpu,
-        callbacks=callbacks)
+        callbacks=callbacks,
+        **trainer_kwargs)
     analysis = tune.run(
         trainable,
         metric="loss",
