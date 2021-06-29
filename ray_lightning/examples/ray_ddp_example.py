@@ -59,6 +59,7 @@ class MNISTClassifier(LightningMNISTClassifier):
 
 
 def train_mnist(config,
+                checkpoint_dir=None,
                 data_dir=None,
                 num_epochs=10,
                 num_workers=1,
