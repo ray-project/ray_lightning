@@ -59,11 +59,13 @@ class MNISTClassifier(LightningMNISTClassifier):
 
 
 def train_mnist(config,
+                checkpoint_dir=None,
                 data_dir=None,
                 num_epochs=10,
                 num_workers=1,
                 use_gpu=False,
-                callbacks=None):
+                callbacks=None,
+                **trainer_kwargs):
     model = MNISTClassifier(config, data_dir)
 
     callbacks = callbacks or []
@@ -72,7 +74,8 @@ def train_mnist(config,
         max_epochs=num_epochs,
         gpus=int(use_gpu),
         callbacks=callbacks,
-        plugins=[RayPlugin(num_workers=num_workers, use_gpu=use_gpu)])
+        plugins=[RayPlugin(num_workers=num_workers, use_gpu=use_gpu)],
+        **trainer_kwargs)
     trainer.fit(model)
 
 
@@ -80,7 +83,8 @@ def tune_mnist(data_dir,
                num_samples=10,
                num_epochs=10,
                num_workers=1,
-               use_gpu=False):
+               use_gpu=False,
+               **trainer_kwargs):
     config = {
         "layer_1": tune.choice([32, 64, 128]),
         "layer_2": tune.choice([64, 128, 256]),
@@ -97,7 +101,8 @@ def tune_mnist(data_dir,
         num_epochs=num_epochs,
         num_workers=num_workers,
         use_gpu=use_gpu,
-        callbacks=callbacks)
+        callbacks=callbacks,
+        **trainer_kwargs)
     analysis = tune.run(
         trainable,
         metric="loss",
@@ -172,4 +177,9 @@ if __name__ == "__main__":
         tune_mnist(data_dir, num_samples, num_epochs, num_workers, use_gpu)
     else:
         config = {"layer_1": 32, "layer_2": 64, "lr": 1e-1, "batch_size": 32}
-        train_mnist(config, data_dir, num_epochs, num_workers, use_gpu)
+        train_mnist(
+            config,
+            data_dir=data_dir,
+            num_epochs=num_epochs,
+            num_workers=num_workers,
+            use_gpu=use_gpu)
