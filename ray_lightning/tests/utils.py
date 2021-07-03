@@ -173,10 +173,10 @@ def train_test(trainer: Trainer, model: LightningModule):
     """Checks if training the provided model updates its weights."""
     initial_values = torch.tensor(
         [torch.sum(torch.abs(x)) for x in model.parameters()])
-    result = trainer.fit(model)
+    trainer.fit(model)
     post_train_values = torch.tensor(
         [torch.sum(torch.abs(x)) for x in model.parameters()])
-    assert result == 1, "trainer failed"
+    assert trainer.state.finished, f"Trainer failed with {trainer.state}"
     # Check that the model is actually changed post-training.
     assert torch.norm(initial_values - post_train_values) > 0.1
 
