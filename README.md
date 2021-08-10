@@ -25,6 +25,7 @@ from ray_lightning import RayPlugin
 ptl_model = MNISTClassifier(...)
 plugin = RayPlugin(num_workers=4, cpus_per_worker=1, use_gpu=True)
 
+# Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
 trainer = pl.Trainer(..., plugins=[plugin])
 trainer.fit(ptl_model)
@@ -47,6 +48,7 @@ ptl_model = MNISTClassifier(...)
 # 2 nodes, 4 workers per node, each using 1 CPU and 1 GPU.
 plugin = HorovodRayPlugin(num_hosts=2, num_slots=4, use_gpu=True)
 
+# Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_slots``.
 trainer = pl.Trainer(..., plugins=[plugin])
 trainer.fit(ptl_model)
@@ -64,6 +66,7 @@ from ray_lightning import RayShardedPlugin
 ptl_model = MNISTClassifier(...)
 plugin = RayShardedPlugin(num_workers=4, cpus_per_worker=1, use_gpu=True)
 
+# Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
 trainer = pl.Trainer(..., plugins=[plugin])
 trainer.fit(ptl_model)
