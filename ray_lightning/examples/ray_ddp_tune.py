@@ -74,7 +74,7 @@ def tune_mnist(data_dir,
         num_samples=num_samples,
         resources_per_trial={
             "cpu": 1,
-            "gpu": int(use_gpu),
+            "gpu": 0,
             "extra_cpu": num_workers,
             "extra_gpu": num_workers * int(use_gpu)
         },

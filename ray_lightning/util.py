@@ -21,10 +21,10 @@ class DelayedGPUAccelerator(GPUAccelerator):
     def on_train_start(self) -> None:
         # Below code was originally in the setup method.
         # This will now be executed on the workers instead of the driver.
-        if "cuda" not in str(self.root_device):
-            raise MisconfigurationException(f"Device should be GPU, got {self.root_device} instead")
-        #self.set_nvidia_flags()
-        torch.cuda.set_device(self.root_device)
+        # if "cuda" not in str(self.root_device):
+        #     raise MisconfigurationException(f"Device should be GPU, got {self.root_device} instead")
+        # #self.set_nvidia_flags()
+        # torch.cuda.set_device(self.root_device)
 
         super(DelayedGPUAccelerator, self).on_train_start()
 

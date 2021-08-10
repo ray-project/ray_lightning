@@ -1,3 +1,4 @@
+import io
 from typing import Callable, Dict, List, Union, Any
 
 import os
@@ -94,7 +95,7 @@ class RayPlugin(DDPSpawnPlugin):
                  use_gpu: bool = False,
                  init_hook: Callable = None,
                  **ddp_kwargs: Union[Any, Dict[str, Any]]):
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         if not ray.is_initialized():
             ray.init()
         super().__init__(
@@ -162,6 +163,15 @@ class RayPlugin(DDPSpawnPlugin):
         values = [os.getenv(k) for k in keys]
         ray.get([w.set_env_vars.remote(keys, values) for w in self.workers])
 
+    def _load_state_stream(self, state_stream):
+        _buffer = io.BytesIO(state_stream)
+        to_gpu = self.use_gpu and torch.cuda.is_available()
+        state_dict = torch.load(
+            _buffer,
+            map_location=("cpu" if not to_gpu else
+                          lambda storage, loc: storage.cuda()))
+        return state_dict
+
     def execution_loop(self, trainer, tune_enabled: bool = True):
         """Main execution loop for training, testing, & prediction.
 
@@ -195,7 +205,8 @@ class RayPlugin(DDPSpawnPlugin):
 
         results = process_results(futures, queue)
         # Get the results, checkpoint path, and model weights from worker 0.
-        results, best_path, state_dict = results[0]
+        results, best_path, state_stream = results[0]
+        state_dict = self._load_state_stream(state_stream)
         # Set the state for PTL using the output from remote training.
         self._results = results
         self._model = model
@@ -210,26 +221,27 @@ class RayPlugin(DDPSpawnPlugin):
 
         return results
 
-    def pre_dispatch(self) -> None:
+    def setup_environment(self) -> None:
         # Swap out the accelerator if necessary.
         # This is needed to support CPU head with GPU workers or Ray Client.
-        import pdb;
-        pdb.set_trace()
         current_accelerator = self.lightning_module.trainer.accelerator
         # if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
         if True:
+            from weakref import proxy
             from ray_lightning.util import DelayedGPUAccelerator
-            precision_plugin = \
-                self.lightning_module.trainer.accelerator_connector \
-                    .precision_plugin
+            precision_plugin = current_accelerator.precision_plugin
             new_accelerator = DelayedGPUAccelerator(
                 precision_plugin=precision_plugin, training_type_plugin=self)
-            new_accelerator.model = current_accelerator.model
-            new_accelerator.optimizers = current_accelerator.optimizers
-            new_accelerator.schedulers = current_accelerator.schedulers
-            new_accelerator.lr_schedulers = current_accelerator.lr_schedulers
-            new_accelerator.optimizer_frequencies = \
-                current_accelerator.optimizer_frequencies
+            self.lightning_module.trainer.accelerator_connector\
+                ._training_type_plugin = \
+                proxy(new_accelerator.training_type_plugin)
+            self.lightning_module.trainer.accelerator_connector\
+                ._precision_plugin = proxy(new_accelerator.precision_plugin)
+            #new_accelerator.model = current_accelerator.model
+            # new_accelerator.optimizers = current_accelerator.optimizers
+            # new_accelerator.lr_schedulers = current_accelerator.lr_schedulers
+            # new_accelerator.optimizer_frequencies = \
+            #     current_accelerator.optimizer_frequencies
             self.lightning_module.trainer.accelerator_connector.accelerator \
                 = new_accelerator
 
@@ -292,7 +304,7 @@ class RayPlugin(DDPSpawnPlugin):
             mp_queue=None)
         # Only need results from worker 0.
         if self.global_rank == 0:
-            return self.results, self.best_model_path, self.model_state_dict
+            return self.results, self.best_model_path, self.model_state_stream
         else:
             return None
 
@@ -331,12 +343,18 @@ class RayPlugin(DDPSpawnPlugin):
         else:
             return torch.device("cpu")
 
+    def _to_state_stream(self, model_state_dict):
+        _buffer = io.BytesIO()
+        torch.save(model_state_dict, _buffer)
+        return _buffer.getvalue()
+
     def transfer_distrib_spawn_state_on_fit_end(self, results):
         """Sets the training output as attributes so it can be retrieved."""
         if self.global_rank == 0:
             # Save training results as attributes.
             self._results = results
-            self.model_state_dict = self.lightning_module.state_dict()
+            self.model_state_stream = \
+                self._to_state_stream(self.lightning_module.state_dict())
             best_model_path = None
             if self.lightning_module.trainer.checkpoint_callback is not None:
                 best_model_path = \
