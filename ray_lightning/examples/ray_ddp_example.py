@@ -73,8 +73,6 @@ def train_mnist(config,
     trainer = pl.Trainer(
         max_epochs=num_epochs,
         callbacks=callbacks,
-        checkpoint_callback=False,
-        logger=False,
         plugins=[RayPlugin(num_workers=num_workers, use_gpu=use_gpu)],
         **trainer_kwargs)
     trainer.fit(model)
