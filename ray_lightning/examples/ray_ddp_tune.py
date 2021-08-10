@@ -30,7 +30,6 @@ def train_mnist(config,
 
     trainer = pl.Trainer(
         max_epochs=num_epochs,
-        gpus=int(use_gpu),
         callbacks=callbacks,
         progress_bar_refresh_rate=0,
         plugins=[
@@ -74,7 +73,6 @@ def tune_mnist(data_dir,
         num_samples=num_samples,
         resources_per_trial={
             "cpu": 1,
-            "gpu": int(use_gpu),
             "extra_cpu": num_workers,
             "extra_gpu": num_workers * int(use_gpu)
         },
@@ -111,11 +109,6 @@ if __name__ == "__main__":
         required=False,
         type=str,
         help="the address to use for Ray")
-    parser.add_argument(
-        "--server-address",
-        required=False,
-        type=str,
-        help="If using Ray Client, the address of the server to connect to. ")
     args, _ = parser.parse_known_args()
 
     num_epochs = 1 if args.smoke_test else args.num_epochs
@@ -125,8 +118,6 @@ if __name__ == "__main__":
 
     if args.smoke_test:
         ray.init(num_cpus=2)
-    elif args.server_address:
-        ray.util.connect(args.server_address)
     else:
         ray.init(address=args.address)
 

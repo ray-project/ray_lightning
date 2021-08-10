@@ -63,7 +63,6 @@ def train(data_dir, num_workers, use_gpu, batch_size, embed_dim, max_epochs,
 
     trainer = pl.Trainer(
         max_epochs=max_epochs,
-        gpus=int(use_gpu),
         precision=16 if use_gpu else 32,
         callbacks=[CUDACallback()] if use_gpu else [],
         plugins=plugin,
