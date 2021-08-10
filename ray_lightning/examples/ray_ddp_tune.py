@@ -71,8 +71,8 @@ def tune_mnist(data_dir,
         mode="min",
         config=config,
         num_samples=num_samples,
-        resources_per_trial=get_tune_ddp_resources(num_workers=num_workers,
-                                                   use_gpu=use_gpu),
+        resources_per_trial=get_tune_ddp_resources(
+            num_workers=num_workers, use_gpu=use_gpu),
         name="tune_mnist")
 
     print("Best hyperparameters found were: ", analysis.best_config)

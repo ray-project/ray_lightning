@@ -18,7 +18,7 @@ class DelayedGPUAccelerator(GPUAccelerator):
 
     def on_train_start(self) -> None:
         if "cuda" not in str(self.root_device):
-            raise RuntimeError(f"GPUs were requested but are not available.")
+            raise RuntimeError("GPUs were requested but are not available.")
         super(DelayedGPUAccelerator, self).on_train_start()
 
 
@@ -51,5 +51,3 @@ def process_results(training_result_futures, queue):
         # Process any remaining items in queue.
         _handle_queue(queue)
     return ray.get(training_result_futures)
-
-

@@ -21,11 +21,13 @@ from ray_lightning.util import process_results
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 from ray_lightning.ray_environment import RayEnvironment
 
+
 def find_free_port():
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("", 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
+
 
 @ray.remote
 class RayExecutor:
