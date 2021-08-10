@@ -153,19 +153,21 @@ def get_trainer(dir,
                 limit_val_batches: int = 10,
                 progress_bar_refresh_rate: int = 0,
                 callbacks: Optional[List[Callback]] = None,
-                checkpoint_callback: bool = True) -> Trainer:
+                checkpoint_callback: bool = True,
+                **trainer_kwargs) -> Trainer:
     """Returns a Pytorch Lightning Trainer with the provided arguments."""
     callbacks = [] if not callbacks else callbacks
     trainer = pl.Trainer(
         default_root_dir=dir,
         gpus=1 if use_gpu else 0,
+        callbacks=callbacks,
+        plugins=plugins,
         max_epochs=max_epochs,
         limit_train_batches=limit_train_batches,
         limit_val_batches=limit_val_batches,
         progress_bar_refresh_rate=progress_bar_refresh_rate,
         checkpoint_callback=checkpoint_callback,
-        callbacks=callbacks,
-        plugins=plugins)
+        **trainer_kwargs)
     return trainer
 
 

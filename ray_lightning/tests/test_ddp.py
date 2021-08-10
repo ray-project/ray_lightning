@@ -154,19 +154,22 @@ def test_early_stop(tmpdir, ray_start_2_cpus):
     """Tests if early stopping callback works correctly."""
     model = BoringModel()
     plugin = RayPlugin(num_workers=1, use_gpu=False)
-    early_stop = EarlyStopping(monitor="val_loss", patience=2, verbose=True)
+    patience = 2
+    early_stop = EarlyStopping(
+        monitor="val_loss", patience=patience, verbose=True)
     trainer = get_trainer(
         tmpdir,
         max_epochs=500,
         plugins=[plugin],
         callbacks=[early_stop],
+        num_sanity_val_steps=0,
         limit_train_batches=1.0,
         limit_val_batches=1.0,
         progress_bar_refresh_rate=1)
     trainer.fit(model)
     trained_model = BoringModel.load_from_checkpoint(
         trainer.checkpoint_callback.best_model_path)
-    assert trained_model.val_epoch == 2, trained_model.val_epoch
+    assert trained_model.val_epoch == patience + 1, trained_model.val_epoch
 
 
 def test_unused_parameters(tmpdir, ray_start_2_cpus):
