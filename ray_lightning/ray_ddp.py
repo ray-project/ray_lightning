@@ -216,7 +216,7 @@ class RayPlugin(DDPSpawnPlugin):
         trainer.optimizers = []
         return results
 
-    def start_testing(self, trainer):
+    def start_evaluating(self, trainer):
         results = self.execution_loop(trainer, tune_enabled=False)
         return results
 
