@@ -47,7 +47,7 @@ class RayExecutor:
 
     def get_node_ip(self):
         """Returns the IP address of the node that this Ray actor is on."""
-        return ray.services.get_node_ip_address()
+        return ray.util.get_node_ip_address()
 
     def execute(self, fn: Callable, *args, **kwargs):
         """Execute the provided function and return the result."""
