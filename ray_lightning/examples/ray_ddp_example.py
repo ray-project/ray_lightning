@@ -72,7 +72,6 @@ def train_mnist(config,
 
     trainer = pl.Trainer(
         max_epochs=num_epochs,
-        #gpus=int(use_gpu),
         callbacks=callbacks,
         checkpoint_callback=False,
         logger=False,
@@ -83,7 +82,7 @@ def train_mnist(config,
 
 def tune_mnist(data_dir,
                num_samples=10,
-               num_epochs=1,
+               num_epochs=10,
                num_workers=1,
                use_gpu=False,
                **trainer_kwargs):
@@ -113,7 +112,6 @@ def tune_mnist(data_dir,
         num_samples=num_samples,
         resources_per_trial={
             "cpu": 1,
-            "gpu": int(use_gpu),
             "extra_cpu": num_workers,
             "extra_gpu": num_workers * int(use_gpu)
         },
@@ -163,18 +161,15 @@ if __name__ == "__main__":
 
     num_epochs = 1 if args.smoke_test else args.num_epochs
     num_workers = 1 if args.smoke_test else args.num_workers
-    #use_gpu = False if args.smoke_test else args.use_gpu
-    use_gpu = True
+    use_gpu = False if args.smoke_test else args.use_gpu
     num_samples = 1 if args.smoke_test else args.num_samples
 
-    # if args.smoke_test:
-    #     ray.init(num_cpus=2)
-    # elif args.server_address:
-    #     ray.util.connect(args.server_address)
-    # else:
-    #     ray.init(address=args.address)
-
-    ray.init(address=args.address)
+    if args.smoke_test:
+        ray.init(num_cpus=2)
+    elif args.server_address:
+        ray.util.connect(args.server_address)
+    else:
+        ray.init(address=args.address)
 
     data_dir = os.path.join(tempfile.gettempdir(), "mnist_data_")
 

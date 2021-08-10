@@ -4,15 +4,19 @@ from typing import Callable, Dict, List, Union, Any
 import os
 from collections import defaultdict
 
-import ray
 import torch
+
+from pytorch_lightning.accelerators import CPUAccelerator
 from pytorch_lightning.plugins import DDPSpawnPlugin
 from pytorch_lightning import _logger as log, LightningModule
 from pytorch_lightning.utilities import rank_zero_only
+
+import ray
 from ray.util.sgd.utils import find_free_port
+from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
-from ray_lightning.util import process_results, Queue
+from ray_lightning.util import process_results
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 from ray_lightning.ray_environment import RayEnvironment
 
@@ -95,7 +99,6 @@ class RayPlugin(DDPSpawnPlugin):
                  use_gpu: bool = False,
                  init_hook: Callable = None,
                  **ddp_kwargs: Union[Any, Dict[str, Any]]):
-        #import pdb; pdb.set_trace()
         if not ray.is_initialized():
             ray.init()
         super().__init__(
@@ -168,8 +171,8 @@ class RayPlugin(DDPSpawnPlugin):
         to_gpu = self.use_gpu and torch.cuda.is_available()
         state_dict = torch.load(
             _buffer,
-            map_location=("cpu" if not to_gpu else
-                          lambda storage, loc: storage.cuda()))
+            map_location=("cpu" if not to_gpu
+                          else lambda storage, loc: storage.cuda()))
         return state_dict
 
     def execution_loop(self, trainer, tune_enabled: bool = True):
@@ -225,8 +228,7 @@ class RayPlugin(DDPSpawnPlugin):
         # Swap out the accelerator if necessary.
         # This is needed to support CPU head with GPU workers or Ray Client.
         current_accelerator = self.lightning_module.trainer.accelerator
-        # if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
-        if True:
+        if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
             from weakref import proxy
             from ray_lightning.util import DelayedGPUAccelerator
             precision_plugin = current_accelerator.precision_plugin
@@ -237,11 +239,6 @@ class RayPlugin(DDPSpawnPlugin):
                 proxy(new_accelerator.training_type_plugin)
             self.lightning_module.trainer.accelerator_connector\
                 ._precision_plugin = proxy(new_accelerator.precision_plugin)
-            #new_accelerator.model = current_accelerator.model
-            # new_accelerator.optimizers = current_accelerator.optimizers
-            # new_accelerator.lr_schedulers = current_accelerator.lr_schedulers
-            # new_accelerator.optimizer_frequencies = \
-            #     current_accelerator.optimizer_frequencies
             self.lightning_module.trainer.accelerator_connector.accelerator \
                 = new_accelerator
 
