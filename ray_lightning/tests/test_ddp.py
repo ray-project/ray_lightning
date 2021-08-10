@@ -1,4 +1,5 @@
 import pytest
+from ray.util.client.ray_client_helpers import ray_start_client_server
 from torch.utils.data import DistributedSampler
 
 from pl_bolts.datamodules import MNISTDataModule
@@ -18,6 +19,13 @@ def ray_start_2_cpus():
     address_info = ray.init(num_cpus=2)
     yield address_info
     ray.shutdown()
+
+
+@pytest.fixture
+def start_ray_client_server_2_cpus():
+    ray.init(num_cpus=2)
+    with ray_start_client_server() as client:
+        yield client
 
 
 @pytest.fixture
@@ -86,6 +94,15 @@ def test_train(tmpdir, ray_start_2_cpus, num_workers):
 
 
 @pytest.mark.parametrize("num_workers", [1, 2])
+def test_train_client(tmpdir, start_ray_client_server_2_cpus, num_workers):
+    assert ray.util.client.ray.is_connected()
+    model = BoringModel()
+    plugin = RayPlugin(num_workers=num_workers)
+    trainer = get_trainer(tmpdir, plugins=[plugin])
+    train_test(trainer, model)
+
+
+@pytest.mark.parametrize("num_workers", [1, 2])
 def test_load(tmpdir, ray_start_2_cpus, num_workers):
     """Tests if model checkpoint can be loaded."""
     model = BoringModel()
@@ -113,23 +130,46 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
     predict_test(trainer, model, dm)
 
 
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
+                        num_workers):
+    assert ray.util.client.ray.is_connected()
+    config = {
+        "layer_1": 32,
+        "layer_2": 32,
+        "lr": 1e-2,
+        "batch_size": 32,
+    }
+
+    model = LightningMNISTClassifier(config, tmpdir)
+    dm = MNISTDataModule(
+        data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
+    plugin = RayPlugin(num_workers=num_workers, use_gpu=False)
+    trainer = get_trainer(
+        tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
+    predict_test(trainer, model, dm)
+
+
 def test_early_stop(tmpdir, ray_start_2_cpus):
     """Tests if early stopping callback works correctly."""
     model = BoringModel()
     plugin = RayPlugin(num_workers=1, use_gpu=False)
-    early_stop = EarlyStopping(monitor="val_loss", patience=2, verbose=True)
+    patience = 2
+    early_stop = EarlyStopping(
+        monitor="val_loss", patience=patience, verbose=True)
     trainer = get_trainer(
         tmpdir,
         max_epochs=500,
         plugins=[plugin],
         callbacks=[early_stop],
+        num_sanity_val_steps=0,
         limit_train_batches=1.0,
         limit_val_batches=1.0,
         progress_bar_refresh_rate=1)
     trainer.fit(model)
     trained_model = BoringModel.load_from_checkpoint(
         trainer.checkpoint_callback.best_model_path)
-    assert trained_model.val_epoch == 2, trained_model.val_epoch
+    assert trained_model.val_epoch == patience + 1, trained_model.val_epoch
 
 
 def test_unused_parameters(tmpdir, ray_start_2_cpus):
