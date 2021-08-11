@@ -12,6 +12,7 @@ This library also comes with an integration with [Ray Tune](tune.io) for distrib
 2. [PyTorch Lightning Compatibility](#pytorch-lightning-compatibility)
 3. [PyTorch Distributed Data Parallel Plugin on Ray](#pytorch-distributed-data-parallel-plugin-on-ray)
 4. [Multi-Node Distributed Training](#multinode-distributed-training)
+5. [Multi-Node Training from your Laptop](#multinode-training-from-your-laptop)
 5. [Horovod Plugin on Ray](#horovod-plugin-on-ray)
 6. [Model Parallel Sharded Training on Ray](#model-parallel-sharded-training-on-ray)
 7. [Hyperparameter Tuning with Ray Tune](#hyperparameter-tuning-with-ray-tune)
@@ -65,7 +66,7 @@ Using the same examples above, you can run distributed training on a multi-node 
 
 You no longer have to set environment variables or configurations and run your training script on every single node.
 
-### Training from your Laptop
+## Multi-node Training from your Laptop
 Ray provides capabilities to run multi-node and GPU training all from your laptop through [Ray Client](https://docs.ray.io/en/master/cluster/ray-client.html)
 
 You can follow the instructions [here](https://docs.ray.io/en/master/cluster/ray-client.html) to setup the cluster.
@@ -74,9 +75,9 @@ Then, add this line to the beginning of your script to connect to the cluster:
 # replace with the appropriate host and port
 ray.init("ray://<head_node_host>:10001")
 ```
-Now you can run your training script on the laptop, but have it execute as if your laptop has all the resources of the cluster!
+Now you can run your training script on the laptop, but have it execute as if your laptop has all the resources of the cluster essentially providing you with an **infinite laptop**.
 
-Note: When using with Ray Client, you must disable checkpointing and logging for your Trainer by setting `checkpoint_callback` and `logger` to `False`.
+**Note:** When using with Ray Client, you must disable checkpointing and logging for your Trainer by setting `checkpoint_callback` and `logger` to `False`.
 
 ## Horovod Plugin on Ray
 Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayPlugin` instead.
