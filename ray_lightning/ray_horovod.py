@@ -74,6 +74,7 @@ class HorovodRayPlugin(HorovodPlugin):
                  num_hosts: int = 1,
                  num_slots: int = 1,
                  use_gpu: bool = False):
+
         if not HOROVOD_AVAILABLE:
             raise RuntimeError("Please intall Horovod to use this plugin.")
         if not ray.is_initialized():
