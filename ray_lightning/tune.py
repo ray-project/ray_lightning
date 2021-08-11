@@ -1,11 +1,12 @@
 from typing import Dict, List, Union
 
+import fsspec
 import os
 
-from pytorch_lightning.utilities.cloud_io import atomic_save
 from pytorch_lightning import Trainer, LightningModule
 
 from ray_lightning.session import put_queue, get_actor_rank
+from ray_lightning.util import to_state_stream
 
 try:
     from ray import tune
@@ -126,20 +127,23 @@ if TUNE_INSTALLED:
             self._filename = filename
 
         @staticmethod
-        def _create_checkpoint(checkpoint_dict: dict, global_step: int,
+        def _create_checkpoint(checkpoint_stream, global_step: int,
                                filename: str):
             with tune.checkpoint_dir(step=global_step) as checkpoint_dir:
                 file_path = os.path.join(checkpoint_dir, filename)
-                atomic_save(checkpoint_dict, file_path)
+                with fsspec.open(file_path, "wb") as f:
+                    f.write(checkpoint_stream)
 
         def _handle(self, trainer: Trainer, pl_module: LightningModule):
             if trainer.running_sanity_check:
                 return
             checkpoint_dict = trainer.checkpoint_connector.dump_checkpoint()
+            # Convert to a state stream first.
+            checkpoint_stream = to_state_stream(checkpoint_dict)
             global_step = trainer.global_step
             if get_actor_rank() == 0:
                 put_queue(lambda: self._create_checkpoint(
-                    checkpoint_dict, global_step, self._filename))
+                    checkpoint_stream, global_step, self._filename))
 
     class TuneReportCheckpointCallback(TuneCallback):
         """PyTorch Lightning to Tune reporting and checkpointing callback.
