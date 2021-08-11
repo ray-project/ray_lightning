@@ -1,5 +1,7 @@
+import io
 from typing import Callable
 
+import torch
 from pytorch_lightning.accelerators import GPUAccelerator
 from pytorch_lightning import Trainer, LightningModule
 
@@ -51,3 +53,21 @@ def process_results(training_result_futures, queue):
         # Process any remaining items in queue.
         _handle_queue(queue)
     return ray.get(training_result_futures)
+
+
+def to_state_stream(model_state_dict):
+    """Converts the given state dict to a stream of bytes."""
+    _buffer = io.BytesIO()
+    torch.save(model_state_dict, _buffer)
+    return _buffer.getvalue()
+
+
+def load_state_stream(state_stream, to_gpu):
+    """Converts the state stream to a state dict on the appropriate device."""
+    _buffer = io.BytesIO(state_stream)
+    to_gpu = to_gpu and torch.cuda.is_available()
+    state_dict = torch.load(
+        _buffer,
+        map_location=("cpu"
+                      if not to_gpu else lambda storage, loc: storage.cuda()))
+    return state_dict

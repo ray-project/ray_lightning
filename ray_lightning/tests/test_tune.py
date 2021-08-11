@@ -2,6 +2,7 @@ import os
 import pytest
 
 import ray
+import torch
 from ray import tune
 
 from ray_lightning import RayPlugin, HorovodRayPlugin
@@ -83,4 +84,20 @@ def test_checkpoint_ddp(tmpdir, ray_start_4_cpus):
 def test_checkpoint_horovod(tmpdir, ray_start_4_cpus):
     """Tests if Tune checkpointing works with HorovodRayAccelerator."""
     plugin = HorovodRayPlugin(num_workers=2, use_gpu=False)
+    checkpoint_test(tmpdir, plugin)
+
+
+@pytest.mark.skipif(
+    torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
+def test_checkpoint_ddp_gpu(tmpdir, ray_start_4_cpus):
+    """Tests if Tune checkpointing works with RayAccelerator."""
+    plugin = RayPlugin(num_workers=2, use_gpu=False)
+    checkpoint_test(tmpdir, plugin)
+
+
+@pytest.mark.skipif(
+    torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
+def test_checkpoint_horovod_gpu(tmpdir, ray_start_4_cpus):
+    """Tests if Tune checkpointing works with HorovodRayAccelerator."""
+    plugin = HorovodRayPlugin(num_hosts=1, num_slots=2, use_gpu=False)
     checkpoint_test(tmpdir, plugin)

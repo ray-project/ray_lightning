@@ -1,4 +1,3 @@
-import io
 import socket
 from contextlib import closing
 from typing import Callable, Dict, List, Union, Any
@@ -17,7 +16,8 @@ import ray
 from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
-from ray_lightning.util import process_results
+from ray_lightning.util import process_results, to_state_stream, \
+    load_state_stream
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 from ray_lightning.ray_environment import RayEnvironment
 
@@ -174,15 +174,6 @@ class RayPlugin(DDPSpawnPlugin):
         values = [os.getenv(k) for k in keys]
         ray.get([w.set_env_vars.remote(keys, values) for w in self.workers])
 
-    def _load_state_stream(self, state_stream):
-        _buffer = io.BytesIO(state_stream)
-        to_gpu = self.use_gpu and torch.cuda.is_available()
-        state_dict = torch.load(
-            _buffer,
-            map_location=("cpu" if not to_gpu
-                          else lambda storage, loc: storage.cuda()))
-        return state_dict
-
     def execution_loop(self, trainer, tune_enabled: bool = True):
         """Main execution loop for training, testing, & prediction.
 
@@ -217,7 +208,7 @@ class RayPlugin(DDPSpawnPlugin):
         results = process_results(futures, queue)
         # Get the results, checkpoint path, and model weights from worker 0.
         results, best_path, state_stream = results[0]
-        state_dict = self._load_state_stream(state_stream)
+        state_dict = load_state_stream(state_stream, to_gpu=self.use_gpu)
         # Set the state for PTL using the output from remote training.
         self._results = results
         self._model = model
@@ -348,18 +339,13 @@ class RayPlugin(DDPSpawnPlugin):
         else:
             return torch.device("cpu")
 
-    def _to_state_stream(self, model_state_dict):
-        _buffer = io.BytesIO()
-        torch.save(model_state_dict, _buffer)
-        return _buffer.getvalue()
-
     def transfer_distrib_spawn_state_on_fit_end(self, results):
         """Sets the training output as attributes so it can be retrieved."""
         if self.global_rank == 0:
             # Save training results as attributes.
             self._results = results
             self.model_state_stream = \
-                self._to_state_stream(self.lightning_module.state_dict())
+                to_state_stream(self.lightning_module.state_dict())
             best_model_path = None
             if self.lightning_module.trainer.checkpoint_callback is not None:
                 best_model_path = \
