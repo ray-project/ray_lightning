@@ -19,6 +19,8 @@ class DelayedGPUAccelerator(GPUAccelerator):
         return super(GPUAccelerator, self).setup(trainer, model)
 
     def on_train_start(self) -> None:
+        if "cuda" not in str(self.root_device):
+            raise RuntimeError("GPUs were requested but are not available.")
         super(DelayedGPUAccelerator, self).on_train_start()
 
 

@@ -6,7 +6,7 @@ import os
 from pytorch_lightning import Trainer, LightningModule
 
 from ray_lightning.session import put_queue, get_actor_rank
-from ray_lightning.util import to_state_stream
+from ray_lightning.util import to_state_stream, Unavailable
 
 try:
     from ray import tune
@@ -15,14 +15,30 @@ try:
     TUNE_INSTALLED = True
 except ImportError:
     tune = None
-    TuneCallback = object
+    TuneCallback = Unavailable
 
     def is_session_enabled():
         return False
 
+    get_tune_ddp_resources = Unavailable
+
     TUNE_INSTALLED = False
 
 if TUNE_INSTALLED:
+
+    def get_tune_ddp_resources(num_workers: int = 1,
+                               cpus_per_worker: int = 1,
+                               use_gpu: bool = False) -> Dict[str, int]:
+        """Returns the PlacementGroupFactory to use for Ray Tune."""
+        from ray.tune import PlacementGroupFactory
+
+        head_bundle = {"CPU": 1}
+        child_bundle = {"CPU": cpus_per_worker, "GPU": int(use_gpu)}
+        child_bundles = [child_bundle.copy() for _ in range(num_workers)]
+        bundles = [head_bundle] + child_bundles
+        placement_group_factory = PlacementGroupFactory(
+            bundles, strategy="PACK")
+        return placement_group_factory
 
     class TuneReportCallback(TuneCallback):
         """Distributed PyTorch Lightning to Ray Tune reporting callback
@@ -201,3 +217,8 @@ if TUNE_INSTALLED:
         def _handle(self, trainer: Trainer, pl_module: LightningModule):
             self._checkpoint._handle(trainer, pl_module)
             self._report._handle(trainer, pl_module)
+
+else:
+    # If Tune is not installed.
+    TuneReportCallback = Unavailable
+    TuneReportCheckpointCallback = Unavailable
