@@ -1,4 +1,6 @@
 import io
+import socket
+from contextlib import closing
 from typing import Callable, Dict, List, Union, Any
 
 import os
@@ -12,13 +14,19 @@ from pytorch_lightning import _logger as log, LightningModule
 from pytorch_lightning.utilities import rank_zero_only
 
 import ray
-from ray.util.sgd.utils import find_free_port
 from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 from ray_lightning.ray_environment import RayEnvironment
+
+
+def find_free_port():
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(("", 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
 
 
 @ray.remote
@@ -39,7 +47,7 @@ class RayExecutor:
 
     def get_node_ip(self):
         """Returns the IP address of the node that this Ray actor is on."""
-        return ray.services.get_node_ip_address()
+        return ray.util.get_node_ip_address()
 
     def execute(self, fn: Callable, *args, **kwargs):
         """Execute the provided function and return the result."""

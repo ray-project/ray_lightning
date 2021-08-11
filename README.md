@@ -86,8 +86,10 @@ You no longer have to set environment variables or configurations and run your t
 Example using `ray_lightning` with Tune:
 
 ```python
+from ray import tune
+
 from ray_lightning import RayPlugin
-from ray_lightning.tune import TuneReportCallback
+from ray_lightning.tune import TuneReportCallback, get_tune_ddp_resources
 
 def train_mnist(config):
     
@@ -111,17 +113,14 @@ config = {
     "batch_size": tune.choice([32, 64, 128]),
 }
 
-# Make sure to specify how many actors each training run will create via the "extra_cpu" field.
+# Make sure to pass in ``resources_per_trial`` using the ``get_tune_ddp_resources`` utility.
 analysis = tune.run(
         train_mnist,
         metric="loss",
         mode="min",
         config=config,
         num_samples=num_samples,
-        resources_per_trial={
-            "cpu": 1,
-            "extra_cpu": 4
-        },
+        resources_per_trial=get_tune_ddp_resources(num_workers=4),
         name="tune_mnist")
         
 print("Best hyperparameters found were: ", analysis.best_config)
