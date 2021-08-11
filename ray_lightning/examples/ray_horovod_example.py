@@ -10,7 +10,7 @@ from torchvision import transforms
 
 import ray
 from ray import tune
-from ray_lightning.tune import TuneReportCallback
+from ray_lightning.tune import TuneReportCallback, get_tune_resources
 from ray_lightning import HorovodRayPlugin
 from ray_lightning.tests.utils import LightningMNISTClassifier
 
@@ -105,13 +105,8 @@ def tune_mnist(data_dir,
         mode="min",
         config=config,
         num_samples=num_samples,
-        resources_per_trial={
-            "cpu": 1,
-            # Assume 1 cpu per slot.
-            "extra_cpu": num_hosts * num_slots,
-            # Assume 1 gpu per slot.
-            "extra_gpu": num_hosts * num_slots * int(use_gpu)
-        },
+        resources_per_trial=get_tune_resources(num_workers=num_workers,
+                                               use_gpu=use_gpu),
         name="tune_mnist")
 
     print("Best hyperparameters found were: ", analysis.best_config)

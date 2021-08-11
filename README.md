@@ -89,7 +89,7 @@ Example using `ray_lightning` with Tune:
 from ray import tune
 
 from ray_lightning import RayPlugin
-from ray_lightning.tune import TuneReportCallback, get_tune_ddp_resources
+from ray_lightning.tune import TuneReportCallback, get_tune_resources
 
 def train_mnist(config):
     
@@ -120,7 +120,7 @@ analysis = tune.run(
         mode="min",
         config=config,
         num_samples=num_samples,
-        resources_per_trial=get_tune_ddp_resources(num_workers=4),
+        resources_per_trial=get_tune_resources(num_workers=4),
         name="tune_mnist")
         
 print("Best hyperparameters found were: ", analysis.best_config)

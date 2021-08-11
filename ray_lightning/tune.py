@@ -26,9 +26,9 @@ except ImportError:
 
 if TUNE_INSTALLED:
 
-    def get_tune_ddp_resources(num_workers: int = 1,
-                               cpus_per_worker: int = 1,
-                               use_gpu: bool = False) -> Dict[str, int]:
+    def get_tune_resources(num_workers: int = 1,
+                           cpus_per_worker: int = 1,
+                           use_gpu: bool = False) -> Dict[str, int]:
         """Returns the PlacementGroupFactory to use for Ray Tune."""
         from ray.tune import PlacementGroupFactory
 
