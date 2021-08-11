@@ -71,7 +71,7 @@ class HorovodRayPlugin(HorovodPlugin):
 
     def __init__(self,
                  num_workers: int,
-                 num_cpus_per_worker: int,
+                 num_cpus_per_worker: int = 1,
                  use_gpu: bool = False):
 
         if not HOROVOD_AVAILABLE:
