@@ -45,11 +45,11 @@ from ray_lightning import HorovodRayPlugin
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
 
-# 2 nodes, 4 workers per node, each using 1 CPU and 1 GPU.
-plugin = HorovodRayPlugin(num_hosts=2, num_slots=4, use_gpu=True)
+# 2 workers, 1 CPU and 1 GPU each.
+plugin = HorovodRayPlugin(num_workers=2, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
-# The actual number of GPUs is determined by ``num_slots``.
+# The actual number of GPUs is determined by ``num_workers``.
 trainer = pl.Trainer(..., plugins=[plugin])
 trainer.fit(ptl_model)
 ```
