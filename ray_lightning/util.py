@@ -63,7 +63,11 @@ def to_state_stream(model_state_dict):
 
 
 def load_state_stream(state_stream, to_gpu):
-    """Converts the state stream to a state dict on the appropriate device."""
+    """Converts the state stream to a state dict on the appropriate device.
+
+    Converts to GPU if ``to_gpu`` is True and CUDA is available.
+
+    """
     _buffer = io.BytesIO(state_stream)
     to_gpu = to_gpu and torch.cuda.is_available()
     state_dict = torch.load(
