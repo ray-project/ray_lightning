@@ -8,7 +8,8 @@ from ray import ObjectRef
 from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
-from ray_lightning.util import process_results, Unavailable
+from ray_lightning.util import process_results, Unavailable, to_state_stream, \
+    load_state_stream
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 try:
@@ -148,7 +149,8 @@ class HorovodRayPlugin(HorovodPlugin):
 
         results = process_results(result_futures, queue)
 
-        results, state_dict, best_path = results[0]
+        results, state_stream, best_path = results[0]
+        state_dict = load_state_stream(state_stream)
         self._results = results
         self._model = model
         self._model.load_state_dict(state_dict)
@@ -194,7 +196,8 @@ class HorovodRayPlugin(HorovodPlugin):
                 self.lightning_module.trainer.checkpoint_callback\
                     .best_model_path
 
-        return results, self.lightning_module.state_dict(), best_model_path
+        return results, to_state_stream(self.lightning_module.state_dict()), \
+            best_model_path
 
     def post_dispatch(self):
         """Shuts down the RayExecutor."""
