@@ -7,10 +7,33 @@ Once you add your plugin to the PyTorch Lightning Trainer, you can parallelize t
 
 This library also comes with an integration with [Ray Tune](tune.io) for distributed hyperparameter tuning experiments.
 
+# Table of Contents
+1. [Installation](#installation)
+2. [PyTorch Lightning Compatibility](#pytorch-lightning-compatibility)
+3. [PyTorch Distributed Data Parallel Plugin on Ray](#pytorch-distributed-data-parallel-plugin-on-ray)
+4. [Multi-Node Distributed Training](#multinode-distributed-training)
+5. [Horovod Plugin on Ray](#horovod-plugin-on-ray)
+6. [Model Parallel Sharded Training on Ray](#model-parallel-sharded-training-on-ray)
+7. [Hyperparameter Tuning with Ray Tune](#hyperparameter-tuning-with-ray-tune)
+8. [FAQ](#faq)
+
+
 ## Installation
-You can install the master branch of ray_lightning like so:
+You can install Ray Lightning via `pip`:
+
+`pip install ray_lightning`
+
+Or to install master:
 
 `pip install git+https://github.com/ray-project/ray_lightning#ray_lightning`
+
+## PyTorch Lightning Compatibility
+Here are the supported PyTorch Lightning versions:
+
+| Ray Lightning | PyTorch Lightning |
+|---|---|
+| 0.1 | 1.4.1 |
+
 
 ## PyTorch Distributed Data Parallel Plugin on Ray
 The `RayPlugin` provides Distributed Data Parallel training on a Ray cluster. PyTorch DDP is used as the distributed training protocol, and Ray is used to launch and manage the training worker processes.
@@ -34,6 +57,26 @@ trainer.fit(ptl_model)
 Because Ray is used to launch processes, instead of the same script being called multiple times, you CAN use this plugin even in cases when you cannot use the standard `DDPPlugin` such as 
 - Jupyter Notebooks, Google Colab, Kaggle
 - Calling `fit` or `test` multiple times in the same script
+
+## Multi-node Distributed Training
+Using the same examples above, you can run distributed training on a multi-node cluster with just 2 simple steps.
+1) [Use Ray's cluster launcher](https://docs.ray.io/en/master/cluster/launcher.html) to start a Ray cluster- `ray up my_cluster_config.yaml`.
+2) [Execute your Python script on the Ray cluster](https://docs.ray.io/en/master/cluster/commands.html#running-ray-scripts-on-the-cluster-ray-submit)- `ray submit my_cluster_config.yaml train.py`. This will `rsync` your training script to the head node, and execute it on the Ray cluster.
+
+You no longer have to set environment variables or configurations and run your training script on every single node.
+
+### Training from your Laptop
+Ray provides capabilities to run multi-node and GPU training all from your laptop through [Ray Client](https://docs.ray.io/en/master/cluster/ray-client.html)
+
+You can follow the instructions [here](https://docs.ray.io/en/master/cluster/ray-client.html) to setup the cluster.
+Then, add this line to the beginning of your script to connect to the cluster:
+```python
+# replace with the appropriate host and port
+ray.init("ray://<head_node_host>:10001")
+```
+Now you can run your training script on the laptop, but have it execute as if your laptop has the resources of the cluster.
+
+Note: When using with Ray Client, you must disable checkpointing and logging for your Trainer by setting `checkp`
 
 ## Horovod Plugin on Ray
 Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayPlugin` instead.
@@ -72,13 +115,6 @@ trainer = pl.Trainer(..., plugins=[plugin])
 trainer.fit(ptl_model)
 ```
 See the [Pytorch Lightning docs](https://pytorch-lightning.readthedocs.io/en/stable/advanced/multi_gpu.html#sharded-training) for more information on sharded training.
-
-## Multi-node Distributed Training
-Using the same examples above, you can run distributed training on a multi-node cluster with just 2 simple steps.
-1) [Use Ray's cluster launcher](https://docs.ray.io/en/master/cluster/launcher.html) to start a Ray cluster- `ray up my_cluster_config.yaml`.
-2) [Execute your Python script on the Ray cluster](https://docs.ray.io/en/master/cluster/commands.html#running-ray-scripts-on-the-cluster-ray-submit)- `ray submit my_cluster_config.yaml train.py`. This will `rsync` your training script to the head node, and execute it on the Ray cluster.
-
-You no longer have to set environment variables or configurations and run your training script on every single node.
 
 ## Hyperparameter Tuning with Ray Tune
 `ray_lightning` also integrates with Ray Tune to provide distributed hyperparameter tuning for your distributed model training. You can run multiple PyTorch Lightning training runs in parallel, each with a different hyperparameter configuration, and each training run parallelized by itself. All you have to do is move your training code to a function, pass the function to tune.run, and make sure to add the appropriate callback (Either `TuneReportCallback` or `TuneReportCheckpointCallback`) to your PyTorch Lightning Trainer.
@@ -126,6 +162,7 @@ analysis = tune.run(
         
 print("Best hyperparameters found were: ", analysis.best_config)
 ```
+
 ## FAQ
 > RaySGD already has a [Pytorch Lightning integration](https://docs.ray.io/en/master/raysgd/raysgd_ptl.html). What's the difference between this integration and that?
 
