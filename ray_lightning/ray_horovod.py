@@ -150,7 +150,7 @@ class HorovodRayPlugin(HorovodPlugin):
         results = process_results(result_futures, queue)
 
         results, state_stream, best_path = results[0]
-        state_dict = load_state_stream(state_stream)
+        state_dict = load_state_stream(state_stream, to_gpu=self.use_gpu)
         self._results = results
         self._model = model
         self._model.load_state_dict(state_dict)
