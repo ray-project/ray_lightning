@@ -47,7 +47,7 @@ from ray_lightning import RayPlugin
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
-plugin = RayPlugin(num_workers=4, cpus_per_worker=1, use_gpu=True)
+plugin = RayPlugin(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
@@ -108,7 +108,7 @@ from ray_lightning import RayShardedPlugin
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
-plugin = RayShardedPlugin(num_workers=4, cpus_per_worker=1, use_gpu=True)
+plugin = RayShardedPlugin(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
