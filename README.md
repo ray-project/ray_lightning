@@ -162,6 +162,7 @@ analysis = tune.run(
         
 print("Best hyperparameters found were: ", analysis.best_config)
 ```
+**Note:** Ray Tune requires 1 additional CPU per trial to use for the Trainable driver. So the actual number of resources each trial requires is `num_workers * num_cpus_per_worker + 1`.
 
 ## FAQ
 > RaySGD already has a [Pytorch Lightning integration](https://docs.ray.io/en/master/raysgd/raysgd_ptl.html). What's the difference between this integration and that?
