@@ -7,7 +7,7 @@ from pl_bolts.datamodules.mnist_datamodule import MNISTDataModule
 import pytorch_lightning as pl
 import ray
 from ray import tune
-from ray_lightning.tune import TuneReportCallback, get_tune_resources
+from ray_lightning.tune import TuneReportCallback, get_tune_ddp_resources
 from ray_lightning import RayPlugin
 from ray_lightning.tests.utils import LightningMNISTClassifier
 
@@ -71,7 +71,7 @@ def tune_mnist(data_dir,
         mode="min",
         config=config,
         num_samples=num_samples,
-        resources_per_trial=get_tune_resources(
+        resources_per_trial=get_tune_ddp_resources(
             num_workers=num_workers, use_gpu=use_gpu),
         name="tune_mnist")
 
