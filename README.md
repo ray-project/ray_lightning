@@ -47,7 +47,7 @@ from ray_lightning import RayPlugin
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
-plugin = RayPlugin(num_workers=4, cpus_per_worker=1, use_gpu=True)
+plugin = RayPlugin(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
@@ -108,7 +108,7 @@ from ray_lightning import RayShardedPlugin
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
-plugin = RayShardedPlugin(num_workers=4, cpus_per_worker=1, use_gpu=True)
+plugin = RayShardedPlugin(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
@@ -162,6 +162,7 @@ analysis = tune.run(
         
 print("Best hyperparameters found were: ", analysis.best_config)
 ```
+**Note:** Ray Tune requires 1 additional CPU per trial to use for the Trainable driver. So the actual number of resources each trial requires is `num_workers * num_cpus_per_worker + 1`.
 
 ## FAQ
 > RaySGD already has a [Pytorch Lightning integration](https://docs.ray.io/en/master/raysgd/raysgd_ptl.html). What's the difference between this integration and that?
