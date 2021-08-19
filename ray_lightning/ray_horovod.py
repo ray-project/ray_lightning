@@ -53,7 +53,7 @@ class HorovodRayPlugin(HorovodPlugin):
 
     Example:
 
-        .. code_block:: python
+        .. code-block:: python
 
             import pytorch_lightning as ptl
             from ray_lightning import HorovodRayPlugin
