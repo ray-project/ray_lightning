@@ -5,7 +5,7 @@ flake8-quotes
 yapf==0.23.0
 pytest
 pytorch-lightning==1.4.2
-lightning-bolts==0.3.3
+lightning-bolts==0.3.4
 ray[tune]
 torch==1.8.1
 torchvision
