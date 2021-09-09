@@ -45,7 +45,7 @@ def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
     plugin = RayPlugin(num_workers=num_workers)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     trainer.fit(model)
-    assert all(actor["State"] == ray.gcs_utils.ActorTableData.DEAD
+    assert all(actor["State"] == ray._private.gcs_utils.ActorTableData.DEAD
                for actor in list(ray.state.actors().values()))
 
 
