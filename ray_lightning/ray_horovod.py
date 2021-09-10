@@ -5,6 +5,7 @@ from pytorch_lightning.utilities import rank_zero_only
 
 import ray
 from ray import ObjectRef
+from ray.util import PublicAPI
 from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
@@ -28,6 +29,7 @@ def get_executable_cls():
     return None
 
 
+@PublicAPI(stability="beta")
 class HorovodRayPlugin(HorovodPlugin):
     """Pytorch Lightning Plugin for Horovod training on a Ray cluster.
 

@@ -1,5 +1,6 @@
 import pytest
 from ray.util.client.ray_client_helpers import ray_start_client_server
+import ray._private.gcs_utils as gcs_utils
 from torch.utils.data import DistributedSampler
 
 from pl_bolts.datamodules import MNISTDataModule
@@ -45,7 +46,7 @@ def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
     plugin = RayPlugin(num_workers=num_workers)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     trainer.fit(model)
-    assert all(actor["State"] == ray.gcs_utils.ActorTableData.DEAD
+    assert all(actor["State"] == gcs_utils.ActorTableData.DEAD
                for actor in list(ray.state.actors().values()))
 
 
