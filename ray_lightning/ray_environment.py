@@ -10,7 +10,7 @@ class RayEnvironment(ClusterEnvironment):
         self._global_rank = 0
         self._is_remote = False
 
-    def creates_children(self) -> bool:
+    def creates_processes_externally(self) -> bool:
         return False
 
     def master_address(self) -> str:
