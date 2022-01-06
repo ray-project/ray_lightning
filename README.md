@@ -34,6 +34,7 @@ Here are the supported PyTorch Lightning versions:
 | Ray Lightning | PyTorch Lightning |
 |---|---|
 | 0.1 | 1.4 |
+| 0.2 | 1.5 |
 
 
 ## PyTorch Distributed Data Parallel Plugin on Ray
