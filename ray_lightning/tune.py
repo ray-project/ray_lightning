@@ -1,4 +1,5 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
+import warnings
 
 import fsspec
 import os
@@ -28,14 +29,26 @@ except ImportError:
 if TUNE_INSTALLED:
 
     @PublicAPI(stability="beta")
-    def get_tune_ddp_resources(num_workers: int = 1,
-                               cpus_per_worker: int = 1,
-                               use_gpu: bool = False) -> Dict[str, int]:
+    def get_tune_ddp_resources(
+            num_workers: int = 1,
+            num_cpus_per_worker: int = 1,
+            use_gpu: bool = False,
+            # Deprecated args.
+            cpus_per_worker: Optional[int] = None,
+    ) -> Dict[str, int]:
         """Returns the PlacementGroupFactory to use for Ray Tune."""
         from ray.tune import PlacementGroupFactory
 
+        if cpus_per_worker is not None:
+            # TODO(amogkam): Remove `cpus_per_worker` on next major release.
+            num_cpus_per_worker = cpus_per_worker
+            warnings.warn(
+                "`cpus_per_worker` will be deprecated in the "
+                "future. Use "
+                "`num_cpus_per_worker` instead.", PendingDeprecationWarning)
+
         head_bundle = {"CPU": 1}
-        child_bundle = {"CPU": cpus_per_worker, "GPU": int(use_gpu)}
+        child_bundle = {"CPU": num_cpus_per_worker, "GPU": int(use_gpu)}
         child_bundles = [child_bundle.copy() for _ in range(num_workers)]
         bundles = [head_bundle] + child_bundles
         placement_group_factory = PlacementGroupFactory(
