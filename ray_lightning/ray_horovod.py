@@ -9,7 +9,8 @@ from ray.util import PublicAPI
 from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
-from ray_lightning.util import process_results, Unavailable
+from ray_lightning.util import process_results, Unavailable, to_state_stream, \
+    load_state_stream
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 try:
@@ -47,8 +48,8 @@ class HorovodRayPlugin(HorovodPlugin):
     script: ``python train.py``, and not with ``horovodrun``.
 
     Args:
-        num_hosts (int): The number of nodes/machines to execute the job on.
-        num_slots (int): Number of workers to be placed on each machine.
+        num_workers (int): Number of training workers to use.
+        num_cpus_per_worker (int): Number of CPUs per worker.
         use_gpu (bool): Whether to use GPU for allocation. For GPU to be
             used, you must also set the ``gpus`` arg in your Pytorch Lightning
             Trainer to a value > 0.
@@ -61,20 +62,18 @@ class HorovodRayPlugin(HorovodPlugin):
             from ray_lightning import HorovodRayPlugin
 
             ptl_model = MNISTClassifier(...)
-            # 2 nodes, 4 workers per node, each using 1 CPU and 1 GPU.
-            plugin = HorovodRayPlugin(num_hosts=2, num_slots=4,
-                use_gpu=True)
+            plugin = HorovodRayPlugin(num_workers=2, use_gpu=True)
 
-            # If using GPUs, set the ``gpus`` arg to a value > 0.
-            # The actual number of GPUs is determined by ``num_slots``.
-            trainer = pl.Trainer(..., gpus=1, plugins=[plugin])
+            # Don't set ``gpus`` in ``Trainer``.
+            # The actual number of GPUs is determined by ``num_workers``.
+            trainer = pl.Trainer(..., plugins=[plugin])
             trainer.fit(ptl_model)
 
     """
 
     def __init__(self,
-                 num_hosts: int = 1,
-                 num_slots: int = 1,
+                 num_workers: int,
+                 num_cpus_per_worker: int = 1,
                  use_gpu: bool = False):
 
         if not HOROVOD_AVAILABLE:
@@ -83,8 +82,8 @@ class HorovodRayPlugin(HorovodPlugin):
             ray.init()
         super().__init__()
         self.nickname = "horovod_ray"
-        self.num_hosts = num_hosts
-        self.num_slots = num_slots
+        self.num_workers = num_workers
+        self.cpus_per_worker = num_cpus_per_worker
         self.use_gpu = use_gpu
         self.executor = None
 
@@ -112,7 +111,7 @@ class HorovodRayPlugin(HorovodPlugin):
     @property
     def world_size(self) -> int:
         if not hvd.is_initialized():
-            return self.num_hosts * self.num_slots
+            return self.num_workers
         return hvd.size()
 
     def setup(self, model: LightningModule):
@@ -121,8 +120,8 @@ class HorovodRayPlugin(HorovodPlugin):
         settings = RayExecutor.create_settings(timeout_s=30)
         self.executor = RayExecutor(
             settings,
-            num_hosts=self.num_hosts,
-            num_slots=self.num_slots,
+            num_workers=self.num_workers,
+            cpus_per_worker=self.cpus_per_worker,
             use_gpu=self.use_gpu)
         self.executor.start(executable_cls=get_executable_cls())
 
@@ -152,7 +151,8 @@ class HorovodRayPlugin(HorovodPlugin):
 
         results = process_results(result_futures, queue)
 
-        results, state_dict, best_path = results[0]
+        results, state_stream, best_path = results[0]
+        state_dict = load_state_stream(state_stream, to_gpu=self.use_gpu)
         self._results = results
         self._model = model
         self._model.load_state_dict(state_dict)
@@ -198,7 +198,8 @@ class HorovodRayPlugin(HorovodPlugin):
                 self.lightning_module.trainer.checkpoint_callback\
                     .best_model_path
 
-        return results, self.lightning_module.state_dict(), best_model_path
+        return results, to_state_stream(self.lightning_module.state_dict()), \
+            best_model_path
 
     def post_dispatch(self):
         """Shuts down the RayExecutor."""

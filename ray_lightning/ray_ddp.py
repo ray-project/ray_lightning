@@ -96,9 +96,9 @@ class RayPlugin(DDPSpawnPlugin):
             plugin = RayPlugin(num_workers=4, cpus_per_worker=1,
                 use_gpu=True)
 
-            # If using GPUs, set the ``gpus`` arg to a value > 0.
+            # Don't set ``gpus`` in ``Trainer``.
             # The actual number of GPUs is determined by ``num_workers``.
-            trainer = pl.Trainer(..., gpus=1, plugins=[plugin])
+            trainer = pl.Trainer(..., plugins=[plugin])
             trainer.fit(ptl_model)
 
     """
