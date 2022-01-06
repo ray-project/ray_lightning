@@ -13,6 +13,7 @@ from pytorch_lightning import _logger as log, LightningModule
 from pytorch_lightning.utilities import rank_zero_only
 
 import ray
+from ray.util import PublicAPI
 from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
@@ -54,6 +55,7 @@ class RayExecutor:
         return fn(*args, **kwargs)
 
 
+@PublicAPI(stability="beta")
 class RayPlugin(DDPSpawnPlugin):
     """Pytorch Lightning plugin for DDP training on a Ray cluster.
 
@@ -85,7 +87,7 @@ class RayPlugin(DDPSpawnPlugin):
 
     Example:
 
-        .. code_block:: python
+        .. code-block:: python
 
             import pytorch_lightning as ptl
             from ray_lightning import RayAccelerator

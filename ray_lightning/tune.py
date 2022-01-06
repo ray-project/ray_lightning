@@ -1,9 +1,11 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
+import warnings
 
 import fsspec
 import os
 
 from pytorch_lightning import Trainer, LightningModule
+from ray.util import PublicAPI
 
 from ray_lightning.session import put_queue, get_actor_rank
 from ray_lightning.util import to_state_stream, Unavailable
@@ -26,20 +28,34 @@ except ImportError:
 
 if TUNE_INSTALLED:
 
-    def get_tune_ddp_resources(num_workers: int = 1,
-                               cpus_per_worker: int = 1,
-                               use_gpu: bool = False) -> Dict[str, int]:
+    @PublicAPI(stability="beta")
+    def get_tune_ddp_resources(
+            num_workers: int = 1,
+            num_cpus_per_worker: int = 1,
+            use_gpu: bool = False,
+            # Deprecated args.
+            cpus_per_worker: Optional[int] = None,
+    ) -> Dict[str, int]:
         """Returns the PlacementGroupFactory to use for Ray Tune."""
         from ray.tune import PlacementGroupFactory
 
+        if cpus_per_worker is not None:
+            # TODO(amogkam): Remove `cpus_per_worker` on next major release.
+            num_cpus_per_worker = cpus_per_worker
+            warnings.warn(
+                "`cpus_per_worker` will be deprecated in the "
+                "future. Use "
+                "`num_cpus_per_worker` instead.", PendingDeprecationWarning)
+
         head_bundle = {"CPU": 1}
-        child_bundle = {"CPU": cpus_per_worker, "GPU": int(use_gpu)}
+        child_bundle = {"CPU": num_cpus_per_worker, "GPU": int(use_gpu)}
         child_bundles = [child_bundle.copy() for _ in range(num_workers)]
         bundles = [head_bundle] + child_bundles
         placement_group_factory = PlacementGroupFactory(
             bundles, strategy="PACK")
         return placement_group_factory
 
+    @PublicAPI(stability="beta")
     class TuneReportCallback(TuneCallback):
         """Distributed PyTorch Lightning to Ray Tune reporting callback
 
@@ -161,6 +177,7 @@ if TUNE_INSTALLED:
                 put_queue(lambda: self._create_checkpoint(
                     checkpoint_stream, global_step, self._filename))
 
+    @PublicAPI(stability="beta")
     class TuneReportCheckpointCallback(TuneCallback):
         """PyTorch Lightning to Tune reporting and checkpointing callback.
 
