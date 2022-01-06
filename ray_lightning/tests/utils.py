@@ -167,7 +167,7 @@ def get_trainer(dir,
         max_epochs=max_epochs,
         limit_train_batches=limit_train_batches,
         limit_val_batches=limit_val_batches,
-        progress_bar_refresh_rate=progress_bar_refresh_rate,
+        enable_progress_bar=False,
         checkpoint_callback=checkpoint_callback,
         **trainer_kwargs)
     return trainer

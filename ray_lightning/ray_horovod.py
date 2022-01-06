@@ -1,5 +1,5 @@
 import torch
-from pytorch_lightning import LightningModule
+import pytorch_lightning as pl
 from pytorch_lightning.plugins import HorovodPlugin
 from pytorch_lightning.utilities import rank_zero_only
 
@@ -115,9 +115,8 @@ class HorovodRayPlugin(HorovodPlugin):
             return self.num_hosts * self.num_slots
         return hvd.size()
 
-    def setup(self, model: LightningModule):
+    def setup(self):
         """Creates the RayExecutor object."""
-        self._model = model
         settings = RayExecutor.create_settings(timeout_s=30)
         self.executor = RayExecutor(
             settings,
@@ -170,9 +169,10 @@ class HorovodRayPlugin(HorovodPlugin):
     def train_remote(self, model: ObjectRef, queue: Queue = None, **kwargs):
         """Training function to be executed on each remote worker."""
         self._model = ray.get(model)
-        self.lightning_module.trainer.accelerator_connector\
+        self.lightning_module.trainer._accelerator_connector\
             ._training_type_plugin = self
-        self.lightning_module.trainer.accelerator.training_type_plugin = self
+        self.lightning_module.trainer._accelerator_connector.accelerator\
+            .training_type_plugin = self
 
         hvd.init()
         rank_zero_only.rank = self.global_rank
@@ -200,7 +200,7 @@ class HorovodRayPlugin(HorovodPlugin):
 
         return results, self.lightning_module.state_dict(), best_model_path
 
-    def post_dispatch(self):
+    def post_dispatch(self, trainer: "pl.Trainer"):
         """Shuts down the RayExecutor."""
         self.executor.shutdown()
 
