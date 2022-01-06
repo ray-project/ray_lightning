@@ -7,7 +7,8 @@ from ray import tune
 
 from ray_lightning import RayPlugin, HorovodRayPlugin
 from ray_lightning.tests.utils import BoringModel, get_trainer
-from ray_lightning.tune import TuneReportCallback, TuneReportCheckpointCallback
+from ray_lightning.tune import TuneReportCallback, \
+    TuneReportCheckpointCallback, get_tune_resources
 
 
 @pytest.fixture
@@ -37,10 +38,8 @@ def tune_test(dir, plugin):
     analysis = tune.run(
         train_func(dir, plugin, callbacks=callbacks),
         config={"max_epochs": tune.choice([1, 2, 3])},
-        resources_per_trial={
-            "cpu": 0,
-            "extra_cpu": 2
-        },
+        resources_per_trial=get_tune_resources(
+            num_workers=plugin.num_workers, use_gpu=plugin.use_gpu),
         num_samples=2)
     assert all(analysis.results_df["training_iteration"] ==
                analysis.results_df["config.max_epochs"])
@@ -63,10 +62,8 @@ def checkpoint_test(dir, plugin):
     analysis = tune.run(
         train_func(dir, plugin, callbacks=callbacks),
         config={"max_epochs": 2},
-        resources_per_trial={
-            "cpu": 0,
-            "extra_cpu": 2
-        },
+        resources_per_trial=get_tune_resources(
+            num_workers=plugin.num_workers, use_gpu=plugin.use_gpu),
         num_samples=1,
         local_dir=dir,
         log_to_file=True,
