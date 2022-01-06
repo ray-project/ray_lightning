@@ -22,14 +22,14 @@ except ImportError:
     def is_session_enabled():
         return False
 
-    get_tune_ddp_resources = Unavailable
+    get_tune_resources = Unavailable
 
     TUNE_INSTALLED = False
 
 if TUNE_INSTALLED:
 
     @PublicAPI(stability="beta")
-    def get_tune_ddp_resources(
+    def get_tune_resources(
             num_workers: int = 1,
             num_cpus_per_worker: int = 1,
             use_gpu: bool = False,

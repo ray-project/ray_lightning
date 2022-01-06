@@ -55,36 +55,37 @@ def seed():
     pl.seed_everything(0)
 
 
-@pytest.mark.parametrize("num_slots", [1, 2])
-def test_train(tmpdir, ray_start_2_cpus, seed, num_slots):
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_train(tmpdir, ray_start_2_cpus, seed, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
-    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
+    plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
 
-@pytest.mark.parametrize("num_slots", [1, 2])
-def test_train_client(tmpdir, start_ray_client_server_2_cpus, seed, num_slots):
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_train_client(tmpdir, start_ray_client_server_2_cpus, seed,
+                      num_workers):
     """Tests if training modifies model weights."""
     assert ray.util.client.ray.is_connected()
     model = BoringModel()
-    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
+    plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
 
-@pytest.mark.parametrize("num_slots", [1, 2])
-def test_load(tmpdir, ray_start_2_cpus, seed, num_slots):
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_load(tmpdir, ray_start_2_cpus, seed, num_workers):
     """Tests if model checkpoint can be loaded."""
     model = BoringModel()
-    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
+    plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     load_test(trainer, model)
 
 
-@pytest.mark.parametrize("num_slots", [1, 2])
-def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
     """Tests if trained model has high accuracy on test set."""
     config = {
         "layer_1": 32,
@@ -95,15 +96,15 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_slots):
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
+    plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(
         tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
 
 
-@pytest.mark.parametrize("num_slots", [1, 2])
+@pytest.mark.parametrize("num_workers", [1, 2])
 def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
-                        num_slots):
+                        num_workers):
     assert ray.util.client.ray.is_connected()
     config = {
         "layer_1": 32,
@@ -114,7 +115,7 @@ def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=False)
+    plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(
         tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
@@ -124,11 +125,11 @@ def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
     not _nccl_available(), reason="test requires Horovod with NCCL support")
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
-@pytest.mark.parametrize("num_slots", [1, 2])
-def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
-    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=True)
+    plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
     train_test(trainer, model)
 
@@ -137,11 +138,11 @@ def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
     not _nccl_available(), reason="test requires Horovod with NCCL support")
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
-@pytest.mark.parametrize("num_slots", [1, 2])
-def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
     """Tests if model checkpoint can be loaded."""
     model = BoringModel()
-    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=True)
+    plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
     load_test(trainer, model)
 
@@ -150,8 +151,8 @@ def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
     not _nccl_available(), reason="test requires Horovod with NCCL support")
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
-@pytest.mark.parametrize("num_slots", [1, 2])
-def test_predict_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_predict_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
     """Tests if trained model has high accuracy on test set."""
     config = {
         "layer_1": 32,
@@ -162,7 +163,7 @@ def test_predict_gpu(tmpdir, ray_start_2_gpus, seed, num_slots):
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-    plugin = HorovodRayPlugin(num_slots=num_slots, use_gpu=True)
+    plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(
         tmpdir,
         limit_train_batches=20,
