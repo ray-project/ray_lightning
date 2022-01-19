@@ -1,6 +1,6 @@
 import socket
 from contextlib import closing
-from typing import Callable, Dict, List, Union, Any
+from typing import Callable, Dict, List, Union, Any, Optional
 
 import os
 from collections import defaultdict
@@ -82,6 +82,10 @@ class RayPlugin(DDPSpawnPlugin):
             Trainer to a value > 0.
         init_hook (Callable): A function to run on each worker
             upon instantiation.
+        resources_per_worker (Optional[Dict]): If specified, the resources
+            defined in this Dict will be reserved for each worker. The
+            ``CPU`` and ``GPU`` keys (case-sensitive) can be defined to
+            override the number of CPU/GPUs used by each worker.
         **ddp_kwargs: Additional arguments to pass into
             ``DistributedDataParallel`` initialization
 
@@ -107,7 +111,8 @@ class RayPlugin(DDPSpawnPlugin):
                  num_workers: int = 1,
                  num_cpus_per_worker: int = 1,
                  use_gpu: bool = False,
-                 init_hook: Callable = None,
+                 init_hook: Optional[Callable] = None,
+                 resources_per_worker: Optional[Dict] = None,
                  **ddp_kwargs: Union[Any, Dict[str, Any]]):
         if not ray.is_initialized():
             ray.init()
@@ -116,10 +121,19 @@ class RayPlugin(DDPSpawnPlugin):
             parallel_devices=[],
             cluster_environment=RayEnvironment(world_size=num_workers),
             **ddp_kwargs)
+        resources_per_worker = resources_per_worker if resources_per_worker \
+            else {}
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
-        self.num_cpus_per_worker = num_cpus_per_worker
-        self.use_gpu = use_gpu
+        self.num_cpus_per_worker = resources_per_worker.pop(
+            "CPU", num_cpus_per_worker)
+
+        if "GPU" in resources_per_worker:
+            self.num_gpus_per_worker = resources_per_worker.pop("GPU")
+        else:
+            self.num_gpus_per_worker = int(use_gpu)
+        self.use_gpu = self.num_gpus_per_worker > 0
+        self.additional_resources_per_worker = resources_per_worker
         self.workers = []
         self.init_hook = init_hook
         self._local_rank = 0
@@ -128,7 +142,8 @@ class RayPlugin(DDPSpawnPlugin):
         """Creates Ray actor."""
         worker = RayExecutor.options(
             num_cpus=self.num_cpus_per_worker,
-            num_gpus=int(self.use_gpu)).remote()
+            num_gpus=self.num_gpus_per_worker,
+            resources=self.additional_resources_per_worker).remote()
         return worker
 
     def setup(self, model: LightningModule):
