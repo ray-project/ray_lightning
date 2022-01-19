@@ -296,7 +296,7 @@ class RayPlugin(DDPSpawnPlugin):
         if self.lightning_module.trainer.checkpoint_callback:
             self.lightning_module.trainer.checkpoint_callback \
                 .best_model_path = best_path
-        # DDPSpawn.__recover_child_process_weights_end
+        # DDPSpawnPlugin.__recover_child_process_weights_end
 
         def shutdown_remote():
             torch.distributed.destroy_process_group()
@@ -313,6 +313,11 @@ class RayPlugin(DDPSpawnPlugin):
 
     def set_world_ranks(self, process_idx: int = 0):
         """Set the appropriate rank attributes for the trainer."""
+        # Ranks should only be set once all the actors are created and
+        # training has begun (otherwise self.global_to_local has not been
+        # initialized).
+        # If this method is called on the driver (i.e. self._is_remote is
+        # False, then do a no-op).
         if self._is_remote:
             self._global_rank = process_idx
             self._local_rank, self._node_rank = self.global_to_local[
