@@ -153,7 +153,6 @@ def get_trainer(dir,
                 max_epochs: int = 1,
                 limit_train_batches: int = 10,
                 limit_val_batches: int = 10,
-                progress_bar_refresh_rate: int = 0,
                 callbacks: Optional[List[Callback]] = None,
                 checkpoint_callback: bool = True,
                 **trainer_kwargs) -> Trainer:

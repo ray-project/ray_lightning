@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Union, Any
+from typing import Callable, Dict, List, Union, Any, Tuple
 
 from collections import defaultdict
 from contextlib import closing
@@ -182,15 +182,16 @@ class RayPlugin(DDPSpawnPlugin):
         results = self.execution_loop(tune_enabled=False)
         return results
 
-    def get_local_ranks(self) -> Dict[int, int]:
+    def get_local_ranks(self) -> Dict[int, Tuple[int, int]]:
         """Creates a mapping of global ranks to local ranks/node ranks."""
         # Get the local ranks for all the workers and store as a dict.
         # First get the IP address of each remote worker.
         node_ips = ray.get([w.get_node_ip.remote() for w in self.workers])
 
-        node_ip_map = {}
-        for i in range(len(node_ips)):
-            node_ip_map[node_ips[i]] = i
+        node_ip_dedup = list(set(node_ips))
+        node_rank_map = {}
+        for i in range(len(node_ip_dedup)):
+            node_rank_map[node_ips[i]] = i
 
         rank_counter_dict = defaultdict(int)
         global_to_local = [None] * self.num_workers
@@ -198,7 +199,7 @@ class RayPlugin(DDPSpawnPlugin):
         for global_rank in range(self.num_workers):
             ip = node_ips[global_rank]
             global_to_local[global_rank] = (rank_counter_dict[ip],
-                                            node_ip_map[ip])
+                                            node_rank_map[ip])
             rank_counter_dict[ip] += 1
 
         return global_to_local
@@ -231,39 +232,48 @@ class RayPlugin(DDPSpawnPlugin):
             # Create communication queue and send to all the workers.
             queue = Queue(actor_options={"num_cpus": 0})
 
-        futures = [
+        self._futures = [
             self.workers[i].execute.remote(self.execute_remote, model_ref, i,
                                            queue)
             for i in range(self.num_workers)
         ]
 
-        results = process_results(futures, queue)
+        process_results(self._futures, queue)
 
-        # DDPSpawn.__recover_child_process_weights begin
+        self._model = model
+        if queue:
+            # Shutdown the queue.
+            queue.shutdown()
+
+    def post_dispatch(self, trainer: "pl.Trainer"):
+        """Finalized fitting.
+
+        1. Load model weights on driver.
+        2. Shutdown DDP process group and all Ray actors.
+
+        Shutdown the DDP process group and all the Ray
+        actors."""
+
+        results = ray.get(self._futures)
         # Get the results, checkpoint path, and model weights from worker 0.
         results, best_path, state_stream, callback_metrics = results[0]
-        state_dict = load_state_stream(state_stream, to_gpu=self.use_gpu)
-        # Set the state for PTL using the output from remote training.
         self._results = results
-        self._model = model
-        self._model.load_state_dict(state_dict)
-        if self.lightning_module.trainer.checkpoint_callback:
-            self.lightning_module.trainer.checkpoint_callback \
-                .best_model_path = best_path
 
         # From DDPSpawn.get_queue
         self.lightning_module.trainer.callback_metrics.update(
             apply_to_collection(callback_metrics,
                                 np.ndarray, lambda x: torch.tensor(x)))
 
+        # DDPSpawnPlugin.__recover_child_process_weights begin
+        # Difference here is that instead of writing the model weights to a
+        # file and loading it, we use the state dict of the model directly.
+        state_dict = load_state_stream(state_stream, to_gpu=self.use_gpu)
+        # Set the state for PTL using the output from remote training.
+        self.lightning_module.load_state_dict(state_dict)
+        if self.lightning_module.trainer.checkpoint_callback:
+            self.lightning_module.trainer.checkpoint_callback \
+                .best_model_path = best_path
         # DDPSpawn.__recover_child_process_weights_end
-
-        if queue:
-            # Shutdown the queue.
-            queue.shutdown()
-
-    def post_dispatch(self, trainer: "pl.Trainer"):
-        """Shutdown the DDP process group and all the Ray actors."""
 
         def shutdown_remote():
             torch.distributed.destroy_process_group()
