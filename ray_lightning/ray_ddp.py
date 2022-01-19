@@ -9,7 +9,6 @@ import numpy as np
 import torch
 
 import pytorch_lightning as pl
-from pytorch_lightning.accelerators import CPUAccelerator
 from pytorch_lightning.plugins import DDPSpawnPlugin
 from pytorch_lightning import _logger as log, LightningModule
 from pytorch_lightning.trainer.states import TrainerFn
@@ -157,7 +156,8 @@ class RayPlugin(DDPSpawnPlugin):
         # Swap out the accelerator if necessary.
         # This is needed to support CPU head with GPU workers or Ray Client.
         current_accelerator = self.lightning_module.trainer.accelerator
-        if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
+
+        if self.use_gpu:
             from weakref import proxy
             from ray_lightning.util import DelayedGPUAccelerator
             precision_plugin = current_accelerator.precision_plugin

@@ -149,7 +149,6 @@ class LightningMNISTClassifier(pl.LightningModule):
 
 def get_trainer(dir,
                 plugins: List[PLUGIN_INPUT],
-                use_gpu: bool = False,
                 max_epochs: int = 1,
                 limit_train_batches: int = 10,
                 limit_val_batches: int = 10,
@@ -160,7 +159,6 @@ def get_trainer(dir,
     callbacks = [] if not callbacks else callbacks
     trainer = pl.Trainer(
         default_root_dir=dir,
-        gpus=1 if use_gpu else 0,
         callbacks=callbacks,
         plugins=plugins,
         max_epochs=max_epochs,
