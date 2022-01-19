@@ -21,6 +21,7 @@ def ray_start_2_cpus():
     yield address_info
     ray.shutdown()
 
+
 @pytest.fixture
 def ray_start_4_cpus():
     address_info = ray.init(num_cpus=4)
@@ -38,6 +39,7 @@ def start_ray_client_server_2_cpus():
 @pytest.fixture
 def seed():
     pl.seed_everything(0)
+
 
 @pytest.fixture
 def ray_start_cluster_2_node_2_cpu():
@@ -64,8 +66,10 @@ def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
     trainer = get_trainer(tmpdir, plugins=[plugin])
     trainer.fit(model)
 
+
 def test_global_local_ranks(ray_start_4_cpus):
     """Tests local rank and node rank map is correct."""
+
     @ray.remote
     class Node1Actor:
         def get_node_ip(self):
@@ -80,15 +84,17 @@ def test_global_local_ranks(ray_start_4_cpus):
 
     # 2 workers on "Node 1", 2 workers on "Node 2"
     plugin.workers = [
-        Node1Actor.remote(), Node1Actor.remote(), Node2Actor.remote(),
+        Node1Actor.remote(),
+        Node1Actor.remote(),
+        Node2Actor.remote(),
         Node2Actor.remote()
     ]
 
     global_to_local = plugin.get_local_ranks()
 
     assert len(global_to_local) == 4
-    local_ranks = set(ranks[0] for ranks in global_to_local)
-    node_ranks = set(ranks[1] for ranks in global_to_local)
+    local_ranks = {ranks[0] for ranks in global_to_local}
+    node_ranks = {ranks[1] for ranks in global_to_local}
 
     assert local_ranks == set(range(2))
     assert node_ranks == set(range(2))
@@ -234,6 +240,3 @@ def test_unused_parameters(tmpdir, ray_start_2_cpus):
     trainer = get_trainer(
         tmpdir, plugins=[plugin], callbacks=[UnusedParameterCallback()])
     trainer.fit(model)
-
-
-
