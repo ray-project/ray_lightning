@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 import pytorch_lightning as pl
+from pytorch_lightning.accelerators import CPUAccelerator
 from pytorch_lightning.plugins import DDPSpawnPlugin
 from pytorch_lightning import _logger as log, LightningModule
 from pytorch_lightning.trainer.states import TrainerFn
@@ -151,6 +152,24 @@ class RayPlugin(DDPSpawnPlugin):
         self.workers = [self._create_worker() for _ in range(self.num_workers)]
         if self.init_hook:
             ray.get([w.execute.remote(self.init_hook) for w in self.workers])
+
+    def setup_environment(self) -> None:
+        # Swap out the accelerator if necessary.
+        # This is needed to support CPU head with GPU workers or Ray Client.
+        current_accelerator = self.lightning_module.trainer.accelerator
+        if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
+            from weakref import proxy
+            from ray_lightning.util import DelayedGPUAccelerator
+            precision_plugin = current_accelerator.precision_plugin
+            new_accelerator = DelayedGPUAccelerator(
+                precision_plugin=precision_plugin, training_type_plugin=self)
+            self.lightning_module.trainer.accelerator_connector \
+                ._training_type_plugin = \
+                proxy(new_accelerator.training_type_plugin)
+            self.lightning_module.trainer.accelerator_connector \
+                ._precision_plugin = proxy(new_accelerator.precision_plugin)
+            self.lightning_module.trainer.accelerator_connector.accelerator \
+                = new_accelerator
 
     def _setup_env_vars(self):
         # Get rank 0 worker address and port for DDP connection.
