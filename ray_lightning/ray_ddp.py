@@ -127,8 +127,12 @@ class RayPlugin(DDPSpawnPlugin):
         self.num_workers = num_workers
         self.num_cpus_per_worker = resources_per_worker.pop(
             "CPU", num_cpus_per_worker)
-        self.use_gpu = resources_per_worker.pop(
-            "GPU", 0) > 0 if "GPU" in resources_per_worker else use_gpu
+
+        if "GPU" in resources_per_worker:
+            self.num_gpus_per_worker = resources_per_worker.pop("GPU")
+        else:
+            self.num_gpus_per_worker = int(use_gpu)
+        self.use_gpu = self.num_gpus_per_worker > 0
         self.additional_resources_per_worker = resources_per_worker
         self.workers = []
         self.init_hook = init_hook
@@ -138,7 +142,7 @@ class RayPlugin(DDPSpawnPlugin):
         """Creates Ray actor."""
         worker = RayExecutor.options(
             num_cpus=self.num_cpus_per_worker,
-            num_gpus=int(self.use_gpu),
+            num_gpus=self.num_gpus_per_worker,
             resources=self.additional_resources_per_worker).remote()
         return worker
 
