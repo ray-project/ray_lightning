@@ -188,18 +188,22 @@ class RayPlugin(DDPSpawnPlugin):
         # First get the IP address of each remote worker.
         node_ips = ray.get([w.get_node_ip.remote() for w in self.workers])
 
-        node_ip_dedup = list(set(node_ips))
         node_rank_map = {}
-        for i in range(len(node_ip_dedup)):
-            node_rank_map[node_ips[i]] = i
+        counter = 0
+        for ip in node_ips:
+            # If this is a new IP address, then increment counter.
+            if ip not in node_rank_map:
+                node_rank_map[ip] = counter
+                counter += 1
 
         rank_counter_dict = defaultdict(int)
         global_to_local = [None] * self.num_workers
 
         for global_rank in range(self.num_workers):
             ip = node_ips[global_rank]
-            global_to_local[global_rank] = (rank_counter_dict[ip],
-                                            node_rank_map[ip])
+            global_to_local[global_rank] = (
+                rank_counter_dict[ip],  # local rank
+                node_rank_map[ip])  # node rank
             rank_counter_dict[ip] += 1
 
         return global_to_local
