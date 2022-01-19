@@ -89,11 +89,11 @@ from ray_lightning import HorovodRayPlugin
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
 
-# 2 nodes, 4 workers per node, each using 1 CPU and 1 GPU.
-plugin = HorovodRayPlugin(num_hosts=2, num_slots=4, use_gpu=True)
+# 2 workers, 1 CPU and 1 GPU each.
+plugin = HorovodRayPlugin(num_workers=2, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
-# The actual number of GPUs is determined by ``num_slots``.
+# The actual number of GPUs is determined by ``num_workers``.
 trainer = pl.Trainer(..., plugins=[plugin])
 trainer.fit(ptl_model)
 ```
@@ -126,7 +126,7 @@ Example using `ray_lightning` with Tune:
 from ray import tune
 
 from ray_lightning import RayPlugin
-from ray_lightning.tune import TuneReportCallback, get_tune_ddp_resources
+from ray_lightning.tune import TuneReportCallback, get_tune_resources
 
 def train_mnist(config):
     
@@ -150,14 +150,14 @@ config = {
     "batch_size": tune.choice([32, 64, 128]),
 }
 
-# Make sure to pass in ``resources_per_trial`` using the ``get_tune_ddp_resources`` utility.
+# Make sure to pass in ``resources_per_trial`` using the ``get_tune_resources`` utility.
 analysis = tune.run(
         train_mnist,
         metric="loss",
         mode="min",
         config=config,
         num_samples=num_samples,
-        resources_per_trial=get_tune_ddp_resources(num_workers=4),
+        resources_per_trial=get_tune_resources(num_workers=4),
         name="tune_mnist")
         
 print("Best hyperparameters found were: ", analysis.best_config)
