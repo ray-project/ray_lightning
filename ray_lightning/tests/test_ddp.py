@@ -107,6 +107,15 @@ def test_resource_override(ray_start_2_cpus):
     assert plugin.num_cpus_per_worker == 2
     assert plugin.use_gpu
 
+    plugin = RayPlugin(
+        num_workers=1,
+        num_cpus_per_worker=2,
+        use_gpu=False,
+        resources_per_worker={"GPU": 2})
+    assert plugin.num_cpus_per_worker == 2
+    assert plugin.num_gpus_per_worker == 2
+    assert plugin.use_gpu
+
 
 def test_distributed_sampler(tmpdir, ray_start_2_cpus):
     """Tests if distributed sampler is properly set."""
