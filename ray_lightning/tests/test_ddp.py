@@ -76,7 +76,7 @@ def test_actor_creation_resources(tmpdir, ray_start_4_cpus_4_extra,
     trainer.fit(model)
 
 
-def test_resource_override():
+def test_resource_override(ray_start_2_cpus):
     """Tests if CPU and GPU resources are overridden if manually passed in."""
 
     plugin = RayPlugin(num_workers=1, num_cpus_per_worker=2, use_gpu=True)
