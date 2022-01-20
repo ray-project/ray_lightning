@@ -18,12 +18,11 @@ def ray_start_4_cpus():
     ray.shutdown()
 
 
-def train_func(dir, plugin, use_gpu=False, callbacks=None):
+def train_func(dir, plugin, callbacks=None):
     def _inner_train(config):
         model = BoringModel()
         trainer = get_trainer(
             dir,
-            use_gpu=use_gpu,
             callbacks=callbacks,
             plugins=[plugin],
             checkpoint_callback=False,
