@@ -3,12 +3,14 @@ from typing import Optional, List
 
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.plugins import Plugin
 from torch.utils.data import Dataset
 
 import pytorch_lightning as pl
+from pytorch_lightning.plugins import PLUGIN_INPUT
 from pytorch_lightning import LightningModule, Callback, Trainer, \
     LightningDataModule
+
+import torchmetrics
 
 
 class RandomDataset(Dataset):
@@ -106,7 +108,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         self.layer_1 = torch.nn.Linear(28 * 28, layer_1)
         self.layer_2 = torch.nn.Linear(layer_1, layer_2)
         self.layer_3 = torch.nn.Linear(layer_2, 10)
-        self.accuracy = pl.metrics.Accuracy()
+        self.accuracy = torchmetrics.Accuracy()
 
     def forward(self, x):
         batch_size, channels, width, height = x.size()
@@ -146,12 +148,11 @@ class LightningMNISTClassifier(pl.LightningModule):
 
 
 def get_trainer(dir,
-                plugins: List[Plugin],
+                plugins: List[PLUGIN_INPUT],
                 use_gpu: bool = False,
                 max_epochs: int = 1,
                 limit_train_batches: int = 10,
                 limit_val_batches: int = 10,
-                progress_bar_refresh_rate: int = 0,
                 callbacks: Optional[List[Callback]] = None,
                 checkpoint_callback: bool = True,
                 **trainer_kwargs) -> Trainer:
@@ -165,7 +166,7 @@ def get_trainer(dir,
         max_epochs=max_epochs,
         limit_train_batches=limit_train_batches,
         limit_val_batches=limit_val_batches,
-        progress_bar_refresh_rate=progress_bar_refresh_rate,
+        enable_progress_bar=False,
         checkpoint_callback=checkpoint_callback,
         **trainer_kwargs)
     return trainer
@@ -198,7 +199,7 @@ def predict_test(trainer: Trainer, model: LightningModule,
     model = trainer.lightning_module
     dm.setup(stage="test")
     test_loader = dm.test_dataloader()
-    acc = pl.metrics.Accuracy()
+    acc = torchmetrics.Accuracy()
     for batch in test_loader:
         x, y = batch
         with torch.no_grad():

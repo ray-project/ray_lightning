@@ -8,6 +8,7 @@ from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import EarlyStopping
 
 import ray
+from ray.cluster_utils import Cluster
 
 from ray_lightning import RayPlugin
 from ray_lightning.tests.utils import get_trainer, train_test, \
@@ -17,6 +18,13 @@ from ray_lightning.tests.utils import get_trainer, train_test, \
 @pytest.fixture
 def ray_start_2_cpus():
     address_info = ray.init(num_cpus=2)
+    yield address_info
+    ray.shutdown()
+
+
+@pytest.fixture
+def ray_start_4_cpus():
+    address_info = ray.init(num_cpus=4)
     yield address_info
     ray.shutdown()
 
@@ -41,6 +49,17 @@ def seed():
     pl.seed_everything(0)
 
 
+@pytest.fixture
+def ray_start_cluster_2_node_2_cpu():
+    cluster = Cluster()
+    cluster.add_node(num_cpus=2)
+    cluster.add_node(num_cpus=2)
+    address_info = ray.init(cluster.address)
+    yield address_info
+    ray.shutdown()
+    cluster.shutdown()
+
+
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
     """Tests whether the appropriate number of training actors are created."""
@@ -50,9 +69,47 @@ def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
         assert len(ray.state.actors()) == num_workers
 
     model.on_epoch_end = check_num_actor
+
     plugin = RayPlugin(num_workers=num_workers)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     trainer.fit(model)
+
+
+def test_global_local_ranks(ray_start_4_cpus):
+    """Tests local rank and node rank map is correct."""
+
+    @ray.remote
+    class Node1Actor:
+        def get_node_ip(self):
+            return "1"
+
+    @ray.remote
+    class Node2Actor:
+        def get_node_ip(self):
+            return "2"
+
+    plugin = RayPlugin(num_workers=4, use_gpu=False)
+
+    # 2 workers on "Node 1", 2 workers on "Node 2"
+    plugin.workers = [
+        Node1Actor.remote(),
+        Node1Actor.remote(),
+        Node2Actor.remote(),
+        Node2Actor.remote()
+    ]
+
+    global_to_local = plugin.get_local_ranks()
+
+    assert len(global_to_local) == 4
+    local_ranks = {ranks[0] for ranks in global_to_local}
+    node_ranks = {ranks[1] for ranks in global_to_local}
+
+    assert local_ranks == set(range(2))
+    assert node_ranks == set(range(2))
+
+    # Make sure the rank 0 worker has local rank and node rank of 0.
+    assert global_to_local[0][0] == 0
+    assert global_to_local[0][1] == 0
 
 
 @pytest.mark.parametrize("num_workers", [1, 2])
