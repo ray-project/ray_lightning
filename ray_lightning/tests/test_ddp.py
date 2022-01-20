@@ -30,10 +30,19 @@ def ray_start_4_cpus():
 
 
 @pytest.fixture
+def ray_start_4_cpus_4_extra():
+    address_info = ray.init(num_cpus=4, resources={"extra": 4})
+    yield address_info
+    # The code after the yield will run as teardown code.
+    ray.shutdown()
+
+
+@pytest.fixture
 def start_ray_client_server_2_cpus():
     ray.init(num_cpus=2)
     with ray_start_client_server() as client:
         yield client
+    ray.shutdown()
 
 
 @pytest.fixture
@@ -102,6 +111,68 @@ def test_global_local_ranks(ray_start_4_cpus):
     # Make sure the rank 0 worker has local rank and node rank of 0.
     assert global_to_local[0][0] == 0
     assert global_to_local[0][1] == 0
+
+
+@pytest.mark.parametrize("num_workers", [1, 2])
+@pytest.mark.parametrize("extra_resource_per_worker", [1, 2])
+@pytest.mark.parametrize("num_cpus_per_worker", [1, 2])
+def test_actor_creation_resources(tmpdir, ray_start_4_cpus_4_extra,
+                                  num_workers, extra_resource_per_worker,
+                                  num_cpus_per_worker):
+    """Tests if training actors are created with custom resources."""
+    model = BoringModel()
+    plugin = RayPlugin(
+        num_workers=num_workers,
+        num_cpus_per_worker=num_cpus_per_worker,
+        resources_per_worker={"extra": 1})
+
+    def check_num_actor():
+        assert len(ray.state.actors()) == num_workers
+
+    model.on_epoch_end = check_num_actor
+    trainer = get_trainer(tmpdir, plugins=[plugin])
+    trainer.fit(model)
+
+
+def test_resource_override(ray_start_2_cpus):
+    """Tests if CPU and GPU resources are overridden if manually passed in."""
+
+    plugin = RayPlugin(num_workers=1, num_cpus_per_worker=2, use_gpu=True)
+    assert plugin.num_cpus_per_worker == 2
+    assert plugin.use_gpu
+
+    plugin = RayPlugin(
+        num_workers=1,
+        num_cpus_per_worker=2,
+        use_gpu=True,
+        resources_per_worker={"CPU": 3})
+    assert plugin.num_cpus_per_worker == 3
+    assert plugin.use_gpu
+
+    plugin = RayPlugin(
+        num_workers=1,
+        num_cpus_per_worker=2,
+        use_gpu=True,
+        resources_per_worker={"GPU": 0})
+    assert plugin.num_cpus_per_worker == 2
+    assert not plugin.use_gpu
+
+    plugin = RayPlugin(
+        num_workers=1,
+        num_cpus_per_worker=2,
+        use_gpu=False,
+        resources_per_worker={"GPU": 1})
+    assert plugin.num_cpus_per_worker == 2
+    assert plugin.use_gpu
+
+    plugin = RayPlugin(
+        num_workers=1,
+        num_cpus_per_worker=2,
+        use_gpu=False,
+        resources_per_worker={"GPU": 2})
+    assert plugin.num_cpus_per_worker == 2
+    assert plugin.num_gpus_per_worker == 2
+    assert plugin.use_gpu
 
 
 def test_distributed_sampler(tmpdir, ray_start_2_cpus):

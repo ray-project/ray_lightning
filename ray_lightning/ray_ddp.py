@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Union, Any, Tuple
+from typing import Callable, Dict, List, Union, Any, Tuple, Optional
 
 from collections import defaultdict
 from contextlib import closing
@@ -85,6 +85,10 @@ class RayPlugin(DDPSpawnPlugin):
             Trainer to a value > 0.
         init_hook (Callable): A function to run on each worker
             upon instantiation.
+        resources_per_worker (Optional[Dict]): If specified, the resources
+            defined in this Dict will be reserved for each worker. The
+            ``CPU`` and ``GPU`` keys (case-sensitive) can be defined to
+            override the number of CPU/GPUs used by each worker.
         **ddp_kwargs: Additional arguments to pass into
             ``DistributedDataParallel`` initialization
 
@@ -110,15 +114,25 @@ class RayPlugin(DDPSpawnPlugin):
                  num_workers: int = 1,
                  num_cpus_per_worker: int = 1,
                  use_gpu: bool = False,
-                 init_hook: Callable = None,
+                 init_hook: Optional[Callable] = None,
+                 resources_per_worker: Optional[Dict] = None,
                  **ddp_kwargs: Union[Any, Dict[str, Any]]):
         if not ray.is_initialized():
             ray.init()
         self._is_remote = False
+        resources_per_worker = resources_per_worker if resources_per_worker \
+            else {}
         self.nickname = "ddp_ray"
         self.num_workers = num_workers
-        self.num_cpus_per_worker = num_cpus_per_worker
-        self.use_gpu = use_gpu
+        self.num_cpus_per_worker = resources_per_worker.pop(
+            "CPU", num_cpus_per_worker)
+
+        if "GPU" in resources_per_worker:
+            self.num_gpus_per_worker = resources_per_worker.pop("GPU")
+        else:
+            self.num_gpus_per_worker = int(use_gpu)
+        self.use_gpu = self.num_gpus_per_worker > 0
+        self.additional_resources_per_worker = resources_per_worker
         self.workers = []
         self.init_hook = init_hook
 
@@ -143,7 +157,8 @@ class RayPlugin(DDPSpawnPlugin):
         """Creates Ray actor."""
         worker = RayExecutor.options(
             num_cpus=self.num_cpus_per_worker,
-            num_gpus=int(self.use_gpu)).remote()
+            num_gpus=self.num_gpus_per_worker,
+            resources=self.additional_resources_per_worker).remote()
         return worker
 
     def setup(self):
@@ -296,7 +311,7 @@ class RayPlugin(DDPSpawnPlugin):
         if self.lightning_module.trainer.checkpoint_callback:
             self.lightning_module.trainer.checkpoint_callback \
                 .best_model_path = best_path
-        # DDPSpawn.__recover_child_process_weights_end
+        # DDPSpawnPlugin.__recover_child_process_weights_end
 
         def shutdown_remote():
             torch.distributed.destroy_process_group()
@@ -313,6 +328,11 @@ class RayPlugin(DDPSpawnPlugin):
 
     def set_world_ranks(self, process_idx: int = 0):
         """Set the appropriate rank attributes for the trainer."""
+        # Ranks should only be set once all the actors are created and
+        # training has begun (otherwise self.global_to_local has not been
+        # initialized).
+        # If this method is called on the driver (i.e. self._is_remote is
+        # False, then do a no-op).
         if self._is_remote:
             self._global_rank = process_idx
             self._local_rank, self._node_rank = self.global_to_local[
