@@ -39,7 +39,7 @@ def _handle_queue(queue):
             item()
 
 
-def process_results(training_result_futures, queue):
+def process_results(training_result_futures, queue=None):
     """Process results from the queue, and return results from the futures."""
     not_ready = training_result_futures
     while not_ready:

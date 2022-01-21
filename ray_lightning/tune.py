@@ -110,7 +110,7 @@ if TUNE_INSTALLED:
         def _get_report_dict(self, trainer: Trainer,
                              pl_module: LightningModule):
             # Don't report if just doing initial validation sanity checks.
-            if trainer.running_sanity_check:
+            if trainer.sanity_checking:
                 return
             if not self._metrics:
                 report_dict = {
@@ -167,7 +167,7 @@ if TUNE_INSTALLED:
                     f.write(checkpoint_stream)
 
         def _handle(self, trainer: Trainer, pl_module: LightningModule):
-            if trainer.running_sanity_check:
+            if trainer.sanity_checking:
                 return
             checkpoint_dict = trainer.checkpoint_connector.dump_checkpoint()
             # Convert to a state stream first.
