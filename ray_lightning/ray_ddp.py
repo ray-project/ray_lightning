@@ -178,12 +178,12 @@ class RayPlugin(DDPSpawnPlugin):
             precision_plugin = current_accelerator.precision_plugin
             new_accelerator = DelayedGPUAccelerator(
                 precision_plugin=precision_plugin, training_type_plugin=self)
-            self.lightning_module.trainer.accelerator_connector \
+            self.lightning_module.trainer._accelerator_connector \
                 ._training_type_plugin = \
                 proxy(new_accelerator.training_type_plugin)
-            self.lightning_module.trainer.accelerator_connector \
+            self.lightning_module.trainer._accelerator_connector \
                 ._precision_plugin = proxy(new_accelerator.precision_plugin)
-            self.lightning_module.trainer.accelerator_connector.accelerator \
+            self.lightning_module.trainer._accelerator_connector.accelerator \
                 = new_accelerator
 
     def _setup_env_vars(self):
