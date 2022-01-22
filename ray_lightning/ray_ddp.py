@@ -54,6 +54,9 @@ class RayExecutor:
         """Returns the IP address of the node that this Ray actor is on."""
         return ray.util.get_node_ip_address()
 
+    def get_gpu_ids(self):
+        return ray.get_gpu_ids()
+
     def execute(self, fn: Callable, *args, **kwargs):
         """Execute the provided function and return the result."""
         return fn(*args, **kwargs)
@@ -132,6 +135,7 @@ class RayPlugin(DDPSpawnPlugin):
             self.num_gpus_per_worker = resources_per_worker.pop("GPU")
         else:
             self.num_gpus_per_worker = int(use_gpu)
+
         self.use_gpu = self.num_gpus_per_worker > 0
         self.additional_resources_per_worker = resources_per_worker
         self.workers = []
@@ -201,6 +205,53 @@ class RayPlugin(DDPSpawnPlugin):
         values = [os.getenv(k) for k in keys]
         ray.get([w.set_env_vars.remote(keys, values) for w in self.workers])
 
+    def _share_cuda_visible_devices(self):
+        """Sets CUDA_VISIBLE_DEVICES on all workers.
+
+        For each worker, CUDA_VISIBLE_DEVICES will be set to the GPU IDs
+        visible to all workers on that worker's node.
+
+        This allows GPU workers on the same node to communicate with one
+        another.
+
+        Example:
+
+            Setup:
+            - Node1:
+                - Worker1: {0, 1}
+                - Worker2: {2, 3}
+            - Node2:
+                - Worker3: {0, 1}
+
+            CUDA_VISIBLE_DEVICES:
+            - Worker1: "0,1,2,3"
+            - Worker2: "0,1,2,3"
+            - Worker2: "0,1"
+
+        """
+        node_ids_and_gpu_ids = ray.get([(w.get_node_ip.remote(),
+                                         w.get_gpu_ids.remote())
+                                        for w in self.workers])
+
+        node_id_to_worker_id = defaultdict(set)
+        node_id_to_gpu_ids = defaultdict(set)
+
+        for worker_id, (node_id, gpu_ids) in enumerate(node_ids_and_gpu_ids):
+            node_id_to_worker_id[node_id].add(worker_id)
+            node_id_to_gpu_ids[node_id].update(gpu_ids)
+
+        futures = []
+        for node_id, gpu_ids in node_id_to_gpu_ids.items():
+            all_gpu_ids = ",".join([str(gpu_id) for gpu_id in gpu_ids])
+
+            def set_gpu_ids():
+                os.environ["CUDA_VISIBLE_DEVICES"] = all_gpu_ids
+
+            for worker_id in node_id_to_worker_id[node_id]:
+                futures.append(
+                    self.workers[worker_id].execute.remote(set_gpu_ids))
+        ray.get(futures)
+
     def start_training(self, trainer):
         results = self.execution_loop(tune_enabled=True)
         # reset optimizers, since main process is never used for training and
@@ -256,6 +307,10 @@ class RayPlugin(DDPSpawnPlugin):
         # Sets environment variables for all workers.
         # This will set the MASTER_ADDR and MASTER_PORT on each Ray actor.
         self._setup_env_vars()
+
+        if self.use_gpu:
+            # Set the CUDA_VISIBLE_DEVICES for all workers.
+            self._share_cuda_visible_devices()
 
         # Get the mapping from global ranks to the respective local ranks.
         self.global_to_local = self.get_local_ranks()
@@ -460,18 +515,9 @@ class RayPlugin(DDPSpawnPlugin):
     def root_device(self):
         if self.use_gpu and torch.cuda.is_available():
             if self._is_remote:
-                # If each worker has CUDA_VISIBLE_DEVICES set, we run into NCCL
-                # errors.
-                # Instead, we pop CUDA_VISIBLE_DEVICES and have root_device
-                # index into the correct GPU id.
-                if not hasattr(self, "_root_device"):
-                    devices_env = os.environ.pop("CUDA_VISIBLE_DEVICES")
-                    devices_list = [
-                        int(x.strip()) for x in devices_env.split(",")
-                        if len(x) > 0
-                    ]
-                    self._root_device = devices_list[0]
-                return torch.device("cuda", self._root_device)
+                # Adjust for if there are multiple GPUs per worker.
+                device_id = self.local_rank + (self.num_gpus_per_worker - 1)
+                return torch.device("cuda", device_id)
             else:
                 # If the root device is requested on the driver, just return
                 # the 0th device.
