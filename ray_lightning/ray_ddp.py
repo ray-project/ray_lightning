@@ -54,8 +54,8 @@ class RayExecutor:
         """Returns the IP address of the node that this Ray actor is on."""
         return ray.util.get_node_ip_address()
 
-    def get_gpu_ids(self):
-        return ray.get_gpu_ids()
+    def get_node_and_gpu_ids(self):
+        return ray.get_runtime_context().node_id.hex(), ray.get_gpu_ids()
 
     def execute(self, fn: Callable, *args, **kwargs):
         """Execute the provided function and return the result."""
@@ -229,9 +229,8 @@ class RayPlugin(DDPSpawnPlugin):
             - Worker2: "0,1"
 
         """
-        node_ids_and_gpu_ids = ray.get([(w.get_node_ip.remote(),
-                                         w.get_gpu_ids.remote())
-                                        for w in self.workers])
+        node_ids_and_gpu_ids = ray.get(
+            [w.get_node_and_gpu_ids.remote() for w in self.workers])
 
         node_id_to_worker_id = defaultdict(set)
         node_id_to_gpu_ids = defaultdict(set)
