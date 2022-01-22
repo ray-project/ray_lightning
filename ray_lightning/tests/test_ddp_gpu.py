@@ -52,10 +52,7 @@ def test_predict(tmpdir, ray_start_2_gpus, seed, num_workers):
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
     plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(
-        tmpdir,
-        limit_train_batches=20,
-        max_epochs=1,
-        plugins=[plugin])
+        tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
 
 
@@ -91,9 +88,7 @@ def test_correct_devices(tmpdir, ray_start_2_gpus):
 
     plugin = RayPlugin(num_workers=2, use_gpu=True)
     trainer = get_trainer(
-        tmpdir,
-        plugins=[plugin],
-        callbacks=[CheckDevicesCallback()])
+        tmpdir, plugins=[plugin], callbacks=[CheckDevicesCallback()])
     trainer.fit(model)
 
 

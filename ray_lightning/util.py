@@ -21,7 +21,10 @@ class DelayedGPUAccelerator(GPUAccelerator):
         # GPUAccelerator.
         super(GPUAccelerator, self).setup_environment()
 
-    def setup(self, trainer: Trainer,) -> None:
+    def setup(
+            self,
+            trainer: Trainer,
+    ) -> None:
         # Don't do any CUDA setup.
         # Directly call the setup_environment method of the superclass of
         # GPUAccelerator.
