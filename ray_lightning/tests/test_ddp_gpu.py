@@ -31,9 +31,7 @@ def seed():
 def test_train(tmpdir, ray_start_2_gpus, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
-
-    plugin = RayPlugin(
-        num_workers=num_workers, use_gpu=True, init_hook=init_hook)
+    plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
