@@ -471,7 +471,7 @@ class RayPlugin(DDPSpawnPlugin):
                         if len(x) > 0
                     ]
                     self._root_device = devices_list[0]
-                return self._root_device
+                return torch.device("cuda", self._root_device)
             else:
                 # If the root device is requested on the driver, just return
                 # the 0th device.
