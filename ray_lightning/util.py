@@ -33,6 +33,7 @@ class DelayedGPUAccelerator(GPUAccelerator):
     def on_train_start(self) -> None:
         if "cuda" not in str(self.root_device):
             raise RuntimeError("GPUs were requested but are not available.")
+        torch.cuda.set_device(self.root_device)
         super(DelayedGPUAccelerator, self).on_train_start()
 
 
