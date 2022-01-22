@@ -459,13 +459,23 @@ class RayPlugin(DDPSpawnPlugin):
     @property
     def root_device(self):
         if self.use_gpu and torch.cuda.is_available():
-            # If each worker has CUDA_VISIBLE_DEVICES set, we run into NCCL
-            # errors.
-            # Instead, we pop CUDA_VISIBLE_DEVICES and have root_device
-            # index into the correct GPU id.
-            if not hasattr(self, "_root_device"):
-                self._root_device = os.environ.pop("CUDA_VISIBLE_DEVICES")
-            return self._root_device
+            if self._is_remote:
+                # If each worker has CUDA_VISIBLE_DEVICES set, we run into NCCL
+                # errors.
+                # Instead, we pop CUDA_VISIBLE_DEVICES and have root_device
+                # index into the correct GPU id.
+                if not hasattr(self, "_root_device"):
+                    devices_env = os.environ.pop("CUDA_VISIBLE_DEVICES")
+                    devices_list = [
+                        int(x.strip()) for x in devices_env.split(",")
+                        if len(x) > 0
+                    ]
+                    self._root_device = devices_list[0]
+                return self._root_device
+            else:
+                # If the root device is requested on the driver, just return
+                # the 0th device.
+                return torch.device("cuda", 0)
         else:
             return torch.device("cpu")
 
