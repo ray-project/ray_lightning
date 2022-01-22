@@ -7,7 +7,6 @@ from ray.util.client.ray_client_helpers import ray_start_client_server
 
 try:
     import horovod  # noqa: F401
-    from horovod.common.util import nccl_built
 except ImportError:
     HOROVOD_AVAILABLE = False
 else:
@@ -18,15 +17,6 @@ import ray
 from ray_lightning import HorovodRayPlugin
 from ray_lightning.tests.utils import get_trainer, BoringModel, \
     train_test, load_test, predict_test, LightningMNISTClassifier
-
-
-def _nccl_available():
-    if not HOROVOD_AVAILABLE:
-        return False
-    try:
-        return nccl_built()
-    except AttributeError:
-        return False
 
 
 @pytest.fixture
@@ -122,8 +112,6 @@ def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
 
 
 @pytest.mark.skipif(
-    not _nccl_available(), reason="test requires Horovod with NCCL support")
-@pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
@@ -135,8 +123,6 @@ def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
 
 
 @pytest.mark.skipif(
-    not _nccl_available(), reason="test requires Horovod with NCCL support")
-@pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
@@ -147,8 +133,6 @@ def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
     load_test(trainer, model)
 
 
-@pytest.mark.skipif(
-    not _nccl_available(), reason="test requires Horovod with NCCL support")
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])
