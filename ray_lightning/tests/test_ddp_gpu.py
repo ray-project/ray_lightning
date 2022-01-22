@@ -35,7 +35,8 @@ def test_train(tmpdir, ray_start_2_gpus, num_workers):
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
-
+@pytest.mark.skipif(
+    torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 def test_train_mixed_precision(tmpdir, ray_start_2_gpus):
     """Tests if training works with mixed precision."""
     model = BoringModel()
