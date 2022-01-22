@@ -130,7 +130,7 @@ def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
     plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=True)
-    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
 
@@ -143,7 +143,7 @@ def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
     """Tests if model checkpoint can be loaded."""
     model = BoringModel()
     plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=True)
-    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin])
     load_test(trainer, model)
 
 
@@ -168,6 +168,5 @@ def test_predict_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
         tmpdir,
         limit_train_batches=20,
         max_epochs=1,
-        plugins=[plugin],
-        use_gpu=True)
+        plugins=[plugin])
     predict_test(trainer, model, dm)
