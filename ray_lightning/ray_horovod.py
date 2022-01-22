@@ -231,6 +231,9 @@ class HorovodRayPlugin(HorovodPlugin):
     @property
     def root_device(self):
         if self.use_gpu and torch.cuda.is_available():
-            return torch.device("cuda", hvd.local_rank())
+            if hvd.is_initialized():
+                return torch.device("cuda", hvd.local_rank())
+            else:
+                return torch.device("cuda", 0)
         else:
             return torch.device("cpu")
