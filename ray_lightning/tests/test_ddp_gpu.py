@@ -21,6 +21,13 @@ def ray_start_2_gpus():
 
 
 @pytest.fixture
+def ray_start_4_gpus():
+    address_info = ray.init(num_cpus=4, num_gpus=4)
+    yield address_info
+    ray.shutdown()
+
+
+@pytest.fixture
 def seed():
     pl.seed_everything(0)
 
@@ -75,7 +82,7 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_gpus_per_worker", [1, 2])
-def test_correct_devices(tmpdir, ray_start_2_gpus, num_gpus_per_worker):
+def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker):
     """Tests if GPU devices are correctly set."""
     model = BoringModel()
 
