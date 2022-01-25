@@ -515,7 +515,7 @@ class RayPlugin(DDPSpawnPlugin):
         if self.use_gpu and torch.cuda.is_available():
             if self._is_remote:
                 # Adjust for if there are multiple GPUs per worker.
-                device_id = self.local_rank + (self.num_gpus_per_worker - 1)
+                device_id = self.local_rank * self.num_gpus_per_worker
                 return torch.device("cuda", device_id)
             else:
                 # If the root device is requested on the driver, just return

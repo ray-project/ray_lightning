@@ -74,17 +74,21 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
 
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
-def test_correct_devices(tmpdir, ray_start_2_gpus):
+@pytest.mark.parametrize("num_gpus_per_worker", [1, 2])
+def test_correct_devices(tmpdir, ray_start_2_gpus, num_gpus_per_worker):
     """Tests if GPU devices are correctly set."""
     model = BoringModel()
 
     class CheckDevicesCallback(Callback):
         def on_epoch_end(self, trainer, pl_module):
-            assert trainer.root_gpu == trainer.local_rank
+            assert trainer.root_gpu == trainer.local_rank * num_gpus_per_worker
             assert trainer.root_gpu == pl_module.device.index
             assert torch.cuda.current_device() == trainer.root_gpu
 
-    plugin = RayPlugin(num_workers=2, use_gpu=True)
+    plugin = RayPlugin(
+        num_workers=2,
+        use_gpu=True,
+        resources_per_worker={"GPU": num_gpus_per_worker})
     trainer = get_trainer(
         tmpdir, plugins=[plugin], callbacks=[CheckDevicesCallback()])
     trainer.fit(model)
