@@ -21,6 +21,13 @@ def ray_start_2_gpus():
 
 
 @pytest.fixture
+def ray_start_4_gpus():
+    address_info = ray.init(num_cpus=4, num_gpus=4)
+    yield address_info
+    ray.shutdown()
+
+
+@pytest.fixture
 def seed():
     pl.seed_everything(0)
 
@@ -32,7 +39,7 @@ def test_train(tmpdir, ray_start_2_gpus, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
     plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
-    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
 
@@ -52,11 +59,7 @@ def test_predict(tmpdir, ray_start_2_gpus, seed, num_workers):
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
     plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(
-        tmpdir,
-        limit_train_batches=20,
-        max_epochs=1,
-        plugins=[plugin],
-        use_gpu=True)
+        tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
 
 
@@ -72,30 +75,29 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
 
     plugin = RayPlugin(num_workers=2, use_gpu=True)
     trainer = get_trainer(
-        tmpdir, plugins=[plugin], use_gpu=True, callbacks=[CheckGPUCallback()])
+        tmpdir, plugins=[plugin], callbacks=[CheckGPUCallback()])
     trainer.fit(model)
 
 
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
-def test_correct_devices(tmpdir, ray_start_2_gpus):
+@pytest.mark.parametrize("num_gpus_per_worker", [1, 2])
+def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker):
     """Tests if GPU devices are correctly set."""
     model = BoringModel()
 
     class CheckDevicesCallback(Callback):
         def on_epoch_end(self, trainer, pl_module):
-            assert trainer.root_gpu == 0
-            assert int(os.environ["CUDA_VISIBLE_DEVICES"]) == \
-                trainer.local_rank
+            assert trainer.root_gpu == trainer.local_rank * num_gpus_per_worker
             assert trainer.root_gpu == pl_module.device.index
             assert torch.cuda.current_device() == trainer.root_gpu
 
-    plugin = RayPlugin(num_workers=2, use_gpu=True)
-    trainer = get_trainer(
-        tmpdir,
-        plugins=plugin,
+    plugin = RayPlugin(
+        num_workers=2,
         use_gpu=True,
-        callbacks=[CheckDevicesCallback()])
+        resources_per_worker={"GPU": num_gpus_per_worker})
+    trainer = get_trainer(
+        tmpdir, plugins=[plugin], callbacks=[CheckDevicesCallback()])
     trainer.fit(model)
 
 
@@ -109,5 +111,5 @@ def test_multi_node(tmpdir):
     num_gpus = ray.available_resources()["GPU"]
     model = BoringModel()
     plugin = RayPlugin(num_workers=num_gpus, use_gpu=True)
-    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)

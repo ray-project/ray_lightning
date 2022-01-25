@@ -3,7 +3,7 @@ from typing import Callable
 
 import torch
 from pytorch_lightning.accelerators import GPUAccelerator
-from pytorch_lightning import Trainer, LightningModule
+from pytorch_lightning import Trainer
 
 import ray
 
@@ -15,12 +15,25 @@ class DelayedGPUAccelerator(GPUAccelerator):
     like the laptop) but have training still execute on GPU.
     """
 
-    def setup(self, trainer: Trainer, model: LightningModule) -> None:
-        return super(GPUAccelerator, self).setup(trainer, model)
+    def setup_environment(self) -> None:
+        # Don't do any CUDA setup.
+        # Directly call the setup_environment method of the superclass of
+        # GPUAccelerator.
+        super(GPUAccelerator, self).setup_environment()
+
+    def setup(
+            self,
+            trainer: Trainer,
+    ) -> None:
+        # Don't do any CUDA setup.
+        # Directly call the setup_environment method of the superclass of
+        # GPUAccelerator.
+        return super(GPUAccelerator, self).setup(trainer)
 
     def on_train_start(self) -> None:
         if "cuda" not in str(self.root_device):
             raise RuntimeError("GPUs were requested but are not available.")
+        torch.cuda.set_device(self.root_device)
         super(DelayedGPUAccelerator, self).on_train_start()
 
 
