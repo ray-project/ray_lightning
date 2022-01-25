@@ -7,7 +7,6 @@ from ray.util.client.ray_client_helpers import ray_start_client_server
 
 try:
     import horovod  # noqa: F401
-    from horovod.common.util import nccl_built
 except ImportError:
     HOROVOD_AVAILABLE = False
 else:
@@ -18,15 +17,6 @@ import ray
 from ray_lightning import HorovodRayPlugin
 from ray_lightning.tests.utils import get_trainer, BoringModel, \
     train_test, load_test, predict_test, LightningMNISTClassifier
-
-
-def _nccl_available():
-    if not HOROVOD_AVAILABLE:
-        return False
-    try:
-        return nccl_built()
-    except AttributeError:
-        return False
 
 
 @pytest.fixture
@@ -122,20 +112,16 @@ def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
 
 
 @pytest.mark.skipif(
-    not _nccl_available(), reason="test requires Horovod with NCCL support")
-@pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_train_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
     plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=True)
-    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
 
-@pytest.mark.skipif(
-    not _nccl_available(), reason="test requires Horovod with NCCL support")
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])
@@ -143,12 +129,10 @@ def test_load_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
     """Tests if model checkpoint can be loaded."""
     model = BoringModel()
     plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=True)
-    trainer = get_trainer(tmpdir, plugins=[plugin], use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin])
     load_test(trainer, model)
 
 
-@pytest.mark.skipif(
-    not _nccl_available(), reason="test requires Horovod with NCCL support")
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])
@@ -165,9 +149,5 @@ def test_predict_gpu(tmpdir, ray_start_2_gpus, seed, num_workers):
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
     plugin = HorovodRayPlugin(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(
-        tmpdir,
-        limit_train_batches=20,
-        max_epochs=1,
-        plugins=[plugin],
-        use_gpu=True)
+        tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)

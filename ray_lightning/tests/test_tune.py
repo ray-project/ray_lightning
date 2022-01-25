@@ -17,6 +17,11 @@ def ray_start_4_cpus():
     yield address_info
     ray.shutdown()
 
+@pytest.fixture
+def ray_start_4_cpus_4_gpus():
+    address_info = ray.init(num_cpus=4, num_gpus=4)
+    yield address_info
+    ray.shutdown()
 
 def train_func(dir, plugin, callbacks=None):
     def _inner_train(config):
@@ -84,16 +89,16 @@ def test_checkpoint_horovod(tmpdir, ray_start_4_cpus):
 
 
 @pytest.mark.skipif(
-    torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
-def test_checkpoint_ddp_gpu(tmpdir, ray_start_4_cpus):
+    torch.cuda.device_count() < 4, reason="test requires multi-GPU machine")
+def test_checkpoint_ddp_gpu(tmpdir, ray_start_4_cpus_4_gpus):
     """Tests if Tune checkpointing works with RayAccelerator."""
-    plugin = RayPlugin(num_workers=2, use_gpu=False)
+    plugin = RayPlugin(num_workers=2, use_gpu=True)
     checkpoint_test(tmpdir, plugin)
 
 
 @pytest.mark.skipif(
-    torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
-def test_checkpoint_horovod_gpu(tmpdir, ray_start_4_cpus):
+    torch.cuda.device_count() < 4, reason="test requires multi-GPU machine")
+def test_checkpoint_horovod_gpu(tmpdir, ray_start_4_cpus_4_gpus):
     """Tests if Tune checkpointing works with HorovodRayAccelerator."""
-    plugin = HorovodRayPlugin(num_hosts=1, num_slots=2, use_gpu=False)
+    plugin = HorovodRayPlugin(num_workers=2, use_gpu=True)
     checkpoint_test(tmpdir, plugin)

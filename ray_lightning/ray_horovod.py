@@ -1,5 +1,6 @@
 import torch
 import pytorch_lightning as pl
+from pytorch_lightning.accelerators import CPUAccelerator
 from pytorch_lightning.plugins import HorovodPlugin
 from pytorch_lightning.utilities import rank_zero_only
 
@@ -124,6 +125,24 @@ class HorovodRayPlugin(HorovodPlugin):
             use_gpu=self.use_gpu)
         self.executor.start(executable_cls=get_executable_cls())
 
+    def setup_environment(self) -> None:
+        # Swap out the accelerator if necessary.
+        # This is needed to support CPU head with GPU workers or Ray Client.
+        current_accelerator = self.lightning_module.trainer.accelerator
+        if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
+            from weakref import proxy
+            from ray_lightning.util import DelayedGPUAccelerator
+            precision_plugin = current_accelerator.precision_plugin
+            new_accelerator = DelayedGPUAccelerator(
+                precision_plugin=precision_plugin, training_type_plugin=self)
+            self.lightning_module.trainer._accelerator_connector \
+                ._training_type_plugin = \
+                proxy(new_accelerator.training_type_plugin)
+            self.lightning_module.trainer._accelerator_connector \
+                ._precision_plugin = proxy(new_accelerator.precision_plugin)
+            self.lightning_module.trainer._accelerator_connector.accelerator \
+                = new_accelerator
+
     def pre_dispatch(self):
         """All pre-dispatch logic should be done in train_remote instead."""
         pass
@@ -212,6 +231,9 @@ class HorovodRayPlugin(HorovodPlugin):
     @property
     def root_device(self):
         if self.use_gpu and torch.cuda.is_available():
-            return torch.device("cuda", hvd.local_rank())
+            if hvd.is_initialized():
+                return torch.device("cuda", hvd.local_rank())
+            else:
+                return torch.device("cuda", 0)
         else:
             return torch.device("cpu")
