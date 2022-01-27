@@ -53,6 +53,7 @@ def test_train_mixed_precision(tmpdir, ray_start_2_gpus):
         tmpdir, plugins=[plugin], precision=16, amp_backend="apex")
     train_test(trainer, model)
 
+
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])

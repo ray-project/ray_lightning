@@ -1,6 +1,5 @@
 import torch
 import pytorch_lightning as pl
-from pytorch_lightning.accelerators import CPUAccelerator
 from pytorch_lightning.plugins import HorovodPlugin
 from pytorch_lightning.utilities import rank_zero_only
 
