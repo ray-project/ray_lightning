@@ -49,8 +49,9 @@ def test_train_mixed_precision(tmpdir, ray_start_2_gpus):
     """Tests if training works with mixed precision."""
     model = BoringModel()
     plugin = RayPlugin(num_workers=2, use_gpu=True)
-    trainer = get_trainer(
-        tmpdir, plugins=[plugin], precision=16, amp_backend="apex")
+    trainer = get_trainer(tmpdir, plugins=[plugin], gpus=1, precision=16)
+    # Make sure PTL doesn't automatically replace with bf16.
+    assert trainer.precision == 16
     train_test(trainer, model)
 
 

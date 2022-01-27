@@ -25,7 +25,7 @@ def ray_start_4_cpus_4_gpus():
     ray.shutdown()
 
 
-def train_func(dir, plugin, callbacks=None):
+def train_func(dir, plugin, callbacks=None, amp=False):
     def _inner_train(config):
         model = BoringModel()
         trainer = get_trainer(
@@ -33,8 +33,14 @@ def train_func(dir, plugin, callbacks=None):
             callbacks=callbacks,
             plugins=[plugin],
             checkpoint_callback=False,
+            gpus=1 if amp else 0,
+            precision=16 if amp else 32,
             **config)
         trainer.fit(model)
+
+        if amp:
+            # Make sure PTL doesn't automatically replace with bf16
+            assert trainer.precision == 16
 
     return _inner_train
 
@@ -104,3 +110,19 @@ def test_checkpoint_horovod_gpu(tmpdir, ray_start_4_cpus_4_gpus):
     """Tests if Tune checkpointing works with HorovodRayAccelerator."""
     plugin = HorovodRayPlugin(num_workers=2, use_gpu=True)
     checkpoint_test(tmpdir, plugin)
+
+
+def tune_test_mixed_precision(dir, plugin):
+    tune.run(
+        train_func(dir, plugin),
+        resources_per_trial=get_tune_resources(
+            num_workers=plugin.num_workers, use_gpu=plugin.use_gpu),
+        num_samples=2)
+
+
+@pytest.mark.skipif(
+    torch.cuda.device_count() < 4, reason="test requires multi-GPU machine")
+def test_tune_mixed_precision_ddp_gpu(tmpdir, ray_start_4_cpus_4_gpus):
+    """Tests if Tune works with mixed precision."""
+    plugin = RayPlugin(num_workers=2, use_gpu=True)
+    tune_test_mixed_precision(tmpdir, plugin)
