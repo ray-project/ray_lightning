@@ -1,6 +1,5 @@
 import torch
 import pytorch_lightning as pl
-from pytorch_lightning.accelerators import CPUAccelerator
 from pytorch_lightning.plugins import HorovodPlugin
 from pytorch_lightning.utilities import rank_zero_only
 
@@ -11,7 +10,7 @@ from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Unavailable, to_state_stream, \
-    load_state_stream
+    load_state_stream, DelayedGPUAcceleratorMixin
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 try:
@@ -32,7 +31,7 @@ def get_executable_cls():
 
 
 @PublicAPI(stability="beta")
-class HorovodRayPlugin(HorovodPlugin):
+class HorovodRayPlugin(HorovodPlugin, DelayedGPUAcceleratorMixin):
     """Pytorch Lightning Plugin for Horovod training on a Ray cluster.
 
     This plugin is used to manage distributed training on a Ray cluster
@@ -126,22 +125,7 @@ class HorovodRayPlugin(HorovodPlugin):
         self.executor.start(executable_cls=get_executable_cls())
 
     def setup_environment(self) -> None:
-        # Swap out the accelerator if necessary.
-        # This is needed to support CPU head with GPU workers or Ray Client.
-        current_accelerator = self.lightning_module.trainer.accelerator
-        if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
-            from weakref import proxy
-            from ray_lightning.util import DelayedGPUAccelerator
-            precision_plugin = current_accelerator.precision_plugin
-            new_accelerator = DelayedGPUAccelerator(
-                precision_plugin=precision_plugin, training_type_plugin=self)
-            self.lightning_module.trainer._accelerator_connector \
-                ._training_type_plugin = \
-                proxy(new_accelerator.training_type_plugin)
-            self.lightning_module.trainer._accelerator_connector \
-                ._precision_plugin = proxy(new_accelerator.precision_plugin)
-            self.lightning_module.trainer._accelerator_connector.accelerator \
-                = new_accelerator
+        super(DelayedGPUAcceleratorMixin, self).setup_environment()
 
     def pre_dispatch(self):
         """All pre-dispatch logic should be done in train_remote instead."""

@@ -37,10 +37,13 @@ class DelayedGPUAccelerator(GPUAccelerator):
         torch.cuda.set_device(self.root_device)
         super(DelayedGPUAccelerator, self).on_train_start()
 
+
 class DelayedGPUAcceleratorMixin(abc.ABC):
     def setup_environment(self) -> None:
         # Swap out the accelerator if necessary.
         # This is needed to support CPU head with GPU workers or Ray Client.
+        # This is also needed to support GPU-only optimizations like mixed
+        # precision when using CPU head with GPU workers or Ray Client.
         current_accelerator = self.lightning_module.trainer.accelerator
 
         if self.use_gpu:
@@ -56,7 +59,6 @@ class DelayedGPUAcceleratorMixin(abc.ABC):
                 ._precision_plugin = proxy(new_accelerator.precision_plugin)
             self.lightning_module.trainer._accelerator_connector.accelerator \
                 = new_accelerator
-
 
 
 class Unavailable:

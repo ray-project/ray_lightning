@@ -17,11 +17,13 @@ def ray_start_4_cpus():
     yield address_info
     ray.shutdown()
 
+
 @pytest.fixture
 def ray_start_4_cpus_4_gpus():
     address_info = ray.init(num_cpus=4, num_gpus=4)
     yield address_info
     ray.shutdown()
+
 
 def train_func(dir, plugin, callbacks=None):
     def _inner_train(config):
