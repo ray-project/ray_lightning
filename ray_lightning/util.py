@@ -1,4 +1,3 @@
-import abc
 import io
 from typing import Callable
 
@@ -7,6 +6,7 @@ from pytorch_lightning.accelerators import GPUAccelerator
 from pytorch_lightning import Trainer
 
 import ray
+from pytorch_lightning.plugins import TrainingTypePlugin
 
 
 class DelayedGPUAccelerator(GPUAccelerator):
@@ -38,27 +38,25 @@ class DelayedGPUAccelerator(GPUAccelerator):
         super(DelayedGPUAccelerator, self).on_train_start()
 
 
-class DelayedGPUAcceleratorMixin(abc.ABC):
-    def setup_environment(self) -> None:
-        # Swap out the accelerator if necessary.
-        # This is needed to support CPU head with GPU workers or Ray Client.
-        # This is also needed to support GPU-only optimizations like mixed
-        # precision when using CPU head with GPU workers or Ray Client.
-        current_accelerator = self.lightning_module.trainer.accelerator
+def swap_accelerator(plugin: TrainingTypePlugin):
+    # Swap out the accelerator if necessary.
+    # This is needed to support CPU head with GPU workers or Ray Client.
+    # This is also needed to support GPU-only optimizations like mixed
+    # precision when using CPU head with GPU workers or Ray Client.
+    current_accelerator = plugin.lightning_module.trainer.accelerator
 
-        if self.use_gpu:
-            from weakref import proxy
-            from ray_lightning.util import DelayedGPUAccelerator
-            precision_plugin = current_accelerator.precision_plugin
-            new_accelerator = DelayedGPUAccelerator(
-                precision_plugin=precision_plugin, training_type_plugin=self)
-            self.lightning_module.trainer._accelerator_connector \
-                ._training_type_plugin = \
-                proxy(new_accelerator.training_type_plugin)
-            self.lightning_module.trainer._accelerator_connector \
-                ._precision_plugin = proxy(new_accelerator.precision_plugin)
-            self.lightning_module.trainer._accelerator_connector.accelerator \
-                = new_accelerator
+    if plugin.use_gpu:
+        from weakref import proxy
+        precision_plugin = current_accelerator.precision_plugin
+        new_accelerator = DelayedGPUAccelerator(
+            precision_plugin=precision_plugin, training_type_plugin=plugin)
+        plugin.lightning_module.trainer._accelerator_connector \
+            ._training_type_plugin = \
+            proxy(new_accelerator.training_type_plugin)
+        plugin.lightning_module.trainer._accelerator_connector \
+            ._precision_plugin = proxy(new_accelerator.precision_plugin)
+        plugin.lightning_module.trainer._accelerator_connector.accelerator \
+            = new_accelerator
 
 
 class Unavailable:

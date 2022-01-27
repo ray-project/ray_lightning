@@ -10,7 +10,7 @@ from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Unavailable, to_state_stream, \
-    load_state_stream, DelayedGPUAcceleratorMixin
+    load_state_stream, swap_accelerator
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 try:
@@ -31,7 +31,7 @@ def get_executable_cls():
 
 
 @PublicAPI(stability="beta")
-class HorovodRayPlugin(HorovodPlugin, DelayedGPUAcceleratorMixin):
+class HorovodRayPlugin(HorovodPlugin):
     """Pytorch Lightning Plugin for Horovod training on a Ray cluster.
 
     This plugin is used to manage distributed training on a Ray cluster
@@ -125,7 +125,7 @@ class HorovodRayPlugin(HorovodPlugin, DelayedGPUAcceleratorMixin):
         self.executor.start(executable_cls=get_executable_cls())
 
     def setup_environment(self) -> None:
-        super(DelayedGPUAcceleratorMixin, self).setup_environment()
+        swap_accelerator(self)
 
     def pre_dispatch(self):
         """All pre-dispatch logic should be done in train_remote instead."""

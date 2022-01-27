@@ -22,7 +22,7 @@ from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, to_state_stream, \
-    load_state_stream, DelayedGPUAcceleratorMixin
+    load_state_stream, swap_accelerator
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 
@@ -62,7 +62,7 @@ class RayExecutor:
 
 
 @PublicAPI(stability="beta")
-class RayPlugin(DDPSpawnPlugin, DelayedGPUAcceleratorMixin):
+class RayPlugin(DDPSpawnPlugin):
     """Pytorch Lightning plugin for DDP training on a Ray cluster.
 
     This plugin is used to manage distributed training using DDP and
@@ -172,7 +172,7 @@ class RayPlugin(DDPSpawnPlugin, DelayedGPUAcceleratorMixin):
             ray.get([w.execute.remote(self.init_hook) for w in self.workers])
 
     def setup_environment(self) -> None:
-        super(DelayedGPUAcceleratorMixin, self).setup_environment()
+        swap_accelerator(self)
 
     def _setup_env_vars(self):
         # Get rank 0 worker address and port for DDP connection.
