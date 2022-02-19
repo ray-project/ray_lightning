@@ -92,8 +92,8 @@ def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker):
 
     class CheckDevicesCallback(Callback):
         def on_epoch_end(self, trainer, pl_module):
-            assert trainer.root_gpu == int(trainer.local_rank * \
-                   num_gpus_per_worker)
+            assert trainer.root_gpu == int(
+                trainer.local_rank * num_gpus_per_worker)
             assert trainer.root_gpu == pl_module.device.index
             assert torch.cuda.current_device() == trainer.root_gpu
 
