@@ -4,6 +4,7 @@ from collections import defaultdict
 from contextlib import closing
 import os
 import socket
+import warnings
 
 import numpy as np
 import torch
@@ -135,6 +136,17 @@ class RayPlugin(DDPSpawnPlugin):
             self.num_gpus_per_worker = resources_per_worker.pop("GPU")
         else:
             self.num_gpus_per_worker = int(use_gpu)
+
+        if self.num_gpus_per_worker < 1 and num_workers > 1:
+            warnings.warn("Identified less than 1 GPU being set per worker. "
+                          "If using NCCL backend (which is the default for "
+                          "GPU training), GPU devices cannot be shared "
+                          "across processes/workers and training is likely "
+                          "to fail. It is recommended to use 1 GPU per "
+                          "worker for training, or if you must use "
+                          "fractional GPUs, then use the gloo backend by "
+                          "setting PL_TORCH_DISTRIBUTED_BACKEND=gloo "
+                          "environment variable.")
 
         self.use_gpu = self.num_gpus_per_worker > 0
         self.additional_resources_per_worker = resources_per_worker
@@ -514,7 +526,8 @@ class RayPlugin(DDPSpawnPlugin):
     def root_device(self):
         if self.use_gpu and torch.cuda.is_available():
             if self._is_remote:
-                # Use the GPU id for this Ray worker.
+                # Adjust to support multiple GPUs per worker or fractional
+                # GPUs per worker.
                 device_id = int(self.local_rank * self.num_gpus_per_worker)
                 return torch.device("cuda", device_id)
             else:

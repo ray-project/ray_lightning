@@ -86,6 +86,10 @@ def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker):
     """Tests if GPU devices are correctly set."""
     model = BoringModel()
 
+    if num_gpus_per_worker < 1:
+        # Fractional GPUs don't work with NCCL backend.
+        os.environ["PL_TORCH_DISTRIBUTED_BACKEND"] = "gloo"
+
     class CheckDevicesCallback(Callback):
         def on_epoch_end(self, trainer, pl_module):
             assert trainer.root_gpu == int(trainer.local_rank * \
@@ -100,6 +104,8 @@ def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker):
     trainer = get_trainer(
         tmpdir, plugins=[plugin], callbacks=[CheckDevicesCallback()])
     trainer.fit(model)
+
+    os.environ.pop("PL_TORCH_DISTRIBUTED_BACKEND", None)
 
 
 @pytest.mark.skipif(
