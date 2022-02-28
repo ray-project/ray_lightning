@@ -79,11 +79,11 @@ if TUNE_INSTALLED:
             .. code-block:: python
 
                 import pytorch_lightning as pl
-                from ray_lightning import RayPlugin
+                from ray_lightning import RayStrategy
                 from ray_lightning.tune import TuneReportCallback
 
                 # Create plugin.
-                ray_plugin = RayPlugin(num_workers=4, use_gpu=True)
+                ray_plugin = RayStrategy(num_workers=4, use_gpu=True)
 
                 # Report loss and accuracy to Tune after each validation epoch:
                 trainer = pl.Trainer(plugins=[ray_plugin], callbacks=[
@@ -205,11 +205,11 @@ if TUNE_INSTALLED:
             .. code-block:: python
 
                 import pytorch_lightning as pl
-                from ray_lightning import RayPlugin
+                from ray_lightning import RayStrategy
                 from ray_lightning.tune import TuneReportCheckpointCallback.
 
                 # Create the Ray plugin.
-                ray_plugin = RayPlugin()
+                ray_plugin = RayStrategy()
 
                 # Save checkpoint after each training batch and after each
                 # validation epoch.

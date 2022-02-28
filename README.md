@@ -39,17 +39,17 @@ Here are the supported PyTorch Lightning versions:
 
 
 ## PyTorch Distributed Data Parallel Plugin on Ray
-The `RayPlugin` provides Distributed Data Parallel training on a Ray cluster. PyTorch DDP is used as the distributed training protocol, and Ray is used to launch and manage the training worker processes.
+The `RayStrategy` provides Distributed Data Parallel training on a Ray cluster. PyTorch DDP is used as the distributed training protocol, and Ray is used to launch and manage the training worker processes.
 
 Here is a simplified example:
 
 ```python
 import pytorch_lightning as pl
-from ray_lightning import RayPlugin
+from ray_lightning import RayStrategy
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
-plugin = RayPlugin(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
+plugin = RayStrategy(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
@@ -82,17 +82,17 @@ Now you can run your training script on the laptop, but have it execute as if yo
 **Note:** When using with Ray Client, you must disable checkpointing and logging for your Trainer by setting `checkpoint_callback` and `logger` to `False`.
 
 ## Horovod Plugin on Ray
-Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayPlugin` instead.
+Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayStrategy` instead.
 
 ```python
 import pytorch_lightning as pl
-from ray_lightning import HorovodRayPlugin
+from ray_lightning import HorovodRayStrategy
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
 
 # 2 workers, 1 CPU and 1 GPU each.
-plugin = HorovodRayPlugin(num_workers=2, use_gpu=True)
+plugin = HorovodRayStrategy(num_workers=2, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
@@ -101,16 +101,16 @@ trainer.fit(ptl_model)
 ```
 
 ## Model Parallel Sharded Training on Ray
-The `RayShardedPlugin` integrates with [FairScale](https://github.com/facebookresearch/fairscale) to provide sharded DDP training on a Ray cluster.
+The `RayShardedStrategy` integrates with [FairScale](https://github.com/facebookresearch/fairscale) to provide sharded DDP training on a Ray cluster.
 With sharded training, leverage the scalability of data parallel training while drastically reducing memory usage when training large models.
 
 ```python
 import pytorch_lightning as pl
-from ray_lightning import RayShardedPlugin
+from ray_lightning import RayShardedStrategy
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
-plugin = RayShardedPlugin(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
+plugin = RayShardedStrategy(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
@@ -127,7 +127,7 @@ Example using `ray_lightning` with Tune:
 ```python
 from ray import tune
 
-from ray_lightning import RayPlugin
+from ray_lightning import RayStrategy
 from ray_lightning.tune import TuneReportCallback, get_tune_resources
 
 def train_mnist(config):
@@ -142,7 +142,7 @@ def train_mnist(config):
     trainer = pl.Trainer(
         max_epochs=4,
         callbacks=callbacks,
-        plugins=[RayPlugin(num_workers=4, use_gpu=False)])
+        plugins=[RayStrategy(num_workers=4, use_gpu=False)])
     trainer.fit(model)
     
 config = {
@@ -173,10 +173,10 @@ The key difference is which Trainer you'll be interacting with. In this library,
 
 With RaySGD's integration, you'll be converting your `LightningModule` to be RaySGD compatible, and will be interacting with RaySGD's `TorchTrainer`. RaySGD's `TorchTrainer` is not as feature rich nor as easy to use as Pytorch Lightning's `Trainer` (no built in support for logging, early stopping, etc.). However, it does have built in support for fault-tolerant and elastic training. If these are hard requirements for you, then RaySGD's integration with PTL might be a better option.
 
-> I see that `RayPlugin` is based off of Pytorch Lightning's `DDPSpawnPlugin`. However, doesn't the PTL team discourage the use of spawn?
+> I see that `RayStrategy` is based off of Pytorch Lightning's `DDPSpawnPlugin`. However, doesn't the PTL team discourage the use of spawn?
 
 As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment-773539003), using a spawn approach instead of launch is not all that detrimental. The original factors for discouraging spawn were:
 1. not being able to use 'spawn' in a Jupyter or Colab notebook, and 
 2. not being able to use multiple workers for data loading. 
 
-Neither of these should be an issue with the `RayPlugin` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this plugin, your model does have to be serializable/pickleable.
+Neither of these should be an issue with the `RayStrategy` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this plugin, your model does have to be serializable/pickleable.

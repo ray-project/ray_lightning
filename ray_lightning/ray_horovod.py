@@ -1,7 +1,7 @@
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.accelerators import CPUAccelerator
-from pytorch_lightning.plugins import HorovodPlugin
+from pytorch_lightning.strategies import HorovodStrategy
 from pytorch_lightning.utilities import rank_zero_only
 
 import ray
@@ -32,10 +32,10 @@ def get_executable_cls():
 
 
 @PublicAPI(stability="beta")
-class HorovodRayPlugin(HorovodPlugin):
-    """Pytorch Lightning Plugin for Horovod training on a Ray cluster.
+class HorovodRayStrategy(HorovodStrategy):
+    """Pytorch Lightning Strategy for Horovod training on a Ray cluster.
 
-    This plugin is used to manage distributed training on a Ray cluster
+    This strategy is used to manage distributed training on a Ray cluster
     via the Horovod training framework. Internally, the specified number of
     Ray actors are launched in the cluster and are configured as part of the
     Horovod ring. The Pytorch Lightning trainer is instantiated on the
@@ -45,7 +45,7 @@ class HorovodRayPlugin(HorovodPlugin):
     Each training worker is configured to reserve 1 CPU and if 1 GPU if
     ``use_gpu`` is set to ``True``.
 
-    If using this plugin, you should run your code like a normal Python
+    If using this strategy, you should run your code like a normal Python
     script: ``python train.py``, and not with ``horovodrun``.
 
     Args:
@@ -60,14 +60,14 @@ class HorovodRayPlugin(HorovodPlugin):
         .. code-block:: python
 
             import pytorch_lightning as ptl
-            from ray_lightning import HorovodRayPlugin
+            from ray_lightning import HorovodRayStrategy
 
             ptl_model = MNISTClassifier(...)
-            plugin = HorovodRayPlugin(num_workers=2, use_gpu=True)
+            strategy = HorovodRayStrategy(num_workers=2, use_gpu=True)
 
             # Don't set ``gpus`` in ``Trainer``.
             # The actual number of GPUs is determined by ``num_workers``.
-            trainer = pl.Trainer(..., plugins=[plugin])
+            trainer = pl.Trainer(..., strategy=strategy)
             trainer.fit(ptl_model)
 
     """
@@ -78,7 +78,7 @@ class HorovodRayPlugin(HorovodPlugin):
                  use_gpu: bool = False):
 
         if not HOROVOD_AVAILABLE:
-            raise RuntimeError("Please intall Horovod to use this plugin.")
+            raise RuntimeError("Please intall Horovod to use this strategy.")
         if not ray.is_initialized():
             ray.init()
         super().__init__()
@@ -134,10 +134,10 @@ class HorovodRayPlugin(HorovodPlugin):
             from ray_lightning.util import DelayedGPUAccelerator
             precision_plugin = current_accelerator.precision_plugin
             new_accelerator = DelayedGPUAccelerator(
-                precision_plugin=precision_plugin, training_type_plugin=self)
+                precision_plugin=precision_plugin, strategy=self)
             self.lightning_module.trainer._accelerator_connector \
-                ._training_type_plugin = \
-                proxy(new_accelerator.training_type_plugin)
+                ._strategy = \
+                proxy(new_accelerator.strategy)
             self.lightning_module.trainer._accelerator_connector \
                 ._precision_plugin = proxy(new_accelerator.precision_plugin)
             self.lightning_module.trainer._accelerator_connector.accelerator \
@@ -174,7 +174,7 @@ class HorovodRayPlugin(HorovodPlugin):
         self._results = results
         self._model = model
         self._model.load_state_dict(state_dict)
-        self._model.trainer.accelerator.training_type_plugin = self
+        self._model.trainer.accelerator.strategy = self
         if self.lightning_module.trainer.checkpoint_callback:
             self.lightning_module.trainer.checkpoint_callback \
                 .best_model_path = best_path
@@ -189,9 +189,9 @@ class HorovodRayPlugin(HorovodPlugin):
         """Training function to be executed on each remote worker."""
         self._model = ray.get(model)
         self.lightning_module.trainer._accelerator_connector\
-            ._training_type_plugin = self
+            ._strategy = self
         self.lightning_module.trainer._accelerator_connector.accelerator\
-            .training_type_plugin = self
+            .strategy = self
 
         hvd.init()
         rank_zero_only.rank = self.global_rank
@@ -201,11 +201,11 @@ class HorovodRayPlugin(HorovodPlugin):
             init_session(rank=self.global_rank, queue=queue)
 
         # Move the model to the appropriate device.
-        super(HorovodRayPlugin, self).model_to_device()
+        super(HorovodRayStrategy, self).model_to_device()
 
         # TODO: Make changes in PTL to clean this up.
-        super(HorovodRayPlugin, self).pre_dispatch()
-        results = super(HorovodRayPlugin,
+        super(HorovodRayStrategy, self).pre_dispatch()
+        results = super(HorovodRayStrategy,
                         self).start_training(self.lightning_module.trainer)
         if self.global_rank != 0:
             # Only want results from the first worker.

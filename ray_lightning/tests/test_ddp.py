@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import EarlyStopping
 import ray
 from ray.cluster_utils import Cluster
 
-from ray_lightning import RayPlugin
+from ray_lightning import RayStrategy
 from ray_lightning.tests.utils import get_trainer, train_test, \
     load_test, predict_test, BoringModel, LightningMNISTClassifier
 
@@ -70,7 +70,7 @@ def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
 
     model.on_epoch_end = check_num_actor
 
-    plugin = RayPlugin(num_workers=num_workers)
+    plugin = RayStrategy(num_workers=num_workers)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     trainer.fit(model)
 
@@ -88,7 +88,7 @@ def test_global_local_ranks(ray_start_4_cpus):
         def get_node_ip(self):
             return "2"
 
-    plugin = RayPlugin(num_workers=4, use_gpu=False)
+    plugin = RayStrategy(num_workers=4, use_gpu=False)
 
     # 2 workers on "Node 1", 2 workers on "Node 2"
     plugin.workers = [
@@ -120,7 +120,7 @@ def test_actor_creation_resources(tmpdir, ray_start_4_cpus_4_extra,
                                   num_cpus_per_worker):
     """Tests if training actors are created with custom resources."""
     model = BoringModel()
-    plugin = RayPlugin(
+    plugin = RayStrategy(
         num_workers=num_workers,
         num_cpus_per_worker=num_cpus_per_worker,
         resources_per_worker={"extra": 1})
@@ -136,11 +136,11 @@ def test_actor_creation_resources(tmpdir, ray_start_4_cpus_4_extra,
 def test_resource_override(ray_start_2_cpus):
     """Tests if CPU and GPU resources are overridden if manually passed in."""
 
-    plugin = RayPlugin(num_workers=1, num_cpus_per_worker=2, use_gpu=True)
+    plugin = RayStrategy(num_workers=1, num_cpus_per_worker=2, use_gpu=True)
     assert plugin.num_cpus_per_worker == 2
     assert plugin.use_gpu
 
-    plugin = RayPlugin(
+    plugin = RayStrategy(
         num_workers=1,
         num_cpus_per_worker=2,
         use_gpu=True,
@@ -148,7 +148,7 @@ def test_resource_override(ray_start_2_cpus):
     assert plugin.num_cpus_per_worker == 3
     assert plugin.use_gpu
 
-    plugin = RayPlugin(
+    plugin = RayStrategy(
         num_workers=1,
         num_cpus_per_worker=2,
         use_gpu=True,
@@ -156,7 +156,7 @@ def test_resource_override(ray_start_2_cpus):
     assert plugin.num_cpus_per_worker == 2
     assert not plugin.use_gpu
 
-    plugin = RayPlugin(
+    plugin = RayStrategy(
         num_workers=1,
         num_cpus_per_worker=2,
         use_gpu=False,
@@ -164,7 +164,7 @@ def test_resource_override(ray_start_2_cpus):
     assert plugin.num_cpus_per_worker == 2
     assert plugin.use_gpu
 
-    plugin = RayPlugin(
+    plugin = RayStrategy(
         num_workers=1,
         num_cpus_per_worker=2,
         use_gpu=False,
@@ -203,7 +203,7 @@ def test_distributed_sampler(tmpdir, ray_start_2_cpus):
             assert train_sampler.num_replicas == 2
             assert train_sampler.rank == trainer.global_rank
 
-    plugin = RayPlugin(num_workers=2)
+    plugin = RayStrategy(num_workers=2)
     trainer = get_trainer(
         tmpdir, plugins=[plugin], callbacks=[DistributedSamplerCallback()])
     trainer.fit(model)
@@ -213,7 +213,7 @@ def test_distributed_sampler(tmpdir, ray_start_2_cpus):
 def test_train(tmpdir, ray_start_2_cpus, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
-    plugin = RayPlugin(num_workers=num_workers)
+    plugin = RayStrategy(num_workers=num_workers)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
@@ -222,7 +222,7 @@ def test_train(tmpdir, ray_start_2_cpus, num_workers):
 def test_train_client(tmpdir, start_ray_client_server_2_cpus, num_workers):
     assert ray.util.client.ray.is_connected()
     model = BoringModel()
-    plugin = RayPlugin(num_workers=num_workers)
+    plugin = RayStrategy(num_workers=num_workers)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
@@ -231,7 +231,7 @@ def test_train_client(tmpdir, start_ray_client_server_2_cpus, num_workers):
 def test_load(tmpdir, ray_start_2_cpus, num_workers):
     """Tests if model checkpoint can be loaded."""
     model = BoringModel()
-    plugin = RayPlugin(num_workers=num_workers, use_gpu=False)
+    plugin = RayStrategy(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     load_test(trainer, model)
 
@@ -249,7 +249,7 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-    plugin = RayPlugin(num_workers=num_workers, use_gpu=False)
+    plugin = RayStrategy(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(
         tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
@@ -269,7 +269,7 @@ def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-    plugin = RayPlugin(num_workers=num_workers, use_gpu=False)
+    plugin = RayStrategy(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(
         tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
@@ -278,7 +278,7 @@ def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
 def test_early_stop(tmpdir, ray_start_2_cpus):
     """Tests if early stopping callback works correctly."""
     model = BoringModel()
-    plugin = RayPlugin(num_workers=1, use_gpu=False)
+    plugin = RayStrategy(num_workers=1, use_gpu=False)
     patience = 2
     early_stop = EarlyStopping(
         monitor="val_loss", patience=patience, verbose=True)
@@ -300,7 +300,7 @@ def test_early_stop(tmpdir, ray_start_2_cpus):
 def test_unused_parameters(tmpdir, ray_start_2_cpus):
     """Tests if find_unused_parameters is properly passed to model."""
     model = BoringModel()
-    plugin = RayPlugin(
+    plugin = RayStrategy(
         num_workers=2, use_gpu=False, find_unused_parameters=False)
 
     class UnusedParameterCallback(Callback):

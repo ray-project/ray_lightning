@@ -10,7 +10,7 @@ import torch
 
 import pytorch_lightning as pl
 from pytorch_lightning.accelerators import CPUAccelerator
-from pytorch_lightning.plugins import DDPSpawnPlugin
+from pytorch_lightning.strategies import DDPSpawnStrategy
 from pytorch_lightning import _logger as log, LightningModule
 from pytorch_lightning.trainer.states import TrainerFn
 from pytorch_lightning.utilities import rank_zero_only, rank_zero_info
@@ -63,10 +63,10 @@ class RayExecutor:
 
 
 @PublicAPI(stability="beta")
-class RayPlugin(DDPSpawnPlugin):
-    """Pytorch Lightning plugin for DDP training on a Ray cluster.
+class RayStrategy(DDPSpawnStrategy):
+    """Pytorch Lightning strategy for DDP training on a Ray cluster.
 
-    This plugin is used to manage distributed training using DDP and
+    This strategy is used to manage distributed training using DDP and
     Ray for process launching. Internally, the specified number of
     Ray actors are launched in the cluster and are registered as part of a
     Pytorch DDP process group. The Pytorch Lightning trainer is instantiated
@@ -76,7 +76,7 @@ class RayPlugin(DDPSpawnPlugin):
     Each training worker is configured to reserve ``num_cpus_per_worker``
     CPUS and 1 GPU if ``use_gpu`` is set to ``True``.
 
-    If using this plugin, you should run your code like a normal Python
+    If using this strategy, you should run your code like a normal Python
     script: ``python train.py``, and only on the head node if running in a
     distributed Ray cluster. There is no need to run this script on every
     single node.
@@ -100,16 +100,16 @@ class RayPlugin(DDPSpawnPlugin):
 
         .. code-block:: python
 
-            import pytorch_lightning as ptl
+            import pytorch_lightning as pl
             from ray_lightning import RayAccelerator
 
             ptl_model = MNISTClassifier(...)
-            plugin = RayPlugin(num_workers=4, cpus_per_worker=1,
+            strategy = RayStrategy(num_workers=4, cpus_per_worker=1,
                 use_gpu=True)
 
             # Don't set ``gpus`` in ``Trainer``.
             # The actual number of GPUs is determined by ``num_workers``.
-            trainer = pl.Trainer(..., plugins=[plugin])
+            trainer = pl.Trainer(..., strategy=stratgey)
             trainer.fit(ptl_model)
 
     """
@@ -181,10 +181,10 @@ class RayPlugin(DDPSpawnPlugin):
             from ray_lightning.util import DelayedGPUAccelerator
             precision_plugin = current_accelerator.precision_plugin
             new_accelerator = DelayedGPUAccelerator(
-                precision_plugin=precision_plugin, training_type_plugin=self)
+                precision_plugin=precision_plugin, strategy=self)
             self.lightning_module.trainer._accelerator_connector \
-                ._training_type_plugin = \
-                proxy(new_accelerator.training_type_plugin)
+                ._strategy = \
+                proxy(new_accelerator.strategy)
             self.lightning_module.trainer._accelerator_connector \
                 ._precision_plugin = proxy(new_accelerator.precision_plugin)
             self.lightning_module.trainer._accelerator_connector.accelerator \
@@ -427,13 +427,13 @@ class RayPlugin(DDPSpawnPlugin):
         Modified from DDPSpawn._wrapped_function and DDPSpawn.new_process
 
         """
-        assert isinstance(self, RayPlugin)
+        assert isinstance(self, RayStrategy)
         # This method should be executed remotely in each worker.
         self._model = model
         self.lightning_module.trainer._accelerator_connector \
-            ._training_type_plugin = self
+            ._strategy = self
         self.lightning_module.trainer._accelerator_connector.accelerator \
-            .training_type_plugin = self
+            .strategy = self
 
         # TODO: See if this is necessary.
         self.lightning_module.trainer._data_connector.prepare_data()

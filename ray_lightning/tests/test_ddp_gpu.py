@@ -8,7 +8,7 @@ from pytorch_lightning import Callback
 
 import ray
 
-from ray_lightning import RayPlugin
+from ray_lightning import RayStrategy
 from ray_lightning.tests.utils import get_trainer, train_test, BoringModel, \
     predict_test, LightningMNISTClassifier
 
@@ -38,7 +38,7 @@ def seed():
 def test_train(tmpdir, ray_start_2_gpus, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
-    plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
+    plugin = RayStrategy(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
@@ -57,7 +57,7 @@ def test_predict(tmpdir, ray_start_2_gpus, seed, num_workers):
     model = LightningMNISTClassifier(config, tmpdir)
     dm = MNISTDataModule(
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-    plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
+    plugin = RayStrategy(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(
         tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
     predict_test(trainer, model, dm)
@@ -73,7 +73,7 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
         def on_epoch_end(self, trainer, pl_module):
             assert next(pl_module.parameters()).is_cuda
 
-    plugin = RayPlugin(num_workers=2, use_gpu=True)
+    plugin = RayStrategy(num_workers=2, use_gpu=True)
     trainer = get_trainer(
         tmpdir, plugins=[plugin], callbacks=[CheckGPUCallback()])
     trainer.fit(model)
@@ -92,7 +92,7 @@ def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker):
             assert trainer.root_gpu == pl_module.device.index
             assert torch.cuda.current_device() == trainer.root_gpu
 
-    plugin = RayPlugin(
+    plugin = RayStrategy(
         num_workers=2,
         use_gpu=True,
         resources_per_worker={"GPU": num_gpus_per_worker})
@@ -110,6 +110,6 @@ def test_multi_node(tmpdir):
     ray.init("auto")
     num_gpus = ray.available_resources()["GPU"]
     model = BoringModel()
-    plugin = RayPlugin(num_workers=num_gpus, use_gpu=True)
+    plugin = RayStrategy(num_workers=num_gpus, use_gpu=True)
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
