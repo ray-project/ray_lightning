@@ -81,14 +81,13 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
 
 @pytest.mark.skipif(
     torch.cuda.device_count() < 4, reason="test requires multi-GPU machine")
-@pytest.mark.parametrize("num_gpus_per_worker", [0.5, 1, 2])
-def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker):
+@pytest.mark.parametrize("num_gpus_per_worker", [0.4, 0.5, 1, 2])
+def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker, monkeypatch):
     """Tests if GPU devices are correctly set."""
     model = BoringModel()
 
     if num_gpus_per_worker < 1:
-        # Fractional GPUs don't work with NCCL backend.
-        os.environ["PL_TORCH_DISTRIBUTED_BACKEND"] = "gloo"
+        monkeypatch.setenv("PL_TORCH_DISTRIBUTED_BACKEND", "gloo")
 
     class CheckDevicesCallback(Callback):
         def on_epoch_end(self, trainer, pl_module):
@@ -104,8 +103,6 @@ def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker):
     trainer = get_trainer(
         tmpdir, plugins=[plugin], callbacks=[CheckDevicesCallback()])
     trainer.fit(model)
-
-    os.environ.pop("PL_TORCH_DISTRIBUTED_BACKEND", None)
 
 
 @pytest.mark.skipif(
