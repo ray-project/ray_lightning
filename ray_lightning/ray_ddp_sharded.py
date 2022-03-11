@@ -12,7 +12,7 @@ from ray_lightning import RayStrategy
 
 
 # C3 linearization of parent classes will do breadth first since both
-# RayStrategy and DDPSpawnShardedPlugin share a common parent of DDPSpawnPlugin
+# RayStrategy and DDPSpawnShardedStrategy share a common parent of DDPSpawnStrategy
 @PublicAPI(stability="beta")
 class RayShardedStrategy(RayStrategy, DDPSpawnShardedStrategy):
     def execute_remote(self, model, global_rank, queue):
