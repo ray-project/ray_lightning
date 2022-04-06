@@ -7,7 +7,7 @@ These PyTorch Lightning Plugins on Ray enable quick and easy parallel training w
 
 Once you add your plugin to the PyTorch Lightning Trainer, you can parallelize training to all the cores in your laptop, or across a massive multi-node, multi-GPU cluster with no additional code changes.
 
-This library also comes with an integration with [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) for distributed hyperparameter tuning experiments.
+This library also comes with an integration with <!--$UNCOMMENT{ref}`Ray Tune <tune-main>`--><!--$REMOVE-->[Ray Tune](https://tune.io)<!--$END_REMOVE--> for distributed hyperparameter tuning experiments.
 
 <!--$REMOVE-->
 # Table of Contents
