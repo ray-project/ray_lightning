@@ -7,7 +7,7 @@ These PyTorch Lightning Plugins on Ray enable quick and easy parallel training w
 
 Once you add your plugin to the PyTorch Lightning Trainer, you can parallelize training to all the cores in your laptop, or across a massive multi-node, multi-GPU cluster with no additional code changes.
 
-This library also comes with an integration with [Ray Tune](tune.io) for distributed hyperparameter tuning experiments.
+This library also comes with an integration with [Ray Tune](https://docs.ray.io/en/latest/tune/index.html) for distributed hyperparameter tuning experiments.
 
 <!--$REMOVE-->
 # Table of Contents
@@ -66,17 +66,27 @@ Because Ray is used to launch processes, instead of the same script being called
 - Calling `fit` or `test` multiple times in the same script
 
 ## Multi-node Distributed Training
-Using the same examples above, you can easily run distributed training on a multi-node cluster with <!--$UNCOMMENT{ref}`Ray's cluster launcher <ref-cluster-quick-start>`--><!--$REMOVE-->[Ray's cluster launcher](https://docs.ray.io/en/latest/cluster/quickstart.html)<!--$END_REMOVE-->.
+Using the same examples above, you can run distributed training on a multi-node cluster with just a couple simple steps.
 
-You no longer have to set environment variables or configurations and run your training script on every single node.
+First, use Ray's <!--$UNCOMMENT{ref}`Cluster launcher <ref-cluster-quick-start>`--><!--$REMOVE-->[Cluster launcher](https://docs.ray.io/en/latest/cluster/quickstart.html)<!--$END_REMOVE--> to start a Ray cluster:
+
+.. code-block:: bash
+
+    ray up my_cluster_config.yaml
+
+Then, run your Ray script using one of the following options:
+
+1. on the head node of the cluster (``python train_script.py``)
+2. via ``ray job submit`` (<!--$UNCOMMENT{ref}`docs <jobs-overview>`--><!--$REMOVE-->[docs](https://docs.ray.io/en/latest/cluster/job-submission.html)<!--$END_REMOVE-->) from your laptop (``ray job submit -- python train.py``)
 
 ## Multi-node Training from your Laptop
 Ray provides capabilities to run multi-node and GPU training all from your laptop through
 <!--$UNCOMMENT{ref}`Ray Client <ray-client>`--><!--$REMOVE-->[Ray Client](https://docs.ray.io/en/master/cluster/ray-client.html)<!--$END_REMOVE-->
 
-<!--$UNCOMMENT{ref}`Ray's cluster launcher <ref-cluster-quick-start>`--><!--$REMOVE-->[Ray's cluster launcher](https://docs.ray.io/en/latest/cluster/quickstart.html)<!--$END_REMOVE--> to setup the cluster.
+Ray's <!--$UNCOMMENT{ref}`Cluster launcher <ref-cluster-quick-start>`--><!--$REMOVE-->[Cluster launcher](https://docs.ray.io/en/latest/cluster/quickstart.html)<!--$END_REMOVE--> to setup the cluster.
 Then, add this line to the beginning of your script to connect to the cluster:
 ```python
+import ray
 # replace with the appropriate host and port
 ray.init("ray://<head_node_host>:10001")
 ```
@@ -131,7 +141,11 @@ Example using `ray_lightning` with Tune:
 from ray import tune
 
 from ray_lightning import RayPlugin
+from ray_lightning.examples.ray_ddp_example import MNISTClassifier
 from ray_lightning.tune import TuneReportCallback, get_tune_resources
+
+import pytorch_lightning as pl
+
 
 def train_mnist(config):
     
@@ -161,7 +175,7 @@ analysis = tune.run(
         metric="loss",
         mode="min",
         config=config,
-        num_samples=num_samples,
+        num_samples=2,
         resources_per_trial=get_tune_resources(num_workers=4),
         name="tune_mnist")
         
@@ -177,3 +191,31 @@ As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment
 2. not being able to use multiple workers for data loading. 
 
 Neither of these should be an issue with the `RayPlugin` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this plugin, your model does have to be serializable/pickleable.
+
+<!--$UNCOMMENT## API Reference
+
+```{eval-rst}
+.. autoclass:: ray_lightning.RayPlugin
+```
+
+```{eval-rst}
+.. autoclass:: ray_lightning.HorovodRayPlugin
+```
+
+```{eval-rst}
+.. autoclass:: ray_lightning.RayShardedPlugin
+```
+
+
+### Tune Integration
+```{eval-rst}
+.. autoclass:: ray_lightning.tune.TuneReportCallback
+```
+
+```{eval-rst}
+.. autoclass:: ray_lightning.tune.TuneReportCheckpointCallback
+```
+
+```{eval-rst}
+.. autofunction:: ray_lightning.tune.get_tune_resources
+```-->
