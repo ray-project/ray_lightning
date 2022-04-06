@@ -1,3 +1,5 @@
+<!--$UNCOMMENT(ray-lightning)=-->
+
 # Distributed PyTorch Lightning Training on Ray
 This library adds new PyTorch Lightning plugins for distributed training using the Ray distributed computing framework.
 
@@ -5,8 +7,9 @@ These PyTorch Lightning Plugins on Ray enable quick and easy parallel training w
 
 Once you add your plugin to the PyTorch Lightning Trainer, you can parallelize training to all the cores in your laptop, or across a massive multi-node, multi-GPU cluster with no additional code changes.
 
-This library also comes with an integration with [Ray Tune](tune.io) for distributed hyperparameter tuning experiments.
+This library also comes with an integration with <!--$UNCOMMENT{ref}`Ray Tune <tune-main>`--><!--$REMOVE-->[Ray Tune](https://tune.io)<!--$END_REMOVE--> for distributed hyperparameter tuning experiments.
 
+<!--$REMOVE-->
 # Table of Contents
 1. [Installation](#installation)
 2. [PyTorch Lightning Compatibility](#pytorch-lightning-compatibility)
@@ -17,6 +20,7 @@ This library also comes with an integration with [Ray Tune](tune.io) for distrib
 6. [Model Parallel Sharded Training on Ray](#model-parallel-sharded-training-on-ray)
 7. [Hyperparameter Tuning with Ray Tune](#hyperparameter-tuning-with-ray-tune)
 8. [FAQ](#faq)
+<!--$END_REMOVE-->
 
 
 ## Installation
@@ -62,18 +66,27 @@ Because Ray is used to launch processes, instead of the same script being called
 - Calling `fit` or `test` multiple times in the same script
 
 ## Multi-node Distributed Training
-Using the same examples above, you can run distributed training on a multi-node cluster with just 2 simple steps.
-1) [Use Ray's cluster launcher](https://docs.ray.io/en/master/cluster/launcher.html) to start a Ray cluster- `ray up my_cluster_config.yaml`.
-2) [Execute your Python script on the Ray cluster](https://docs.ray.io/en/master/cluster/commands.html#running-ray-scripts-on-the-cluster-ray-submit)- `ray submit my_cluster_config.yaml train.py`. This will `rsync` your training script to the head node, and execute it on the Ray cluster.
+Using the same examples above, you can run distributed training on a multi-node cluster with just a couple simple steps.
 
-You no longer have to set environment variables or configurations and run your training script on every single node.
+First, use Ray's <!--$UNCOMMENT{ref}`Cluster launcher <ref-cluster-quick-start>`--><!--$REMOVE-->[Cluster launcher](https://docs.ray.io/en/latest/cluster/quickstart.html)<!--$END_REMOVE--> to start a Ray cluster:
+
+.. code-block:: bash
+
+    ray up my_cluster_config.yaml
+
+Then, run your Ray script using one of the following options:
+
+1. on the head node of the cluster (``python train_script.py``)
+2. via ``ray job submit`` (<!--$UNCOMMENT{ref}`docs <jobs-overview>`--><!--$REMOVE-->[docs](https://docs.ray.io/en/latest/cluster/job-submission.html)<!--$END_REMOVE-->) from your laptop (``ray job submit -- python train.py``)
 
 ## Multi-node Training from your Laptop
-Ray provides capabilities to run multi-node and GPU training all from your laptop through [Ray Client](https://docs.ray.io/en/master/cluster/ray-client.html)
+Ray provides capabilities to run multi-node and GPU training all from your laptop through
+<!--$UNCOMMENT{ref}`Ray Client <ray-client>`--><!--$REMOVE-->[Ray Client](https://docs.ray.io/en/master/cluster/ray-client.html)<!--$END_REMOVE-->
 
-You can follow the instructions [here](https://docs.ray.io/en/master/cluster/ray-client.html) to setup the cluster.
+Ray's <!--$UNCOMMENT{ref}`Cluster launcher <ref-cluster-quick-start>`--><!--$REMOVE-->[Cluster launcher](https://docs.ray.io/en/latest/cluster/quickstart.html)<!--$END_REMOVE--> to setup the cluster.
 Then, add this line to the beginning of your script to connect to the cluster:
 ```python
+import ray
 # replace with the appropriate host and port
 ray.init("ray://<head_node_host>:10001")
 ```
@@ -128,7 +141,11 @@ Example using `ray_lightning` with Tune:
 from ray import tune
 
 from ray_lightning import RayPlugin
+from ray_lightning.examples.ray_ddp_example import MNISTClassifier
 from ray_lightning.tune import TuneReportCallback, get_tune_resources
+
+import pytorch_lightning as pl
+
 
 def train_mnist(config):
     
@@ -158,7 +175,7 @@ analysis = tune.run(
         metric="loss",
         mode="min",
         config=config,
-        num_samples=num_samples,
+        num_samples=2,
         resources_per_trial=get_tune_resources(num_workers=4),
         name="tune_mnist")
         
@@ -167,12 +184,6 @@ print("Best hyperparameters found were: ", analysis.best_config)
 **Note:** Ray Tune requires 1 additional CPU per trial to use for the Trainable driver. So the actual number of resources each trial requires is `num_workers * num_cpus_per_worker + 1`.
 
 ## FAQ
-> RaySGD already has a [Pytorch Lightning integration](https://docs.ray.io/en/master/raysgd/raysgd_ptl.html). What's the difference between this integration and that?
-
-The key difference is which Trainer you'll be interacting with. In this library, you will still be using Pytorch Lightning's `Trainer`. You'll be able to leverage all the features of Pytorch Lightning, and Ray is used just as a backend to handle distributed training.
-
-With RaySGD's integration, you'll be converting your `LightningModule` to be RaySGD compatible, and will be interacting with RaySGD's `TorchTrainer`. RaySGD's `TorchTrainer` is not as feature rich nor as easy to use as Pytorch Lightning's `Trainer` (no built in support for logging, early stopping, etc.). However, it does have built in support for fault-tolerant and elastic training. If these are hard requirements for you, then RaySGD's integration with PTL might be a better option.
-
 > I see that `RayPlugin` is based off of Pytorch Lightning's `DDPSpawnPlugin`. However, doesn't the PTL team discourage the use of spawn?
 
 As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment-773539003), using a spawn approach instead of launch is not all that detrimental. The original factors for discouraging spawn were:
@@ -180,3 +191,31 @@ As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment
 2. not being able to use multiple workers for data loading. 
 
 Neither of these should be an issue with the `RayPlugin` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this plugin, your model does have to be serializable/pickleable.
+
+<!--$UNCOMMENT## API Reference
+
+```{eval-rst}
+.. autoclass:: ray_lightning.RayPlugin
+```
+
+```{eval-rst}
+.. autoclass:: ray_lightning.HorovodRayPlugin
+```
+
+```{eval-rst}
+.. autoclass:: ray_lightning.RayShardedPlugin
+```
+
+
+### Tune Integration
+```{eval-rst}
+.. autoclass:: ray_lightning.tune.TuneReportCallback
+```
+
+```{eval-rst}
+.. autoclass:: ray_lightning.tune.TuneReportCheckpointCallback
+```
+
+```{eval-rst}
+.. autofunction:: ray_lightning.tune.get_tune_resources
+```-->
