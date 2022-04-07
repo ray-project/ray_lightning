@@ -137,6 +137,8 @@ class RayPlugin(DDPSpawnPlugin):
         else:
             self.num_gpus_per_worker = int(use_gpu)
 
+        self.use_gpu = self.num_gpus_per_worker > 0
+
         if self.use_gpu and self.num_gpus_per_worker < 1 and num_workers > 1:
             warnings.warn("Identified less than 1 GPU being set per worker. "
                           "If using NCCL backend (which is the default for "
@@ -148,7 +150,6 @@ class RayPlugin(DDPSpawnPlugin):
                           "setting PL_TORCH_DISTRIBUTED_BACKEND=gloo "
                           "environment variable.")
 
-        self.use_gpu = self.num_gpus_per_worker > 0
         self.additional_resources_per_worker = resources_per_worker
         self.workers = []
         self.init_hook = init_hook
