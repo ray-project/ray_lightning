@@ -70,9 +70,9 @@ Using the same examples above, you can run distributed training on a multi-node 
 
 First, use Ray's <!--$UNCOMMENT{ref}`Cluster launcher <ref-cluster-quick-start>`--><!--$REMOVE-->[Cluster launcher](https://docs.ray.io/en/latest/cluster/quickstart.html)<!--$END_REMOVE--> to start a Ray cluster:
 
-.. code-block:: bash
-
-    ray up my_cluster_config.yaml
+```bash
+ray up my_cluster_config.yaml
+```
 
 Then, run your Ray script using one of the following options:
 
