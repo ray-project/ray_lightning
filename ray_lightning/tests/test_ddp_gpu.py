@@ -93,15 +93,17 @@ def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker,
     def get_gpu_placement(current_worker_index, num_gpus_per_worker):
         """Simulates GPU resource bin packing."""
         next_gpu_index = 0
-        starting_resource_count = 0
-        for _ in range(current_worker_index):
-            next_resources = starting_resource_count + num_gpus_per_worker
+        starting_resource_count = num_gpus_per_worker
+        for _ in range(current_worker_index + 1):
+            current_gpu_index = next_gpu_index
+            next_resources = starting_resource_count + \
+                num_gpus_per_worker - 0.0001
             # If the next worker cannot fit on the current GPU, then we move
             # onto the next GPU.
-            if int(next_resources) != next_gpu_index:
-                next_gpu_index += 1
+            if int(next_resources) != current_gpu_index:
+                increment = max(1, int(num_gpus_per_worker))
+                next_gpu_index = current_gpu_index + increment
 
-        current_gpu_index = next_gpu_index - 1
         return current_gpu_index
 
     class CheckDevicesCallback(Callback):
