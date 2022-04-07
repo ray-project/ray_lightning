@@ -137,7 +137,7 @@ class RayPlugin(DDPSpawnPlugin):
         else:
             self.num_gpus_per_worker = int(use_gpu)
 
-        if self.num_gpus_per_worker < 1 and num_workers > 1:
+        if self.use_gpu and self.num_gpus_per_worker < 1 and num_workers > 1:
             warnings.warn("Identified less than 1 GPU being set per worker. "
                           "If using NCCL backend (which is the default for "
                           "GPU training), GPU devices cannot be shared "
@@ -528,7 +528,7 @@ class RayPlugin(DDPSpawnPlugin):
             if self._is_remote:
                 # Adjust to support multiple GPUs per worker or fractional
                 # GPUs per worker.
-                device_id = int(self.local_rank * self.num_gpus_per_worker)
+                device_id = ray.get_gpu_ids()[0]
                 return torch.device("cuda", device_id)
             else:
                 # If the root device is requested on the driver, just return

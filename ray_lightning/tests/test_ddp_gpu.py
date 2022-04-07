@@ -82,17 +82,32 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
 @pytest.mark.skipif(
     torch.cuda.device_count() < 4, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_gpus_per_worker", [0.4, 0.5, 1, 2])
-def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker, monkeypatch):
+def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker,
+                         monkeypatch):
     """Tests if GPU devices are correctly set."""
     model = BoringModel()
 
     if num_gpus_per_worker < 1:
         monkeypatch.setenv("PL_TORCH_DISTRIBUTED_BACKEND", "gloo")
 
+    def get_gpu_placement(current_worker_index, num_gpus_per_worker):
+        """Simulates GPU resource bin packing."""
+        next_gpu_index = 0
+        starting_resource_count = 0
+        for _ in range(current_worker_index):
+            next_resources = starting_resource_count + num_gpus_per_worker
+            # If the next worker cannot fit on the current GPU, then we move
+            # onto the next GPU.
+            if int(next_resources) != next_gpu_index:
+                next_gpu_index += 1
+
+        current_gpu_index = next_gpu_index - 1
+        return current_gpu_index
+
     class CheckDevicesCallback(Callback):
         def on_epoch_end(self, trainer, pl_module):
-            assert trainer.root_gpu == int(
-                trainer.local_rank * num_gpus_per_worker)
+            assert trainer.root_gpu == get_gpu_placement(
+                trainer.local_rank, num_gpus_per_worker)
             assert trainer.root_gpu == pl_module.device.index
             assert torch.cuda.current_device() == trainer.root_gpu
 
