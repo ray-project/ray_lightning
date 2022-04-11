@@ -130,7 +130,7 @@ plugin = RayShardedPlugin(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 trainer = pl.Trainer(..., plugins=[plugin])
 trainer.fit(ptl_model)
 ```
-See the [Pytorch Lightning docs](https://pytorch-lightning.readthedocs.io/en/stable/advanced/model_parallel.html#fully-sharded-training) for more information on sharded training.
+See the [Pytorch Lightning docs](https://pytorch-lightning.readthedocs.io/en/stable/advanced/model_parallel.html#sharded-training) for more information on sharded training.
 
 ## Hyperparameter Tuning with Ray Tune
 `ray_lightning` also integrates with Ray Tune to provide distributed hyperparameter tuning for your distributed model training. You can run multiple PyTorch Lightning training runs in parallel, each with a different hyperparameter configuration, and each training run parallelized by itself. All you have to do is move your training code to a function, pass the function to tune.run, and make sure to add the appropriate callback (Either `TuneReportCallback` or `TuneReportCheckpointCallback`) to your PyTorch Lightning Trainer.
