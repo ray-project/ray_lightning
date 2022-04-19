@@ -226,6 +226,7 @@ def test_train_client(tmpdir, start_ray_client_server_2_cpus, num_workers):
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
+
 def test_test_multiple_dataloader_workers(tmpdir, ray_start_2_cpus, seed):
     """Tests trainer.test with multiple workers for data loading."""
     model = BoringModel()
@@ -318,6 +319,7 @@ def test_unused_parameters(tmpdir, ray_start_2_cpus):
     trainer = get_trainer(
         tmpdir, plugins=[plugin], callbacks=[UnusedParameterCallback()])
     trainer.fit(model)
+
 
 def test_trainer_test(tmpdir, ray_start_2_cpus):
     """Tests if trainer.test"""
