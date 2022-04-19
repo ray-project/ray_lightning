@@ -380,12 +380,6 @@ class RayPlugin(DDPSpawnPlugin):
                 .best_model_path = best_path
         # DDPSpawnPlugin.__recover_child_process_weights_end
 
-        def shutdown_remote():
-            torch.distributed.destroy_process_group()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-        ray.get([w.execute.remote(shutdown_remote) for w in self.workers])
         for w in self.workers:
             ray.kill(w, no_restart=True)
             del w
