@@ -141,9 +141,6 @@ class LightningMNISTClassifier(pl.LightningModule):
         acc = self.accuracy(logits, y)
         return {"val_loss": loss, "val_accuracy": acc}
 
-    def test_step(self, test_batch, batch_idx):
-        return self.validation_step(test_batch, batch_idx)
-
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
         avg_acc = torch.stack([x["val_accuracy"] for x in outputs]).mean()
