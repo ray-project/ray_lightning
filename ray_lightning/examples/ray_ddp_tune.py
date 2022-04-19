@@ -40,8 +40,7 @@ def train_mnist(config,
         ])
     dm = MNISTDataModule(
         data_dir=data_dir, num_workers=1, batch_size=config["batch_size"])
-    #trainer.fit(model, dm)
-    trainer.test(model, dm)
+    trainer.fit(model, dm)
 
 
 def tune_mnist(data_dir,
@@ -120,11 +119,4 @@ if __name__ == "__main__":
         ray.init(address=args.address)
 
     data_dir = os.path.join(tempfile.gettempdir(), "mnist_data_")
-    config = {
-        "layer_1": 32,
-        "layer_2": 32,
-        "lr": 1e-1,
-        "batch_size": 32,
-    }
-    #tune_mnist(data_dir, num_samples, num_epochs, num_workers, use_gpu)
-    train_mnist(config, data_dir, num_epochs=num_epochs, num_workers=num_workers)
+    tune_mnist(data_dir, num_samples, num_epochs, num_workers, use_gpu)

@@ -226,6 +226,14 @@ def test_train_client(tmpdir, start_ray_client_server_2_cpus, num_workers):
     trainer = get_trainer(tmpdir, plugins=[plugin])
     train_test(trainer, model)
 
+def test_test_multiple_dataloader_workers(tmpdir, ray_start_2_cpus, seed):
+    """Tests trainer.test with multiple workers for data loading."""
+    model = BoringModel()
+    plugin = RayPlugin(num_workers=1, use_gpu=False)
+    trainer = get_trainer(
+        tmpdir, limit_train_batches=20, max_epochs=1, plugins=[plugin])
+    trainer.test(model)
+
 
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_load(tmpdir, ray_start_2_cpus, num_workers):

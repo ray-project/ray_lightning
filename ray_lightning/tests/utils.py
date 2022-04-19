@@ -80,13 +80,13 @@ class BoringModel(LightningModule):
         return [optimizer], [lr_scheduler]
 
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(RandomDataset(32, 64), num_workers=1)
+        return torch.utils.data.DataLoader(RandomDataset(32, 64))
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(RandomDataset(32, 64))
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(RandomDataset(32, 64))
+        return torch.utils.data.DataLoader(RandomDataset(32, 64), num_workers=1)
 
     def on_save_checkpoint(self, checkpoint):
         checkpoint["val_epoch"] = self.val_epoch
