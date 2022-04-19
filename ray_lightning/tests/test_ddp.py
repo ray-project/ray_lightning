@@ -227,8 +227,8 @@ def test_train_client(tmpdir, start_ray_client_server_2_cpus, num_workers):
     train_test(trainer, model)
 
 
-def test_test_multiple_dataloader_workers(tmpdir, ray_start_2_cpus, seed):
-    """Tests trainer.test with multiple workers for data loading."""
+def test_test_with_dataloader_workers(tmpdir, ray_start_2_cpus, seed):
+    """Tests trainer.test with >0 workers for data loading."""
     model = BoringModel()
     plugin = RayPlugin(num_workers=1, use_gpu=False)
     trainer = get_trainer(
