@@ -368,7 +368,9 @@ class RayPlugin(DDPSpawnPlugin):
         # DDPSpawnPlugin.__recover_child_process_weights_end
 
         def shutdown_remote():
-            torch.distributed.destroy_process_group()
+            import pdb; pdb.set_trace()
+            if torch.distributed.is_available() and torch.distributed.is_initialized():
+                torch.distributed.destroy_process_group()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 

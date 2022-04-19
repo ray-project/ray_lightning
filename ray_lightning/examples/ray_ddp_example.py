@@ -77,7 +77,6 @@ def train_mnist(config,
         **trainer_kwargs)
     trainer.fit(model)
 
-
 def tune_mnist(data_dir,
                num_samples=10,
                num_epochs=10,

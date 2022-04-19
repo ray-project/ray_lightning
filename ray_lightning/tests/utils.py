@@ -80,7 +80,7 @@ class BoringModel(LightningModule):
         return [optimizer], [lr_scheduler]
 
     def train_dataloader(self):
-        return torch.utils.data.DataLoader(RandomDataset(32, 64))
+        return torch.utils.data.DataLoader(RandomDataset(32, 64), num_workers=1)
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(RandomDataset(32, 64))
@@ -139,6 +139,9 @@ class LightningMNISTClassifier(pl.LightningModule):
         loss = F.nll_loss(logits, y)
         acc = self.accuracy(logits, y)
         return {"val_loss": loss, "val_accuracy": acc}
+
+    def test_step(self, test_batch, batch_idx):
+        return self.validation_step(test_batch, batch_idx)
 
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()

@@ -3,6 +3,7 @@ import pytest
 
 import ray
 import torch
+from pytorch_lightning import LightningDataModule
 from ray import tune
 
 from ray_lightning import RayPlugin, HorovodRayPlugin
@@ -24,25 +25,37 @@ def ray_start_4_cpus_4_gpus():
     yield address_info
     ray.shutdown()
 
+from ray_lightning.tests.utils import RandomDataset
 
-def train_func(dir, plugin, callbacks=None):
+class RandomDataModule(LightningDataModule):
+    def train_dataloader(self):
+        return torch.utils.data.DataLoader(RandomDataset(32, 64))
+    def val_dataloader(self):
+        return torch.utils.data.DataLoader(RandomDataset(32, 64))
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(RandomDataset(32, 64))
+
+def train_func(dir, plugin, callbacks=None, should_test=False):
     def _inner_train(config):
         model = BoringModel()
+        dm = RandomDataModule()
         trainer = get_trainer(
             dir,
             callbacks=callbacks,
             plugins=[plugin],
             checkpoint_callback=False,
             **config)
-        trainer.fit(model)
+        trainer.fit(model, dm)
+        if should_test:
+            trainer.test(model, dm)
 
     return _inner_train
 
 
-def tune_test(dir, plugin):
+def tune_test(dir, plugin, should_test=False):
     callbacks = [TuneReportCallback(on="validation_end")]
     analysis = tune.run(
-        train_func(dir, plugin, callbacks=callbacks),
+        train_func(dir, plugin, callbacks=callbacks, should_test=should_test),
         config={"max_epochs": tune.choice([1, 2, 3])},
         resources_per_trial=get_tune_resources(
             num_workers=plugin.num_workers, use_gpu=plugin.use_gpu),
@@ -55,6 +68,11 @@ def test_tune_iteration_ddp(tmpdir, ray_start_4_cpus):
     """Tests if each RayPlugin runs the correct number of iterations."""
     plugin = RayPlugin(num_workers=2, use_gpu=False)
     tune_test(tmpdir, plugin)
+
+
+def test_tune_iteration_ddp_with_test(tmpdir, ray_start_4_cpus):
+    plugin = RayPlugin(num_workers=2, use_gpu=False)
+    tune_test(tmpdir, plugin, should_test=True)
 
 
 def test_tune_iteration_horovod(tmpdir, ray_start_4_cpus):

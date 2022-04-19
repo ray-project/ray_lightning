@@ -310,3 +310,6 @@ def test_unused_parameters(tmpdir, ray_start_2_cpus):
     trainer = get_trainer(
         tmpdir, plugins=[plugin], callbacks=[UnusedParameterCallback()])
     trainer.fit(model)
+
+def test_trainer_test(tmpdir, ray_start_2_cpus):
+    """Tests if trainer.test"""
