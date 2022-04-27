@@ -17,7 +17,7 @@ from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 try:
     import horovod.torch as hvd
     from horovod.ray import RayExecutor
-except (ModuleNotFoundError, ImportError):
+except ImportError:
     HOROVOD_AVAILABLE = False
     RayExecutor = Unavailable
     hvd = Unavailable

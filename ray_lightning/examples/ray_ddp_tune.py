@@ -33,10 +33,7 @@ def train_mnist(config,
         callbacks=callbacks,
         progress_bar_refresh_rate=0,
         strategy=RayStrategy(
-                num_workers=num_workers,
-                use_gpu=use_gpu,
-                init_hook=download_data)
-        )
+            num_workers=num_workers, use_gpu=use_gpu, init_hook=download_data))
     dm = MNISTDataModule(
         data_dir=data_dir, num_workers=1, batch_size=config["batch_size"])
     trainer.fit(model, dm)

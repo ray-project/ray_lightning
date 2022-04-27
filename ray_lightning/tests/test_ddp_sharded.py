@@ -29,8 +29,7 @@ def test_ddp_choice_sharded(tmpdir, ray_start_2_cpus, seed):
 
     class CB(Callback):
         def on_fit_start(self, trainer, pl_module):
-            assert isinstance(trainer.accelerator.strategy,
-                              RayShardedStrategy)
+            assert isinstance(trainer.accelerator.strategy, RayShardedStrategy)
             raise SystemExit()
 
     model = BoringModel()
