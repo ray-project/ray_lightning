@@ -4,6 +4,7 @@ from collections import defaultdict
 from contextlib import closing
 import os
 import socket
+import warnings
 
 import numpy as np
 import torch
@@ -137,6 +138,18 @@ class RayStrategy(DDPSpawnStrategy):
             self.num_gpus_per_worker = int(use_gpu)
 
         self.use_gpu = self.num_gpus_per_worker > 0
+
+        if self.use_gpu and self.num_gpus_per_worker < 1 and num_workers > 1:
+            warnings.warn("Identified less than 1 GPU being set per worker. "
+                          "If using NCCL backend (which is the default for "
+                          "GPU training), GPU devices cannot be shared "
+                          "across processes/workers and training is likely "
+                          "to fail. It is recommended to use 1 GPU per "
+                          "worker for training, or if you must use "
+                          "fractional GPUs, then use the gloo backend by "
+                          "setting PL_TORCH_DISTRIBUTED_BACKEND=gloo "
+                          "environment variable.")
+
         self.additional_resources_per_worker = resources_per_worker
         self.workers = []
         self.init_hook = init_hook
@@ -367,12 +380,6 @@ class RayStrategy(DDPSpawnStrategy):
                 .best_model_path = best_path
         # DDPSpawnPlugin.__recover_child_process_weights_end
 
-        def shutdown_remote():
-            torch.distributed.destroy_process_group()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-        ray.get([w.execute.remote(shutdown_remote) for w in self.workers])
         for w in self.workers:
             ray.kill(w, no_restart=True)
             del w
@@ -514,8 +521,9 @@ class RayStrategy(DDPSpawnStrategy):
     def root_device(self):
         if self.use_gpu and torch.cuda.is_available():
             if self._is_remote:
-                # Adjust for if there are multiple GPUs per worker.
-                device_id = self.local_rank * self.num_gpus_per_worker
+                # Adjust to support multiple GPUs per worker or fractional
+                # GPUs per worker.
+                device_id = ray.get_gpu_ids()[0]
                 return torch.device("cuda", device_id)
             else:
                 # If the root device is requested on the driver, just return
