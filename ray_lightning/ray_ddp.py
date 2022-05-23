@@ -158,6 +158,15 @@ class RayPlugin(DDPSpawnPlugin):
         self._global_rank = 0
         self._node_rank = 0
 
+        # Pop these arguments so LightningCLI doesn't complain about them being
+        # passed in twice.
+        # https://github.com/ray-project/ray_lightning/issues/151
+        # TODO(amogkam): Remove after
+        #  https://github.com/PyTorchLightning/pytorch-lightning/discussions/8561
+        #  is fixed.
+        ddp_kwargs.pop("parallel_devices", None)
+        ddp_kwargs.pop("cluster_environment", None)
+
         super().__init__(
             parallel_devices=[], cluster_environment=None, **ddp_kwargs)
 
