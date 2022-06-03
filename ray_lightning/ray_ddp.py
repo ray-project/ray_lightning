@@ -361,12 +361,18 @@ class RayPlugin(DDPSpawnPlugin):
 
         results = ray.get(self._futures)
         # Get the results, checkpoint path, and model weights from worker 0.
-        results, best_path, state_stream, callback_metrics = results[0]
+        results, best_path, state_stream, callback_metrics, logged_metrics \
+            = results[0]
         self._results = results
 
         # From DDPSpawn.get_queue
         self.lightning_module.trainer.callback_metrics.update(
             apply_to_collection(callback_metrics,
+                                np.ndarray, lambda x: torch.tensor(x)))
+
+        # Same for logged_metrics
+        self.lightning_module.trainer.logged_metrics.update(
+            apply_to_collection(logged_metrics,
                                 np.ndarray, lambda x: torch.tensor(x)))
 
         # DDPSpawnPlugin.__recover_child_process_weights begin
@@ -491,8 +497,14 @@ class RayPlugin(DDPSpawnPlugin):
                 torch.Tensor, lambda x: x.cpu().numpy(
                 ))  # send as numpy to avoid issues with memory sharing
 
+            # Same for logged_metrics
+            logged_metrics: dict = apply_to_collection(
+                self.lightning_module.trainer.logged_metrics,
+                torch.Tensor, lambda x: x.cpu().numpy(
+                ))  # send as numpy to avoid issues with memory sharing
+
             return_val = results, best_model_path, model_state_stream, \
-                callback_metrics
+                callback_metrics, logged_metrics
         else:
             return_val = None
         # __transfer_distrib_spawn_state_on_fit_end end
