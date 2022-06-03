@@ -148,6 +148,68 @@ class LightningMNISTClassifier(pl.LightningModule):
         self.log("ptl/val_accuracy", avg_acc)
 
 
+class XORModel(LightningModule):
+    def __init__(self, input_dim=2, output_dim=1):
+        super(XORModel, self).__init__()
+        self.save_hyperparameters()
+        self.lin1 = torch.nn.Linear(input_dim, 8)
+        self.lin2 = torch.nn.Linear(8, output_dim)
+
+    def forward(self, features):
+        x = features.float()
+        x = self.lin1(x)
+        x = torch.tanh(x)
+        x = self.lin2(x)
+        x = torch.sigmoid(x)
+        return x
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=0.02)
+
+    def training_step(self, batch, batch_nb):
+        x, y = batch["x"], batch["y"].unsqueeze(1)
+        y_hat = self(x)
+        loss = F.binary_cross_entropy(y_hat, y.float())
+        return loss
+
+    def validation_step(self, batch, batch_nb):
+        x, y = batch["x"], batch["y"].unsqueeze(1)
+        y_hat = self(x)
+        loss = F.binary_cross_entropy(y_hat, y.float())
+        self.log("val_loss", loss, on_step=True)
+        # Log a constant for test purpose
+        self.log("val_bar", torch.tensor(5.678), on_step=True)
+        return loss
+
+    def validation_epoch_end(self, outputs):
+        avg_loss = torch.stack(outputs).mean()
+        self.log("avg_val_loss", avg_loss)
+        # Log a constant for test purpose
+        self.log("val_foo", torch.tensor(1.234))
+
+
+class XORDataModule(LightningDataModule):
+    def train_dataloader(self):
+        input_train = [{
+            "x": torch.tensor([[0.0, 0.0]]),
+            "y": torch.tensor([0])
+        }, {
+            "x": torch.tensor([[1.0, 1.0]]),
+            "y": torch.tensor([0])
+        }]
+        return iter(input_train)
+
+    def val_dataloader(self):
+        input_val = [{
+            "x": torch.tensor([[0.0, 1.0]]),
+            "y": torch.tensor([1])
+        }, {
+            "x": torch.tensor([[1.0, 0.0]]),
+            "y": torch.tensor([1])
+        }]
+        return iter(input_val)
+
+
 def get_trainer(dir,
                 plugins: List[PLUGIN_INPUT],
                 max_epochs: int = 1,
