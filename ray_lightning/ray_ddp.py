@@ -11,14 +11,16 @@ import torch
 
 import pytorch_lightning as pl
 from pytorch_lightning.accelerators import CPUAccelerator
-from pytorch_lightning.plugins import DDPSpawnPlugin
 from pytorch_lightning import _logger as log, LightningModule
+from pytorch_lightning.strategies import DDPSpawnStrategy
+from pytorch_lightning.strategies.launchers import _Launcher
 from pytorch_lightning.trainer.states import TrainerFn
 from pytorch_lightning.utilities import rank_zero_only, rank_zero_info
 from pytorch_lightning.utilities.apply_func import apply_to_collection
 from pytorch_lightning.utilities.seed import reset_seed
 
 import ray
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 from ray.util import PublicAPI
 from ray.util.queue import Queue
 
@@ -33,6 +35,45 @@ def find_free_port():
         s.bind(("", 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
+
+
+class RayLauncher(_Launcher):
+    def __init__(self, strategy: "RayPlugin") -> None:
+        self._strategy = strategy
+        self._workers = []
+        self._futures = []
+
+    def is_interactive_compatible(self) -> bool:
+        return True
+
+    def launch(self, function: Callable, *args: Any, trainer: Optional["pl.Trainer"] = None, **kwargs: Any) -> Any:
+        self.setup_workers()
+        results = self.run_function_on_workers(function)
+        self.teardown_workers()
+        return results
+
+    def setup_workers(self) -> None:
+        """Sets up PTL Trainer and creates the Ray actors."""
+        self._workers = [self._create_worker() for _ in range(self._strategy.num_workers)]
+        if self._strategy.init_hook:
+            ray.get([w.execute.remote(self._strategy.init_hook) for w in self._workers])
+
+    def _create_worker(self) -> ray.actor.ActorHandle:
+        """Creates Ray actor."""
+        worker = RayExecutor.options(
+            num_cpus=self._strategy.num_cpus_per_worker,
+            num_gpus=self._strategy.num_gpus_per_worker,
+            resources=self._strategy.additional_resources_per_worker).remote()
+        return worker
+
+    def teardown_workers(self):
+        for w in self._workers:
+            ray.kill(w, no_restart=True)
+            del w
+        self._workers = []
+
+    def run_function_on_workers(self, function: Callable):
+        self._futures = [w.execute.remote(function) for w in self._workers]
 
 
 @ray.remote
@@ -64,7 +105,7 @@ class RayExecutor:
 
 
 @PublicAPI(stability="beta")
-class RayPlugin(DDPSpawnPlugin):
+class RayPlugin(DDPSpawnStrategy):
     """Pytorch Lightning plugin for DDP training on a Ray cluster.
 
     This plugin is used to manage distributed training using DDP and
@@ -161,6 +202,9 @@ class RayPlugin(DDPSpawnPlugin):
         super().__init__(
             parallel_devices=[], cluster_environment=None, **ddp_kwargs)
 
+    def _configure_launcher(self):
+        self._launcher = RayLauncher(self)
+
     def __getstate__(self):
         d = self.__dict__.copy()
         # Don't serialize the workers.
@@ -171,19 +215,8 @@ class RayPlugin(DDPSpawnPlugin):
         d["workers"] = []
         self.__dict__.update(d)
 
-    def _create_worker(self):
-        """Creates Ray actor."""
-        worker = RayExecutor.options(
-            num_cpus=self.num_cpus_per_worker,
-            num_gpus=self.num_gpus_per_worker,
-            resources=self.additional_resources_per_worker).remote()
-        return worker
-
-    def setup(self):
-        """Sets up PTL Trainer and creates the Ray actors."""
-        self.workers = [self._create_worker() for _ in range(self.num_workers)]
-        if self.init_hook:
-            ray.get([w.execute.remote(self.init_hook) for w in self.workers])
+    def setup(self, trainer: "pl.Trainer") -> None:
+        pass
 
     def setup_environment(self) -> None:
         # Swap out the accelerator if necessary.
@@ -264,21 +297,6 @@ class RayPlugin(DDPSpawnPlugin):
                     self.workers[worker_id].execute.remote(set_gpu_ids))
         ray.get(futures)
 
-    def start_training(self, trainer):
-        results = self.execution_loop(tune_enabled=True)
-        # reset optimizers, since main process is never used for training and
-        # thus does not have a valid optim state.
-        trainer.optimizers = []
-        return results
-
-    def start_evaluating(self, trainer):
-        results = self.execution_loop(tune_enabled=False)
-        return results
-
-    def start_predicting(self, trainer):
-        results = self.execution_loop(tune_enabled=False)
-        return results
-
     def get_local_ranks(self) -> Dict[int, Tuple[int, int]]:
         """Creates a mapping of global ranks to local ranks/node ranks."""
         # Get the local ranks for all the workers and store as a dict.
@@ -343,14 +361,16 @@ class RayPlugin(DDPSpawnPlugin):
             for i in range(self.num_workers)
         ]
 
-        process_results(self._futures, queue)
+        results = process_results(self._futures, queue)
 
         self._model = model
         if queue:
             # Shutdown the queue.
             queue.shutdown()
 
-    def post_dispatch(self, trainer: "pl.Trainer"):
+        return results
+
+    def teardown(self) -> None:
         """Finalized fitting.
 
         1. Load model weights on driver.
@@ -380,10 +400,6 @@ class RayPlugin(DDPSpawnPlugin):
                 .best_model_path = best_path
         # DDPSpawnPlugin.__recover_child_process_weights_end
 
-        for w in self.workers:
-            ray.kill(w, no_restart=True)
-            del w
-        self.workers = []
 
     # All methods below are only executed in remote Ray workers.
 
