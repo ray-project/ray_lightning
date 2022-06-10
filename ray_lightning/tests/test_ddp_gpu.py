@@ -45,6 +45,18 @@ def test_train(tmpdir, ray_start_2_gpus, num_workers):
 
 @pytest.mark.skipif(
     torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
+def test_train_mixed_precision(tmpdir, ray_start_2_gpus):
+    """Tests if training works with mixed precision."""
+    model = BoringModel()
+    plugin = RayPlugin(num_workers=2, use_gpu=True)
+    trainer = get_trainer(tmpdir, plugins=[plugin], gpus=1, precision=16)
+    # Make sure PTL doesn't automatically replace with bf16.
+    assert trainer.precision == 16
+    train_test(trainer, model)
+
+
+@pytest.mark.skipif(
+    torch.cuda.device_count() < 2, reason="test requires multi-GPU machine")
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_predict(tmpdir, ray_start_2_gpus, seed, num_workers):
     """Tests if trained model has high accuracy on test set."""

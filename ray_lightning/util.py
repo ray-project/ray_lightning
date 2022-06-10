@@ -6,6 +6,7 @@ from pytorch_lightning.accelerators import GPUAccelerator
 from pytorch_lightning import Trainer
 
 import ray
+from pytorch_lightning.plugins import TrainingTypePlugin
 
 
 class DelayedGPUAccelerator(GPUAccelerator):
@@ -35,6 +36,27 @@ class DelayedGPUAccelerator(GPUAccelerator):
             raise RuntimeError("GPUs were requested but are not available.")
         torch.cuda.set_device(self.root_device)
         super(DelayedGPUAccelerator, self).on_train_start()
+
+
+def swap_accelerator(plugin: TrainingTypePlugin):
+    # Swap out the accelerator if necessary.
+    # This is needed to support CPU head with GPU workers or Ray Client.
+    # This is also needed to support GPU-only optimizations like mixed
+    # precision when using CPU head with GPU workers or Ray Client.
+    current_accelerator = plugin.lightning_module.trainer.accelerator
+
+    if plugin.use_gpu:
+        from weakref import proxy
+        precision_plugin = current_accelerator.precision_plugin
+        new_accelerator = DelayedGPUAccelerator(
+            precision_plugin=precision_plugin, training_type_plugin=plugin)
+        plugin.lightning_module.trainer._accelerator_connector \
+            ._training_type_plugin = \
+            proxy(new_accelerator.training_type_plugin)
+        plugin.lightning_module.trainer._accelerator_connector \
+            ._precision_plugin = proxy(new_accelerator.precision_plugin)
+        plugin.lightning_module.trainer._accelerator_connector.accelerator \
+            = new_accelerator
 
 
 class Unavailable:

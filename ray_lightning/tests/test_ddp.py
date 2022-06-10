@@ -44,6 +44,7 @@ def start_ray_client_server_2_cpus():
     ray.init(num_cpus=2)
     with ray_start_client_server() as client:
         yield client
+    ray.shutdown()
 
 
 @pytest.fixture
