@@ -1,5 +1,6 @@
 import pytest
 from ray.util.client.ray_client_helpers import ray_start_client_server
+import torch
 from torch.utils.data import DistributedSampler
 
 from pl_bolts.datamodules import MNISTDataModule
@@ -12,7 +13,8 @@ from ray.cluster_utils import Cluster
 
 from ray_lightning import RayPlugin
 from ray_lightning.tests.utils import get_trainer, train_test, \
-    load_test, predict_test, BoringModel, LightningMNISTClassifier
+    load_test, predict_test, BoringModel, LightningMNISTClassifier, \
+    XORModel, XORDataModule
 
 
 @pytest.fixture
@@ -319,3 +321,30 @@ def test_unused_parameters(tmpdir, ray_start_2_cpus):
     trainer = get_trainer(
         tmpdir, plugins=[plugin], callbacks=[UnusedParameterCallback()])
     trainer.fit(model)
+
+
+def test_metrics(tmpdir, ray_start_2_cpus):
+    """Tests if metrics are returned correctly"""
+    model = XORModel()
+    plugin = RayPlugin(num_workers=2, find_unused_parameters=False)
+    trainer = get_trainer(
+        tmpdir,
+        plugins=[plugin],
+        max_epochs=1,
+        num_sanity_val_steps=0,
+        reload_dataloaders_every_n_epochs=1)
+    dataset = XORDataModule()
+    trainer.fit(model, dataset)
+    callback_metrics = trainer.callback_metrics
+    logged_metrics = trainer.logged_metrics
+    assert callback_metrics["avg_val_loss"] == logged_metrics["avg_val_loss"]
+    assert logged_metrics["val_foo"] == torch.tensor(1.234)
+    assert callback_metrics["val_foo"] == torch.tensor(1.234)
+    # forked name is used for on_step logged metrics
+    forked_name_loss = "val_loss" + "_step"
+    forked_name_bar = "val_bar" + "_step"
+    assert forked_name_loss in logged_metrics.keys()
+    assert logged_metrics[forked_name_bar] == torch.tensor(5.678)
+    # callback_metrics doesn't record on_step metrics
+    assert forked_name_loss not in callback_metrics.keys()
+    assert forked_name_bar not in callback_metrics.keys()
