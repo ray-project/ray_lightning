@@ -16,7 +16,7 @@ from pytorch_lightning.utilities import rank_zero_only
 from pytorch_lightning.utilities.apply_func import move_data_to_device
 
 import ray
-from pytorch_lightning.utilities.distributed import rank_zero_info
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from pytorch_lightning.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
 from ray.util.queue import Queue
