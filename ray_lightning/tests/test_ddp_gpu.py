@@ -39,7 +39,7 @@ def test_train(tmpdir, ray_start_2_gpus, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
     plugin = RayPlugin(num_workers=num_workers, use_gpu=True)
-    trainer = get_trainer(tmpdir, plugins=[plugin])
+    trainer = get_trainer(tmpdir, strategy=plugin)
     train_test(trainer, model)
 
 

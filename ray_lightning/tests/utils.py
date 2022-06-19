@@ -211,7 +211,7 @@ class XORDataModule(LightningDataModule):
 
 
 def get_trainer(dir,
-                plugins: List[PLUGIN_INPUT],
+                strategy: PLUGIN_INPUT,
                 max_epochs: int = 1,
                 limit_train_batches: int = 10,
                 limit_val_batches: int = 10,
@@ -223,7 +223,7 @@ def get_trainer(dir,
     trainer = pl.Trainer(
         default_root_dir=dir,
         callbacks=callbacks,
-        plugins=plugins,
+        strategy=strategy,
         max_epochs=max_epochs,
         limit_train_batches=limit_train_batches,
         limit_val_batches=limit_val_batches,
