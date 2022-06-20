@@ -119,7 +119,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         x = self.layer_2(x)
         x = torch.relu(x)
         x = self.layer_3(x)
-        x = F.softmax(x, dim=1)
+        x = F.log_softmax(x, dim=1)
         return x
 
     def configure_optimizers(self):
@@ -128,7 +128,7 @@ class LightningMNISTClassifier(pl.LightningModule):
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch
         logits = self.forward(x)
-        loss = F.nll_loss(logits, y)
+        loss = F.nll_loss(logits, y.long())
         acc = self.accuracy(logits, y)
         self.log("ptl/train_loss", loss)
         self.log("ptl/train_accuracy", acc)
@@ -137,7 +137,7 @@ class LightningMNISTClassifier(pl.LightningModule):
     def validation_step(self, val_batch, batch_idx):
         x, y = val_batch
         logits = self.forward(x)
-        loss = F.nll_loss(logits, y)
+        loss = F.nll_loss(logits, y.long())
         acc = self.accuracy(logits, y)
         return {"val_loss": loss, "val_accuracy": acc}
 
