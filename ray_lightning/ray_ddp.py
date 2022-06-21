@@ -16,7 +16,7 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_only
 from pytorch_lightning.utilities.apply_func import move_data_to_device
 
 import ray
-from pytorch_lightning.utilities.rank_zero import rank_zero_info
+from pytorch_lightning.utilities.rank_zero import rank_zero_info, rank_zero_debug
 from pytorch_lightning.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
 from ray.util.queue import Queue
@@ -26,6 +26,9 @@ from ray_lightning.util import process_results, to_state_stream, \
     load_state_stream
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
+from pytorch_lightning.utilities.model_helpers import is_overridden
+
+from pytorch_lightning.strategies.launchers.spawn import _FakeQueue, _SpawnOutput
 
 def find_free_port():
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
@@ -245,6 +248,59 @@ class RayLauncher(_SpawnLauncher):
 
 
 
+    def _collect_rank_zero_results(self, trainer: "pl.Trainer", results: Any) -> Optional["_SpawnOutput"]:
+        rank_zero_debug("Finalizing the DDP spawn environment.")
+        checkpoint_callback = trainer.checkpoint_callback
+        best_model_path = checkpoint_callback.best_model_path if checkpoint_callback else None
+
+        # requires to compute the state_dict on all processes in case Metrics are present
+        state_dict = trainer.lightning_module.state_dict()
+
+        if self._strategy.global_rank != 0:
+            return None
+
+
+        # PyTorch Lightning saves the model weights in a temp file and
+        # loads it back on the driver.
+        # This won't work in a multi-node setup though, so we return the
+        # model state stream directly.
+        model_state_stream = to_state_stream(state_dict)
+            
+        # adds the `callback_metrics` to the queue
+        extra = _FakeQueue()
+        if is_overridden("add_to_queue", trainer.lightning_module):
+            # TODO: Remove the if in v1.7
+            trainer.lightning_module.add_to_queue(extra)
+        self.add_to_queue(trainer, extra)
+
+        return _SpawnOutput(best_model_path, model_state_stream, trainer.state, results, extra)
+
+
+
+    def _recover_results_in_main_process(self, spawn_output: "_SpawnOutput", trainer: "pl.Trainer") -> None:
+        # transfer back the best path to the trainer
+        if trainer.checkpoint_callback:
+            trainer.checkpoint_callback.best_model_path = str(spawn_output.best_model_path)
+
+
+        if spawn_output.weights_path is not None:
+            state_stream = spawn_output.weights_path
+            # DDPSpawnPlugin.__recover_child_process_weights begin
+            # Difference here is that instead of writing the model weights to a
+            # file and loading it, we use the state dict of the model directly.
+            state_dict = load_state_stream(state_stream, to_gpu=self._strategy.use_gpu)
+            # Set the state for PTL using the output from remote training.
+            trainer.lightning_module.load_state_dict(state_dict)
+
+        trainer.state = spawn_output.trainer_state
+
+        # get the `callback_metrics` and set it to the trainer
+        if is_overridden("get_from_queue", trainer.lightning_module):
+            # only in case the user does not override it.
+            # TODO: Remove the if in v1.7
+            trainer.lightning_module.get_from_queue(spawn_output.extra)
+        self.get_from_queue(trainer, spawn_output.extra)
+
 
 @ray.remote
 class RayExecutor:
@@ -412,9 +468,6 @@ class RayPlugin(DDPSpawnStrategy):
         rank_zero_only.rank = self.global_rank
         self._process_group_backend = self._get_process_group_backend()
 
-
-
-
         # Copied from
         # pytorch_lightning.utilities.distributed.init_dist_connection
         if not torch.distributed.is_available():
@@ -434,7 +487,7 @@ class RayPlugin(DDPSpawnStrategy):
                  f"MEMBER: {global_rank + 1}/{world_size}")
         torch.distributed.init_process_group(
             torch_distributed_backend, rank=global_rank, world_size=world_size, init_method='env://')
-        
+
         # on rank=0 let everyone know training is starting
         rank_zero_info(f"{'-' * 100}\n"
                        f"distributed_backend={torch_distributed_backend}\n"
