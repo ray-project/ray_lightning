@@ -27,53 +27,6 @@ from ray_lightning.util import process_results, to_state_stream, \
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 
-import logging
-import os
-from typing import Any, Dict, List, Optional, Union
-
-import torch
-import torch.distributed
-from torch import Tensor
-from torch.nn import Module
-from torch.nn.parallel.distributed import DistributedDataParallel
-
-import logging
-import os
-from typing import Any, Dict, List, Optional, Union
-
-import torch
-import torch.distributed
-from torch import Tensor
-from torch.nn import Module
-from torch.nn.parallel.distributed import DistributedDataParallel
-
-import pytorch_lightning as pl
-from pytorch_lightning.overrides import LightningDistributedModule
-from pytorch_lightning.overrides.distributed import prepare_for_backward
-from pytorch_lightning.plugins.environments.cluster_environment import ClusterEnvironment
-from pytorch_lightning.plugins.io.checkpoint_plugin import CheckpointIO
-from pytorch_lightning.plugins.precision import PrecisionPlugin
-from pytorch_lightning.strategies.launchers.spawn import _SpawnLauncher
-from pytorch_lightning.strategies.parallel import ParallelStrategy
-from pytorch_lightning.trainer.states import TrainerFn
-from pytorch_lightning.utilities.distributed import (
-    _get_process_group_backend_from_env,
-    distributed_available,
-    get_default_process_group_backend_for_device,
-)
-from pytorch_lightning.utilities.distributed import group as _group
-from pytorch_lightning.utilities.distributed import (
-    init_dist_connection,
-    ReduceOp,
-    register_ddp_comm_hook,
-    sync_ddp_if_available,
-)
-from pytorch_lightning.utilities.imports import _TORCH_GREATER_EQUAL_1_11
-from pytorch_lightning.utilities.optimizer import optimizers_to_device
-from pytorch_lightning.utilities.rank_zero import rank_zero_info, rank_zero_only
-from pytorch_lightning.utilities.seed import reset_seed
-from pytorch_lightning.utilities.types import STEP_OUTPUT
-
 def find_free_port():
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
         s.bind(("", 0))
@@ -109,9 +62,6 @@ class RayLauncher(_SpawnLauncher):
         spawn_output = self.run_function_on_workers(
             function, *args, trainer=trainer, **kwargs)
 
-        # from icecream import ic
-        # ic(trainer, 'launch') 
-        # ic(spawn_output)
         if trainer is None:
             return_value = spawn_output
         else:
@@ -120,31 +70,6 @@ class RayLauncher(_SpawnLauncher):
 
         self.teardown_workers()
         return return_value
-
-
-    # def _recover_results_in_main_process(self, spawn_output: "_SpawnOutput", trainer: "pl.Trainer") -> None:
-    #     # transfer back the best path to the trainer
-    #     if trainer.checkpoint_callback:
-    #         trainer.checkpoint_callback.best_model_path = str(spawn_output.best_model_path)
-
-    #     # TODO: pass also best score
-    #     # load last weights
-    #     if spawn_output.weights_path is not None:
-    #         ckpt = self._strategy.checkpoint_io.load_checkpoint(spawn_output.weights_path)
-    #         trainer.lightning_module.load_state_dict(ckpt)  # type: ignore[arg-type]
-    #         self._strategy.checkpoint_io.remove_checkpoint(spawn_output.weights_path)
-
-    #     trainer.state = spawn_output.trainer_state
-
-    #     # get the `callback_metrics` and set it to the trainer
-    #     if is_overridden("get_from_queue", trainer.lightning_module):
-    #         # only in case the user does not override it.
-    #         # TODO: Remove the if in v1.7
-    #         trainer.lightning_module.get_from_queue(spawn_output.extra)
-    #     self.get_from_queue(trainer, spawn_output.extra)
-
-        # from icecream import ic 
-        # ic()
 
     def setup_workers(self, tune_enabled: bool = True) -> None:
         """Sets up PTL Trainer and creates the Ray actors."""
@@ -171,9 +96,6 @@ class RayLauncher(_SpawnLauncher):
 
         # Get the mapping from global ranks to the respective local ranks.
         self._global_to_local = self.get_local_ranks()
-        # from icecream import ic 
-        # ic(self._global_to_local)
-        # exit()
         # Todo: put model into object store?
 
         self.tune_queue = None
@@ -237,10 +159,8 @@ class RayLauncher(_SpawnLauncher):
         ]
         values = [os.getenv(k) for k in keys]
 
-        # from icecream import ic 
         ray.get([w.set_env_vars.remote(keys, values) for w in self._workers])
 
-        # ic(values, len(self._workers))
 
     def _share_cuda_visible_devices(self):
         """Sets CUDA_VISIBLE_DEVICES on all workers.
@@ -270,13 +190,9 @@ class RayLauncher(_SpawnLauncher):
             node_id_to_worker_id[node_id].add(worker_id)
             node_id_to_gpu_ids[node_id].update(gpu_ids)
 
-        # from icecream import ic 
-        # ic(node_id_to_gpu_ids)
-        # exit()
         futures = []
         for node_id, gpu_ids in node_id_to_gpu_ids.items():
             all_gpu_ids = ",".join([str(gpu_id) for gpu_id in gpu_ids])
-            # ic(all_gpu_ids)
             def set_gpu_ids():
                 os.environ["CUDA_VISIBLE_DEVICES"] = all_gpu_ids
 
@@ -285,16 +201,11 @@ class RayLauncher(_SpawnLauncher):
                     self._workers[worker_id].execute.remote(set_gpu_ids))
         ray.get(futures)
 
-        # exit()
-
     def run_function_on_workers(self,
                                 function: Callable,
                                 *args: Any,
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
-        # from icecream import ic 
-        # ic(trainer, 'output lanuch')
-        # trainer_ref = ray.put(trainer)
         self._futures = [
             w.execute.remote(self._wrapping_function, i, self._global_to_local,
                              trainer, function, args, kwargs, self.tune_queue)
@@ -302,9 +213,6 @@ class RayLauncher(_SpawnLauncher):
         ]
 
         results = process_results(self._futures, self.tune_queue)
-
-        # from icecream import ic 
-        # ic(ray.get(results))
         return results[0]
 
     def _wrapping_function(
@@ -325,60 +233,17 @@ class RayLauncher(_SpawnLauncher):
             init_session(rank=global_rank, queue=tune_queue)
 
         self._strategy._worker_setup(process_idx=global_rank)
-
-        # trainer.strategy.set_remote(True)
-
-        # from icecream import ic 
-
-        # results = trainer.run_stage()
-
-        # ic(results)
-        # ic(global_rank)
-        # ic(trainer.model.state_dict())
-        # ic(trainer.state.finished)
-        # ic(function, args, kwargs)
-        # ic(args[0].state_dict())
-        # # exit()
-        # ic(trainer.state.finished, trainer)
-
         results = function(*args, **kwargs)
 
-        # ic(function.__self__)
-        # ic(results, '1st import')
-        
-        # ic(args[0].state_dict())
-        # ic(trainer.model.state_dict())
-        # ic(trainer.state.finished, trainer)
-
-        # ic(trainer.strategy, self._strategy, os.getpid())
-        # exit()
-        # exit()
-        # trainer.model = args[0]
         if trainer is not None:
             results = self._collect_rank_zero_results(function.__self__, results)
 
-        # ic(function.__self__.state.finished)
-        # ic(results, '2nd import')
-
-        # if trainer is not None:
-        #     results = self._collect_rank_zero_results(function.__self__, results)
-
-        # ic(function.__self__.state.finished)
-        # ic(results, '2nd import')
         if self._strategy.local_rank == 0:
             return move_data_to_device(results, "cpu")
 
         return None
 
-    # def __getstate__(self):
-    #     state = self.__dict__.copy()
-    #     # Don't serialize the workers.
-    #     del state["_workers"]
-    #     return state
 
-    # def __setstate__(self, state):
-    #     state["_workers"] = []
-    #     self.__dict__.update(state)
 
 
 @ray.remote
@@ -501,23 +366,10 @@ class RayPlugin(DDPSpawnStrategy):
         self._launcher = RayLauncher(self)
 
     def setup(self, trainer: "pl.Trainer") -> None:
-        # from icecream import ic
-        # ic(trainer, 'setup') 
-        # from icecream import ic 
-        # ic( trainer.state.fn, self._layer_sync)
-        # ic(trainer, self.lightning_module.trainer )
-        # ic(trainer.model == self.model)
-        # ic(self.lightning_module.automatic_optimization)
-        # ic(trainer.model.require_backward_grad_sync, self.model.require_backward_grad_sync)
-        # exit()
         super().setup(trainer)
-
 
     def setup_environment(self) -> None:
         # Swap out the accelerator if necessary.
-        from icecream import ic 
-        # ic(dir(self.lightning_module.trainer))
-        ic(self.accelerator)
         # This is needed to support CPU head with GPU workers or Ray Client.
         # current_accelerator = self.lightning_module.trainer.accelerator
         # if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
@@ -534,16 +386,9 @@ class RayPlugin(DDPSpawnStrategy):
         #     self.lightning_module.trainer._accelerator_connector.accelerator \
         #         = new_accelerator
                 
-    def training_step(self, *args, **kwargs):
-        with self.precision_plugin.train_step_context():
-            # from icecream import ic
-            # ic(self.model, args, kwargs)
-            return self.model(*args, **kwargs)
 
     def set_remote(self, remote: bool):
         self._is_remote = remote
-        from icecream import ic 
-        ic(self._is_remote, 'this is remote', os.getpid(), self)
 
     def set_global_to_local(self,
                             global_to_local: List[Optional[Tuple[int, int]]]):
@@ -569,9 +414,6 @@ class RayPlugin(DDPSpawnStrategy):
 
 
 
-        # from icecream import ic 
-        # ic(self._process_group_backend)
-        # ic(torch.distributed.is_available(), torch.distributed.is_initialized())
 
         # Copied from
         # pytorch_lightning.utilities.distributed.init_dist_connection
@@ -593,9 +435,6 @@ class RayPlugin(DDPSpawnStrategy):
         torch.distributed.init_process_group(
             torch_distributed_backend, rank=global_rank, world_size=world_size, init_method='env://')
         
-        # ic( torch_distributed_backend, global_rank, world_size)
-
-        # exit()
         # on rank=0 let everyone know training is starting
         rank_zero_info(f"{'-' * 100}\n"
                        f"distributed_backend={torch_distributed_backend}\n"
@@ -622,9 +461,6 @@ class RayPlugin(DDPSpawnStrategy):
     @property
     def root_device(self):
 
-        # from icecream import ic 
-        # ic(self.use_gpu, torch.cuda.is_available(), ray.get_gpu_ids(), self._is_remote)
-        # exit()
         if self.use_gpu and torch.cuda.is_available():
             if self._is_remote:
                 # Adjust to support multiple GPUs per worker or fractional
@@ -648,43 +484,3 @@ class RayPlugin(DDPSpawnStrategy):
     @property
     def _is_single_process_single_device(self):
         return True
-
-    def teardown(self) -> None:
-        log.detail(f"{self.__class__.__name__}: tearing down strategy")
-        def get_weights(model):
-            return next(model.parameters()) 
-        
-
-        # from icecream import ic 
-        # if self._is_remote: 
-        #     ic('this is remote')
-        # else: 
-        #     ic('this is not remote')
-        # ic(self._is_remote, 'this is remote', os.getpid(), self)
-        
-        # ic(self.model, self.lightning_module)
-        # ic(get_weights(self.model), get_weights(self.lightning_module))
-        # ic(os.getpid(), socket.gethostbyname(socket.gethostname()))
-        # exit()
-        if isinstance(self.model, DistributedDataParallel):
-            if (
-                _TORCH_GREATER_EQUAL_1_11
-                and not self.model.static_graph
-                and self.model._get_ddp_logging_data().get("can_set_static_graph")
-            ):
-                rank_zero_info(
-                    "Your model can run with static graph optimizations. For future training runs, we suggest you"
-                    f" pass `Trainer(..., strategy={self.__class__.__name__}(static_graph=True))` to enable them."
-                )
-            # unwrap model
-            self.model = self.lightning_module
-
-        if (
-            self.lightning_module.trainer is not None
-            and self.lightning_module.trainer.state.fn == TrainerFn.FITTING
-            and self._layer_sync
-        ):
-            # `self.lightning_module.trainer` can be None if teardown gets called on an exception before
-            # the trainer gets set on the LightningModule
-            self.model = self._layer_sync.revert(self.model)
-        super().teardown()
