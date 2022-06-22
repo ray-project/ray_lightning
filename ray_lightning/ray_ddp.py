@@ -464,10 +464,12 @@ class RayPlugin(DDPSpawnStrategy):
         world_size = self.world_size
         torch_distributed_backend = self.torch_distributed_backend
 
-        log.info(f"Initializing distributed: GLOBAL_RANK: {global_rank}, "
-                 f"MEMBER: {global_rank + 1}/{world_size}")
-        torch.distributed.init_process_group(
-            torch_distributed_backend, rank=global_rank, world_size=world_size, init_method='env://')
+        # Taken from pytorch_lightning.utilities.distributed
+        if torch.distributed.is_available() and not torch.distributed.is_initialized():
+            log.info(f"Initializing distributed: GLOBAL_RANK: {global_rank}, "
+                    f"MEMBER: {global_rank + 1}/{world_size}")
+            torch.distributed.init_process_group(
+                torch_distributed_backend, rank=global_rank, world_size=world_size, init_method='env://')
 
         # on rank=0 let everyone know training is starting
         rank_zero_info(f"{'-' * 100}\n"
