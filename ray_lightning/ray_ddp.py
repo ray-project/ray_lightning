@@ -332,8 +332,8 @@ class RayExecutor:
 
 @PublicAPI(stability="beta")
 class RayStrategy(DDPSpawnStrategy):
-    """Pytorch Lightning strategygy for DDP training on a Ray cluster.
-    This strategygy is used to manage distributed training using DDP and
+    """Pytorch Lightning strategy for DDP training on a Ray cluster.
+    This strategy is used to manage distributed training using DDP and
     Ray for process launching. Internally, the specified number of
     Ray actors are launched in the cluster and are registered as part of a
     Pytorch DDP process group. The Pytorch Lightning trainer is instantiated
@@ -341,7 +341,7 @@ class RayStrategy(DDPSpawnStrategy):
     executed. The distributed training protocol is handled by Pytorch DDP.
     Each training worker is configured to reserve ``num_cpus_per_worker``
     CPUS and 1 GPU if ``use_gpu`` is set to ``True``.
-    If using this strategygy, you should run your code like a normal Python
+    If using this strategy, you should run your code like a normal Python
     script: ``python train.py``, and only on the head node if running in a
     distributed Ray cluster. There is no need to run this script on every
     single node.
@@ -364,11 +364,11 @@ class RayStrategy(DDPSpawnStrategy):
             import pytorch_lightning as ptl
             from ray_lightning import RayAccelerator
             ptl_model = MNISTClassifier(...)
-            strategygy = RayStrategy(num_workers=4, cpus_per_worker=1,
+            strategy = RayStrategy(num_workers=4, cpus_per_worker=1,
                 use_gpu=True)
             # Don't set ``gpus`` in ``Trainer``.
             # The actual number of GPUs is determined by ``num_workers``.
-            trainer = pl.Trainer(..., strategy=[strategygy])
+            trainer = pl.Trainer(..., strategy=[strategy])
             trainer.fit(ptl_model)
     """
 

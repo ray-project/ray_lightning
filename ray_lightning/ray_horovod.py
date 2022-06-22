@@ -35,7 +35,7 @@ def get_executable_cls():
 class HorovodRayPlugin(HorovodPlugin):
     """Pytorch Lightning Plugin for Horovod training on a Ray cluster.
 
-    This strategygy is used to manage distributed training on a Ray cluster
+    This strategy is used to manage distributed training on a Ray cluster
     via the Horovod training framework. Internally, the specified number of
     Ray actors are launched in the cluster and are configured as part of the
     Horovod ring. The Pytorch Lightning trainer is instantiated on the
@@ -45,7 +45,7 @@ class HorovodRayPlugin(HorovodPlugin):
     Each training worker is configured to reserve 1 CPU and if 1 GPU if
     ``use_gpu`` is set to ``True``.
 
-    If using this strategygy, you should run your code like a normal Python
+    If using this strategy, you should run your code like a normal Python
     script: ``python train.py``, and not with ``horovodrun``.
 
     Args:
@@ -63,11 +63,11 @@ class HorovodRayPlugin(HorovodPlugin):
             from ray_lightning import HorovodRayPlugin
 
             ptl_model = MNISTClassifier(...)
-            strategygy = HorovodRayPlugin(num_workers=2, use_gpu=True)
+            strategy = HorovodRayPlugin(num_workers=2, use_gpu=True)
 
             # Don't set ``gpus`` in ``Trainer``.
             # The actual number of GPUs is determined by ``num_workers``.
-            trainer = pl.Trainer(..., strategy=[strategygy])
+            trainer = pl.Trainer(..., strategy=[strategy])
             trainer.fit(ptl_model)
 
     """
@@ -78,7 +78,7 @@ class HorovodRayPlugin(HorovodPlugin):
                  use_gpu: bool = False):
 
         if not HOROVOD_AVAILABLE:
-            raise RuntimeError("Please intall Horovod to use this strategygy.")
+            raise RuntimeError("Please intall Horovod to use this strategy.")
         if not ray.is_initialized():
             ray.init()
         super().__init__()

@@ -82,7 +82,7 @@ if TUNE_INSTALLED:
                 from ray_lightning import RayStrategy
                 from ray_lightning.tune import TuneReportCallback
 
-                # Create strategygy.
+                # Create strategy.
                 ray_plugin = RayStrategy(num_workers=4, use_gpu=True)
 
                 # Report loss and accuracy to Tune after each validation epoch:
@@ -208,7 +208,7 @@ if TUNE_INSTALLED:
                 from ray_lightning import RayStrategy
                 from ray_lightning.tune import TuneReportCheckpointCallback.
 
-                # Create the Ray strategygy.
+                # Create the Ray strategy.
                 ray_plugin = RayStrategy()
 
                 # Save checkpoint after each training batch and after each

@@ -25,7 +25,7 @@ def seed():
 
 
 def test_ddp_choice_sharded(tmpdir, ray_start_2_cpus, seed):
-    """Tests if sharded strategygy is properly recognized."""
+    """Tests if sharded strategy is properly recognized."""
 
     class CB(Callback):
         def on_fit_start(self, trainer, pl_module):
