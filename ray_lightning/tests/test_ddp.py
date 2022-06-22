@@ -91,17 +91,17 @@ def test_global_local_ranks(ray_start_4_cpus):
             return "2"
 
     plugin = RayPlugin(num_workers=4, use_gpu=False)
+    plugin._configure_launcher()
 
     # 2 workers on "Node 1", 2 workers on "Node 2"
-    plugin.workers = [
+    plugin._launcher._workers = [
         Node1Actor.remote(),
         Node1Actor.remote(),
         Node2Actor.remote(),
         Node2Actor.remote()
     ]
 
-    global_to_local = plugin.get_local_ranks()
-
+    global_to_local = plugin._launcher.get_local_ranks()
     assert len(global_to_local) == 4
     local_ranks = {ranks[0] for ranks in global_to_local}
     node_ranks = {ranks[1] for ranks in global_to_local}
