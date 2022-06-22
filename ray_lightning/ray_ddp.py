@@ -384,7 +384,7 @@ class RayPlugin(DDPSpawnStrategy):
         resources_per_worker = resources_per_worker if resources_per_worker \
             else {}
         self.nickname = "ddp_ray"
-        self.num_workers = num_workers
+        self.num_workers = int(num_workers)
         self.num_cpus_per_worker = resources_per_worker.pop(
             "CPU", num_cpus_per_worker)
 
@@ -415,7 +415,7 @@ class RayPlugin(DDPSpawnStrategy):
 
         self._is_remote = False
 
-        super().__init__(accelerator='gpu',
+        super().__init__(accelerator='gpu' if use_gpu else 'cpu',
             parallel_devices=[], cluster_environment=None, **ddp_kwargs)
 
     def _configure_launcher(self):
