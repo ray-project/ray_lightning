@@ -59,7 +59,7 @@ def test_predict(tmpdir, ray_start_2_gpus, seed, num_workers):
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
     strategy = RayStrategy(num_workers=num_workers, use_gpu=True)
     trainer = get_trainer(
-        tmpdir, limit_train_batches=20, max_epochs=1, strategy=[strategy])
+        tmpdir, limit_train_batches=20, max_epochs=1, strategy=strategy)
     predict_test(trainer, model, dm)
 
 
@@ -75,7 +75,7 @@ def test_model_to_gpu(tmpdir, ray_start_2_gpus):
 
     strategy = RayStrategy(num_workers=2, use_gpu=True)
     trainer = get_trainer(
-        tmpdir, strategy=[strategy], callbacks=[CheckGPUCallback()])
+        tmpdir, strategy=strategy, callbacks=[CheckGPUCallback()])
     trainer.fit(model)
 
 
@@ -118,7 +118,7 @@ def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker,
         use_gpu=True,
         resources_per_worker={"GPU": num_gpus_per_worker})
     trainer = get_trainer(
-        tmpdir, strategy=[strategy], callbacks=[CheckDevicesCallback()])
+        tmpdir, strategy=strategy, callbacks=[CheckDevicesCallback()])
     trainer.fit(model)
 
 
@@ -132,5 +132,5 @@ def test_multi_node(tmpdir):
     num_gpus = ray.available_resources()["GPU"]
     model = BoringModel()
     strategy = RayStrategy(num_workers=num_gpus, use_gpu=True)
-    trainer = get_trainer(tmpdir, strategy=[strategy])
+    trainer = get_trainer(tmpdir, strategy=strategy)
     train_test(trainer, model)

@@ -67,7 +67,7 @@ class HorovodRayPlugin(HorovodPlugin):
 
             # Don't set ``gpus`` in ``Trainer``.
             # The actual number of GPUs is determined by ``num_workers``.
-            trainer = pl.Trainer(..., strategy=[strategy])
+            trainer = pl.Trainer(..., strategy=strategy)
             trainer.fit(ptl_model)
 
     """

@@ -1,36 +1,20 @@
 from typing import Callable, Dict, List, Union, Any, Tuple, Optional
 
-from collections import defaultdict
-from contextlib import closing
-import os
-import socket
 import warnings
 
 import torch
 
 import pytorch_lightning as pl
-from pytorch_lightning.accelerators import CPUAccelerator, GPUAccelerator
 from pytorch_lightning.strategies import DDPSpawnStrategy
-from pytorch_lightning.strategies.launchers import _SpawnLauncher
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
-from pytorch_lightning.utilities.apply_func import move_data_to_device
 
 import ray
-from pytorch_lightning.utilities.rank_zero import rank_zero_info, rank_zero_debug
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from pytorch_lightning.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
-from ray.util.queue import Queue
-
-from ray_lightning.session import init_session
-from ray_lightning.util import process_results, to_state_stream, \
-    load_state_stream
-from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
-
-from pytorch_lightning.utilities.model_helpers import is_overridden
-
-from pytorch_lightning.strategies.launchers.spawn import _FakeQueue, _SpawnOutput
 
 from ray_lightning import RayLauncher
+
 
 @PublicAPI(stability="beta")
 class RayStrategy(DDPSpawnStrategy):
@@ -70,7 +54,7 @@ class RayStrategy(DDPSpawnStrategy):
                 use_gpu=True)
             # Don't set ``gpus`` in ``Trainer``.
             # The actual number of GPUs is determined by ``num_workers``.
-            trainer = pl.Trainer(..., strategy=[strategy])
+            trainer = pl.Trainer(..., strategy=strategy)
             trainer.fit(ptl_model)
     """
 
@@ -117,14 +101,17 @@ class RayStrategy(DDPSpawnStrategy):
 
         self._is_remote = False
 
-        super().__init__(accelerator='gpu' if use_gpu else 'cpu',
-            parallel_devices=[], cluster_environment=None, **ddp_kwargs)
+        super().__init__(
+            accelerator='gpu' if use_gpu else 'cpu',
+            parallel_devices=[],
+            cluster_environment=None,
+            **ddp_kwargs)
 
     def _configure_launcher(self):
         self._launcher = RayLauncher(self)
 
     def setup(self, trainer: "pl.Trainer") -> None:
-        super().setup(trainer)                
+        super().setup(trainer)
 
     def set_remote(self, remote: bool):
         self._is_remote = remote
@@ -167,11 +154,15 @@ class RayStrategy(DDPSpawnStrategy):
         torch_distributed_backend = self.torch_distributed_backend
 
         # Taken from pytorch_lightning.utilities.distributed
-        if torch.distributed.is_available() and not torch.distributed.is_initialized():
+        if torch.distributed.is_available(
+        ) and not torch.distributed.is_initialized():
             log.info(f"Initializing distributed: GLOBAL_RANK: {global_rank}, "
-                    f"MEMBER: {global_rank + 1}/{world_size}")
+                     f"MEMBER: {global_rank + 1}/{world_size}")
             torch.distributed.init_process_group(
-                torch_distributed_backend, rank=global_rank, world_size=world_size, init_method='env://')
+                torch_distributed_backend,
+                rank=global_rank,
+                world_size=world_size,
+                init_method='env://')
 
         # on rank=0 let everyone know training is starting
         rank_zero_info(f"{'-' * 100}\n"

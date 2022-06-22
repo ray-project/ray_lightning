@@ -59,7 +59,7 @@ strategy = RayStrategy(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
-trainer = pl.Trainer(..., strategy=[strategy])
+trainer = pl.Trainer(..., strategy=strategy)
 trainer.fit(ptl_model)
 ```
 
@@ -111,7 +111,7 @@ strategy = HorovodRayStrategy(num_workers=2, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
-trainer = pl.Trainer(..., strategy=[strategy])
+trainer = pl.Trainer(..., strategy=strategy)
 trainer.fit(ptl_model)
 ```
 
@@ -129,7 +129,7 @@ strategy = RayShardedStrategy(num_workers=4, num_cpus_per_worker=1, use_gpu=True
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
-trainer = pl.Trainer(..., strategy=[strategy])
+trainer = pl.Trainer(..., strategy=strategy)
 trainer.fit(ptl_model)
 ```
 See the [Pytorch Lightning docs](https://pytorch-lightning.readthedocs.io/en/stable/advanced/model_parallel.html#sharded-training) for more information on sharded training.

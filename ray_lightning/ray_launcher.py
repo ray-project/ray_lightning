@@ -1,24 +1,16 @@
-from typing import Callable, Dict, List, Union, Any, Tuple, Optional
+from typing import Callable, List, Any, Tuple, Optional
 
 from collections import defaultdict
 from contextlib import closing
 import os
 import socket
-import warnings
-
-import torch
 
 import pytorch_lightning as pl
-from pytorch_lightning.accelerators import CPUAccelerator, GPUAccelerator
-from pytorch_lightning.strategies import DDPSpawnStrategy
-from pytorch_lightning.strategies.launchers import _Launcher, _SpawnLauncher
-from pytorch_lightning.utilities.rank_zero import rank_zero_only
+from pytorch_lightning.strategies.launchers import _Launcher
 from pytorch_lightning.utilities.apply_func import move_data_to_device
 
 import ray
-from pytorch_lightning.utilities.rank_zero import rank_zero_info, rank_zero_debug
-from pytorch_lightning.utilities.seed import reset_seed, log
-from ray.util import PublicAPI
+from pytorch_lightning.utilities.rank_zero import rank_zero_debug
 from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
@@ -29,6 +21,7 @@ from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 from pytorch_lightning.utilities.model_helpers import is_overridden
 
 from pytorch_lightning.strategies.launchers.spawn import _FakeQueue, _SpawnOutput
+
 
 def find_free_port():
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
@@ -164,7 +157,6 @@ class RayLauncher(_Launcher):
 
         ray.get([w.set_env_vars.remote(keys, values) for w in self._workers])
 
-
     def _share_cuda_visible_devices(self):
         """Sets CUDA_VISIBLE_DEVICES on all workers.
         For each worker, CUDA_VISIBLE_DEVICES will be set to the GPU IDs
@@ -196,6 +188,7 @@ class RayLauncher(_Launcher):
         futures = []
         for node_id, gpu_ids in node_id_to_gpu_ids.items():
             all_gpu_ids = ",".join([str(gpu_id) for gpu_id in gpu_ids])
+
             def set_gpu_ids():
                 os.environ["CUDA_VISIBLE_DEVICES"] = all_gpu_ids
 
@@ -239,16 +232,16 @@ class RayLauncher(_Launcher):
         results = function(*args, **kwargs)
 
         if trainer is not None:
-            results = self._collect_rank_zero_results(function.__self__, results)
+            results = self._collect_rank_zero_results(function.__self__,
+                                                      results)
 
         if self._strategy.local_rank == 0:
             return move_data_to_device(results, "cpu")
 
         return None
 
-
-
-    def _collect_rank_zero_results(self, trainer: "pl.Trainer", results: Any) -> Optional["_SpawnOutput"]:
+    def _collect_rank_zero_results(self, trainer: "pl.Trainer",
+                                   results: Any) -> Optional["_SpawnOutput"]:
         rank_zero_debug("Finalizing the DDP spawn environment.")
         checkpoint_callback = trainer.checkpoint_callback
         best_model_path = checkpoint_callback.best_model_path if checkpoint_callback else None
@@ -259,13 +252,12 @@ class RayLauncher(_Launcher):
         if self._strategy.global_rank != 0:
             return None
 
-
         # PyTorch Lightning saves the model weights in a temp file and
         # loads it back on the driver.
         # This won't work in a multi-node setup though, so we return the
         # model state stream directly.
         model_state_stream = to_state_stream(state_dict)
-            
+
         # adds the `callback_metrics` to the queue
         extra = _FakeQueue()
         if is_overridden("add_to_queue", trainer.lightning_module):
@@ -273,22 +265,23 @@ class RayLauncher(_Launcher):
             trainer.lightning_module.add_to_queue(extra)
         self.add_to_queue(trainer, extra)
 
-        return _SpawnOutput(best_model_path, model_state_stream, trainer.state, results, extra)
+        return _SpawnOutput(best_model_path, model_state_stream, trainer.state,
+                            results, extra)
 
-
-
-    def _recover_results_in_main_process(self, spawn_output: "_SpawnOutput", trainer: "pl.Trainer") -> None:
+    def _recover_results_in_main_process(self, spawn_output: "_SpawnOutput",
+                                         trainer: "pl.Trainer") -> None:
         # transfer back the best path to the trainer
         if trainer.checkpoint_callback:
-            trainer.checkpoint_callback.best_model_path = str(spawn_output.best_model_path)
-
+            trainer.checkpoint_callback.best_model_path = str(
+                spawn_output.best_model_path)
 
         if spawn_output.weights_path is not None:
             state_stream = spawn_output.weights_path
             # DDPSpawnPlugin.__recover_child_process_weights begin
             # Difference here is that instead of writing the model weights to a
             # file and loading it, we use the state dict of the model directly.
-            state_dict = load_state_stream(state_stream, to_gpu=self._strategy.use_gpu)
+            state_dict = load_state_stream(
+                state_stream, to_gpu=self._strategy.use_gpu)
             # Set the state for PTL using the output from remote training.
             trainer.lightning_module.load_state_dict(state_dict)
 

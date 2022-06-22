@@ -73,7 +73,7 @@ def test_actor_creation(tmpdir, ray_start_2_cpus, num_workers):
     model.on_epoch_end = check_num_actor
 
     strategy = RayStrategy(num_workers=num_workers)
-    trainer = get_trainer(tmpdir, strategy=[strategy])
+    trainer = get_trainer(tmpdir, strategy=strategy)
     trainer.fit(model)
 
 
@@ -131,7 +131,7 @@ def test_actor_creation_resources(tmpdir, ray_start_4_cpus_4_extra,
         assert len(ray.state.actors()) == num_workers
 
     model.on_epoch_end = check_num_actor
-    trainer = get_trainer(tmpdir, strategy=[strategy])
+    trainer = get_trainer(tmpdir, strategy=strategy)
     trainer.fit(model)
 
 
@@ -207,7 +207,7 @@ def test_distributed_sampler(tmpdir, ray_start_2_cpus):
 
     strategy = RayStrategy(num_workers=2)
     trainer = get_trainer(
-        tmpdir, strategy=[strategy], callbacks=[DistributedSamplerCallback()])
+        tmpdir, strategy=strategy, callbacks=[DistributedSamplerCallback()])
     trainer.fit(model)
 
 
@@ -216,7 +216,7 @@ def test_train(tmpdir, ray_start_2_cpus, num_workers):
     """Tests if training modifies model weights."""
     model = BoringModel()
     strategy = RayStrategy(num_workers=num_workers)
-    trainer = get_trainer(tmpdir, strategy=[strategy])
+    trainer = get_trainer(tmpdir, strategy=strategy)
     train_test(trainer, model)
 
 
@@ -225,7 +225,7 @@ def test_train_client(tmpdir, start_ray_client_server_2_cpus, num_workers):
     assert ray.util.client.ray.is_connected()
     model = BoringModel()
     strategy = RayStrategy(num_workers=num_workers)
-    trainer = get_trainer(tmpdir, strategy=[strategy])
+    trainer = get_trainer(tmpdir, strategy=strategy)
     train_test(trainer, model)
 
 
@@ -234,7 +234,7 @@ def test_test_with_dataloader_workers(tmpdir, ray_start_2_cpus, seed):
     model = BoringModel()
     strategy = RayStrategy(num_workers=1, use_gpu=False)
     trainer = get_trainer(
-        tmpdir, limit_train_batches=20, max_epochs=1, strategy=[strategy])
+        tmpdir, limit_train_batches=20, max_epochs=1, strategy=strategy)
     trainer.test(model)
 
 
@@ -243,7 +243,7 @@ def test_load(tmpdir, ray_start_2_cpus, num_workers):
     """Tests if model checkpoint can be loaded."""
     model = BoringModel()
     strategy = RayStrategy(num_workers=num_workers, use_gpu=False)
-    trainer = get_trainer(tmpdir, strategy=[strategy])
+    trainer = get_trainer(tmpdir, strategy=strategy)
     load_test(trainer, model)
 
 
@@ -262,7 +262,7 @@ def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
     strategy = RayStrategy(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(
-        tmpdir, limit_train_batches=20, max_epochs=1, strategy=[strategy])
+        tmpdir, limit_train_batches=20, max_epochs=1, strategy=strategy)
     predict_test(trainer, model, dm)
 
 
@@ -282,7 +282,7 @@ def test_predict_client(tmpdir, start_ray_client_server_2_cpus, seed,
         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
     strategy = RayStrategy(num_workers=num_workers, use_gpu=False)
     trainer = get_trainer(
-        tmpdir, limit_train_batches=20, max_epochs=1, strategy=[strategy])
+        tmpdir, limit_train_batches=20, max_epochs=1, strategy=strategy)
     predict_test(trainer, model, dm)
 
 
@@ -296,7 +296,7 @@ def test_early_stop(tmpdir, ray_start_2_cpus):
     trainer = get_trainer(
         tmpdir,
         max_epochs=500,
-        strategy=[strategy],
+        strategy=strategy,
         callbacks=[early_stop],
         num_sanity_val_steps=0,
         limit_train_batches=1.0,
@@ -319,7 +319,7 @@ def test_unused_parameters(tmpdir, ray_start_2_cpus):
             assert trainer.model.find_unused_parameters is False
 
     trainer = get_trainer(
-        tmpdir, strategy=[strategy], callbacks=[UnusedParameterCallback()])
+        tmpdir, strategy=strategy, callbacks=[UnusedParameterCallback()])
     trainer.fit(model)
 
 
@@ -329,7 +329,7 @@ def test_metrics(tmpdir, ray_start_2_cpus):
     strategy = RayStrategy(num_workers=2, find_unused_parameters=False)
     trainer = get_trainer(
         tmpdir,
-        strategy=[strategy],
+        strategy=strategy,
         max_epochs=1,
         num_sanity_val_steps=0,
         reload_dataloaders_every_n_epochs=1)
