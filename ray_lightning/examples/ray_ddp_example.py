@@ -11,7 +11,7 @@ from torchvision import transforms
 import ray
 from ray import tune
 from ray_lightning.tune import TuneReportCallback, get_tune_resources
-from ray_lightning import RayPlugin
+from ray_lightning import RayStrategygy
 from ray_lightning.tests.utils import LightningMNISTClassifier
 
 
@@ -73,7 +73,7 @@ def train_mnist(config,
     trainer = pl.Trainer(
         max_epochs=num_epochs,
         callbacks=callbacks,
-        strategy=RayPlugin(num_workers=num_workers, use_gpu=use_gpu),
+        strategy=RayStrategygy(num_workers=num_workers, use_gpu=use_gpu),
         **trainer_kwargs)
     trainer.fit(model)
 

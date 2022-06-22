@@ -79,19 +79,19 @@ if TUNE_INSTALLED:
             .. code-block:: python
 
                 import pytorch_lightning as pl
-                from ray_lightning import RayPlugin
+                from ray_lightning import RayStrategy
                 from ray_lightning.tune import TuneReportCallback
 
-                # Create plugin.
-                ray_plugin = RayPlugin(num_workers=4, use_gpu=True)
+                # Create strategygy.
+                ray_plugin = RayStrategy(num_workers=4, use_gpu=True)
 
                 # Report loss and accuracy to Tune after each validation epoch:
-                trainer = pl.Trainer(plugins=[ray_plugin], callbacks=[
+                trainer = pl.Trainer(strategy=[ray_plugin], callbacks=[
                     TuneReportCallback(["val_loss", "val_acc"],
                         on="validation_end")])
 
                 # Same as above, but report as `loss` and `mean_accuracy`:
-                trainer = pl.Trainer(plugins=[ray_plugin], callbacks=[
+                trainer = pl.Trainer(strategy=[ray_plugin], callbacks=[
                     TuneReportCallback(
                         {"loss": "val_loss", "mean_accuracy": "val_acc"},
                         on="validation_end")])
@@ -137,7 +137,7 @@ if TUNE_INSTALLED:
         """Distributed PyTorch Lightning to Ray Tune checkpoint callback
 
             Saves checkpoints after each validation step. To be used
-            specifically with the plugins in this library.
+            specifically with the strategies in this library.
 
             Checkpoint are currently not registered if no ``tune.report()``
             call is made afterwards. Consider using
@@ -183,7 +183,7 @@ if TUNE_INSTALLED:
 
             Saves checkpoints after each validation step. Also reports metrics
             to Tune, which is needed for checkpoint registration. To be used
-            specifically with the plugins in this library.
+            specifically with the strategies in this library.
 
             Args:
                 metrics (str|list|dict): Metrics to report to Tune.
@@ -205,15 +205,15 @@ if TUNE_INSTALLED:
             .. code-block:: python
 
                 import pytorch_lightning as pl
-                from ray_lightning import RayPlugin
+                from ray_lightning import RayStrategy
                 from ray_lightning.tune import TuneReportCheckpointCallback.
 
-                # Create the Ray plugin.
-                ray_plugin = RayPlugin()
+                # Create the Ray strategygy.
+                ray_plugin = RayStrategy()
 
                 # Save checkpoint after each training batch and after each
                 # validation epoch.
-                trainer = pl.Trainer(plugins=[ray_plugin], callbacks=[
+                trainer = pl.Trainer(strategy=[ray_plugin], callbacks=[
                     TuneReportCheckpointCallback(
                         metrics={"loss": "val_loss",
                                 "mean_accuracy": "val_acc"},

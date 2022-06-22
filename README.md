@@ -1,25 +1,27 @@
 <!--$UNCOMMENT(ray-lightning)=-->
 
 # Distributed PyTorch Lightning Training on Ray
-This library adds new PyTorch Lightning plugins for distributed training using the Ray distributed computing framework.
+This library adds new PyTorch Lightning strategies for distributed training using the Ray distributed computing framework.
 
-These PyTorch Lightning Plugins on Ray enable quick and easy parallel training while still leveraging all the benefits of PyTorch Lightning and using your desired training protocol, either [PyTorch Distributed Data Parallel](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) or [Horovod](https://github.com/horovod/horovod). 
+These PyTorch Lightning strategies on Ray enable quick and easy parallel training while still leveraging all the benefits of PyTorch Lightning and using your desired training protocol, either [PyTorch Distributed Data Parallel](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) or [Horovod](https://github.com/horovod/horovod). 
 
-Once you add your plugin to the PyTorch Lightning Trainer, you can parallelize training to all the cores in your laptop, or across a massive multi-node, multi-GPU cluster with no additional code changes.
+Once you add your strategy to the PyTorch Lightning Trainer, you can parallelize training to all the cores in your laptop, or across a massive multi-node, multi-GPU cluster with no additional code changes.
 
 This library also comes with an integration with <!--$UNCOMMENT{ref}`Ray Tune <tune-main>`--><!--$REMOVE-->[Ray Tune](https://tune.io)<!--$END_REMOVE--> for distributed hyperparameter tuning experiments.
 
 <!--$REMOVE-->
 # Table of Contents
-1. [Installation](#installation)
-2. [PyTorch Lightning Compatibility](#pytorch-lightning-compatibility)
-3. [PyTorch Distributed Data Parallel Plugin on Ray](#pytorch-distributed-data-parallel-plugin-on-ray)
-4. [Multi-Node Distributed Training](#multinode-distributed-training)
-5. [Multi-Node Training from your Laptop](#multinode-training-from-your-laptop)
-5. [Horovod Plugin on Ray](#horovod-plugin-on-ray)
-6. [Model Parallel Sharded Training on Ray](#model-parallel-sharded-training-on-ray)
-7. [Hyperparameter Tuning with Ray Tune](#hyperparameter-tuning-with-ray-tune)
-8. [FAQ](#faq)
+- [Distributed PyTorch Lightning Training on Ray](#distributed-pytorch-lightning-training-on-ray)
+- [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [PyTorch Lightning Compatibility](#pytorch-lightning-compatibility)
+  - [PyTorch Distributed Data Parallel Strategy on Ray](#pytorch-distributed-data-parallel-strategy-on-ray)
+  - [Multi-node Distributed Training](#multi-node-distributed-training)
+  - [Multi-node Training from your Laptop](#multi-node-training-from-your-laptop)
+  - [Horovod Strategy on Ray](#horovod-strategy-on-ray)
+  - [Model Parallel Sharded Training on Ray](#model-parallel-sharded-training-on-ray)
+  - [Hyperparameter Tuning with Ray Tune](#hyperparameter-tuning-with-ray-tune)
+  - [FAQ](#faq)
 <!--$END_REMOVE-->
 
 
@@ -42,26 +44,26 @@ Here are the supported PyTorch Lightning versions:
 | master | 1.5 |
 
 
-## PyTorch Distributed Data Parallel Plugin on Ray
-The `RayPlugin` provides Distributed Data Parallel training on a Ray cluster. PyTorch DDP is used as the distributed training protocol, and Ray is used to launch and manage the training worker processes.
+## PyTorch Distributed Data Parallel Strategy on Ray
+The `RayStrategy` provides Distributed Data Parallel training on a Ray cluster. PyTorch DDP is used as the distributed training protocol, and Ray is used to launch and manage the training worker processes.
 
 Here is a simplified example:
 
 ```python
 import pytorch_lightning as pl
-from ray_lightning import RayPlugin
+from ray_lightning import RayStrategy
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
-plugin = RayPlugin(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
+strategy = RayStrategy(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
-trainer = pl.Trainer(..., plugins=[plugin])
+trainer = pl.Trainer(..., strategy=[strategy])
 trainer.fit(ptl_model)
 ```
 
-Because Ray is used to launch processes, instead of the same script being called multiple times, you CAN use this plugin even in cases when you cannot use the standard `DDPPlugin` such as 
+Because Ray is used to launch processes, instead of the same script being called multiple times, you CAN use this strategy even in cases when you cannot use the standard `DDPStrategy` such as 
 - Jupyter Notebooks, Google Colab, Kaggle
 - Calling `fit` or `test` multiple times in the same script
 
@@ -94,40 +96,40 @@ Now you can run your training script on the laptop, but have it execute as if yo
 
 **Note:** When using with Ray Client, you must disable checkpointing and logging for your Trainer by setting `checkpoint_callback` and `logger` to `False`.
 
-## Horovod Plugin on Ray
-Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayPlugin` instead.
+## Horovod Strategy on Ray
+Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayStrategy` instead.
 
 ```python
 import pytorch_lightning as pl
-from ray_lightning import HorovodRayPlugin
+from ray_lightning import HorovodRayStrategy
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
 
 # 2 workers, 1 CPU and 1 GPU each.
-plugin = HorovodRayPlugin(num_workers=2, use_gpu=True)
+strategy = HorovodRayStrategy(num_workers=2, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
-trainer = pl.Trainer(..., plugins=[plugin])
+trainer = pl.Trainer(..., strategy=[strategy])
 trainer.fit(ptl_model)
 ```
 
 ## Model Parallel Sharded Training on Ray
-The `RayShardedPlugin` integrates with [FairScale](https://github.com/facebookresearch/fairscale) to provide sharded DDP training on a Ray cluster.
+The `RayShardedStrategy` integrates with [FairScale](https://github.com/facebookresearch/fairscale) to provide sharded DDP training on a Ray cluster.
 With sharded training, leverage the scalability of data parallel training while drastically reducing memory usage when training large models.
 
 ```python
 import pytorch_lightning as pl
-from ray_lightning import RayShardedPlugin
+from ray_lightning import RayShardedStrategy
 
 # Create your PyTorch Lightning model here.
 ptl_model = MNISTClassifier(...)
-plugin = RayShardedPlugin(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
+strategy = RayShardedStrategy(num_workers=4, num_cpus_per_worker=1, use_gpu=True)
 
 # Don't set ``gpus`` in the ``Trainer``.
 # The actual number of GPUs is determined by ``num_workers``.
-trainer = pl.Trainer(..., plugins=[plugin])
+trainer = pl.Trainer(..., strategy=[strategy])
 trainer.fit(ptl_model)
 ```
 See the [Pytorch Lightning docs](https://pytorch-lightning.readthedocs.io/en/stable/advanced/model_parallel.html#sharded-training) for more information on sharded training.
@@ -140,7 +142,7 @@ Example using `ray_lightning` with Tune:
 ```python
 from ray import tune
 
-from ray_lightning import RayPlugin
+from ray_lightning import RayStrategy
 from ray_lightning.examples.ray_ddp_example import MNISTClassifier
 from ray_lightning.tune import TuneReportCallback, get_tune_resources
 
@@ -159,7 +161,7 @@ def train_mnist(config):
     trainer = pl.Trainer(
         max_epochs=4,
         callbacks=callbacks,
-        plugins=[RayPlugin(num_workers=4, use_gpu=False)])
+        strategy=[RayStrategy(num_workers=4, use_gpu=False)])
     trainer.fit(model)
     
 config = {
@@ -184,26 +186,26 @@ print("Best hyperparameters found were: ", analysis.best_config)
 **Note:** Ray Tune requires 1 additional CPU per trial to use for the Trainable driver. So the actual number of resources each trial requires is `num_workers * num_cpus_per_worker + 1`.
 
 ## FAQ
-> I see that `RayPlugin` is based off of Pytorch Lightning's `DDPSpawnPlugin`. However, doesn't the PTL team discourage the use of spawn?
+> I see that `RayStrategy` is based off of Pytorch Lightning's `DDPSpawnStrategy`. However, doesn't the PTL team discourage the use of spawn?
 
 As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment-773539003), using a spawn approach instead of launch is not all that detrimental. The original factors for discouraging spawn were:
 1. not being able to use 'spawn' in a Jupyter or Colab notebook, and 
 2. not being able to use multiple workers for data loading. 
 
-Neither of these should be an issue with the `RayPlugin` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this plugin, your model does have to be serializable/pickleable.
+Neither of these should be an issue with the `RayStrategy` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this strategy, your model does have to be serializable/pickleable.
 
 <!--$UNCOMMENT## API Reference
 
 ```{eval-rst}
-.. autoclass:: ray_lightning.RayPlugin
+.. autoclass:: ray_lightning.RayStrategy
 ```
 
 ```{eval-rst}
-.. autoclass:: ray_lightning.HorovodRayPlugin
+.. autoclass:: ray_lightning.HorovodRayStrategy
 ```
 
 ```{eval-rst}
-.. autoclass:: ray_lightning.RayShardedPlugin
+.. autoclass:: ray_lightning.RayShardedStrategy
 ```
 
 

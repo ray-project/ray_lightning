@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 import pytorch_lightning as pl
-from pytorch_lightning.plugins import PLUGIN_INPUT
+from pytorch_lightning.strategies import PLUGIN_INPUT
 from pytorch_lightning import LightningModule, Callback, Trainer, \
     LightningDataModule
 
