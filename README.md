@@ -194,6 +194,21 @@ As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment
 
 Neither of these should be an issue with the `RayStrategy` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this strategy, your model does have to be serializable/pickleable.
 
+> Horovod installation issue: 
+> ```
+> Extension horovod.torch has not been built: /home/ubuntu/anaconda3/envs/tensorflow2_p38/lib/python3.8/site-packages/horovod/torch/mpi_lib/_mpi_lib.cpython-38-x86_64-linux-gnu.so not found
+> If this is not expected, reinstall Horovod with HOROVOD_WITH_PYTORCH=1 to debug the build error.
+>Warning! MPI libs are missing, but python applications are still avaiable.
+> ```
+
+One might fix this issue by 
+```python
+$ pip uninstall -y horovod
+$ conda install gcc_linux-64 gxx_linux-64
+$ [flags] pip install --no-cache-dir horovod
+```
+
+from [here](https://github.com/horovod/horovod/issues/656), [here](https://github.com/tlkh/ai-lab/issues/27) and [here](https://horovod.readthedocs.io/en/stable/install_include.html)
 <!--$UNCOMMENT## API Reference
 
 ```{eval-rst}
