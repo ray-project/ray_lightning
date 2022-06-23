@@ -131,6 +131,7 @@ jobs:
           pushd ray_lightning/tests
           python -m pytest -v --durations=0 -x test_ddp.py
           python -m pytest -v --durations=0 -x test_ddp_sharded.py
+          python -m pytest -v --durations=0 -x test_lightning_cli.py
 
   test_linux_ray_release_2:
     runs-on: ubuntu-latest
