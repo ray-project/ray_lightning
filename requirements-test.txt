@@ -10,4 +10,4 @@ ray[tune]
 torch==1.8.1
 torchmetrics
 torchvision
-protobuf<=3.20.1
+protobuf<4.21.3
