@@ -53,7 +53,7 @@ def train(data_dir, num_workers, use_gpu, batch_size, embed_dim, max_epochs,
         with FileLock(os.path.join(data_dir, ".lock")):
             MNISTDataModule(data_dir=data_dir).prepare_data()
 
-    strategygygy = RayShardedPlugin(
+    strategy = RayShardedPlugin(
         num_workers=num_workers, use_gpu=use_gpu, init_hook=download_data)
 
     dm = MNISTDataModule(data_dir, batch_size=batch_size)
@@ -65,7 +65,7 @@ def train(data_dir, num_workers, use_gpu, batch_size, embed_dim, max_epochs,
         max_epochs=max_epochs,
         precision=16 if use_gpu else 32,
         callbacks=[CUDACallback()] if use_gpu else [],
-        strategiesies=strategygygy,
+        strategy=strategy,
         max_steps=max_steps)
 
     trainer.fit(model, dm)
