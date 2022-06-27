@@ -209,6 +209,37 @@ $ [flags] pip install --no-cache-dir horovod
 ```
 
 from [here](https://github.com/horovod/horovod/issues/656), [here](https://github.com/tlkh/ai-lab/issues/27) and [here](https://horovod.readthedocs.io/en/stable/install_include.html)
+
+- install horovod from scratch with torch 
+
+```python
+conda create -n hd python=3.8 scipy numpy pandas -y
+conda activate hd
+conda install pytorch=1.11 torchvision torchaudio cudatoolkit=11.3 -c pytorch -y
+sudo rm -rf /usr/local/cuda
+sudo ln -s /usr/local/cuda-11.3 /usr/local/cuda
+conda install gxx_linux-64 -y
+conda install cxx-compiler=1.0 -y
+export TORCH_CUDA_ARCH_LIST="3.7;5.0;6.0;7.0;7.5;8.0"
+echo $TORCH_CUDA_ARCH_LIST
+sudo apt-get purge -y cmake
+wget -q https://github.com/Kitware/CMake/releases/download/v3.20.2/cmake-3.20.2.tar.gz
+tar -zxvf cmake-3.20.2.tar.gz
+cd cmake-3.20.2
+./bootstrap -- -DCMAKE_USE_OPENSSL=OFF
+make -j10
+sudo make install
+cmake --version
+export CUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda
+export HOROVOD_NCCL_HOME=/usr/local/cuda/
+export HOROVOD_NCCL_INCLUDE=/usr/local/cuda/include
+export TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST//";8.0"/}
+export HOROVOD_BUILD_CUDA_CC_LIST=${TORCH_CUDA_ARCH_LIST//";"/","}
+export HOROVOD_BUILD_CUDA_CC_LIST=${HOROVOD_BUILD_CUDA_CC_LIST//"."/""}
+export PATH=/usr/local/cuda/bin/:$PATH
+export HOROVOD_NCCL_LIB=/usr/local/cuda/lib/
+HOROVOD_NCCL_HOME=/usr/local/cuda HOROVOD_GPU_OPERATIONS=NCCL HOROVOD_WITH_PYTORCH=1 HOROVOD_WITHOUT_TENSORFLOW=1  HOROVOD_WITHOUT_MXNET=1 HOROVOD_WITHOUT_GLOO=1 pip install --no-cache-dir horovod
+```
 <!--$UNCOMMENT## API Reference
 
 ```{eval-rst}
