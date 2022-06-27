@@ -18,7 +18,7 @@ from ray_lightning import RayLauncher
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.accelerators import CPUAccelerator
-from pytorch_lightning.strategies import HorovodPlugin
+from pytorch_lightning.strategies import HorovodStrategy
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 import ray
@@ -49,8 +49,8 @@ def get_executable_cls():
 
 
 @PublicAPI(stability="beta")
-class HorovodRayPlugin(HorovodPlugin):
-    """Pytorch Lightning Plugin for Horovod training on a Ray cluster.
+class HorovodRayStrategy(HorovodStrategy):
+    """Pytorch Lightning Strategy for Horovod training on a Ray cluster.
 
     This strategy is used to manage distributed training on a Ray cluster
     via the Horovod training framework. Internally, the specified number of
@@ -88,6 +88,7 @@ class HorovodRayPlugin(HorovodPlugin):
             trainer.fit(ptl_model)
 
     """
+    strategy_name = "horovod_ray"
 
     def __init__(self,
                  num_workers: int,
@@ -99,7 +100,6 @@ class HorovodRayPlugin(HorovodPlugin):
         if not ray.is_initialized():
             ray.init()
         super().__init__()
-        self.nickname = "horovod_ray"
         self.num_workers = num_workers
         self.cpus_per_worker = num_cpus_per_worker
         self.use_gpu = use_gpu
@@ -142,105 +142,16 @@ class HorovodRayPlugin(HorovodPlugin):
             use_gpu=self.use_gpu)
         self.executor.start(executable_cls=get_executable_cls())
 
-    def setup_environment(self) -> None:
-        # Swap out the accelerator if necessary.
-        # This is needed to support CPU head with GPU workers or Ray Client.
-        current_accelerator = self.lightning_module.trainer.accelerator
-        if self.use_gpu and isinstance(current_accelerator, CPUAccelerator):
-            from weakref import proxy
-            from ray_lightning.util import DelayedGPUAccelerator
-            precision_plugin = current_accelerator.precision_plugin
-            new_accelerator = DelayedGPUAccelerator(
-                precision_plugin=precision_plugin, training_type_plugin=self)
-            self.lightning_module.trainer._accelerator_connector \
-                ._training_type_plugin = \
-                proxy(new_accelerator.training_type_plugin)
-            self.lightning_module.trainer._accelerator_connector \
-                ._precision_plugin = proxy(new_accelerator.precision_plugin)
-            self.lightning_module.trainer._accelerator_connector.accelerator \
-                = new_accelerator
-
-    def pre_dispatch(self):
-        """All pre-dispatch logic should be done in train_remote instead."""
-        pass
-
-    def start_training(self, trainer):
-        """Main training loop.
-
-        Trigger remote training via ``train_remote`` on each
-        worker. If using with Ray Tune, create a communication queue to
-        retrieve intermediate results, and process those results. Finally
-        retrieve the training results from the rank 0 worker and return."""
-        model = self._model
-        model_ref = ray.put(model)
-        # Don't pickle the model when training remotely.
-        self._model = None
-
-        queue = None
-        if TUNE_INSTALLED and is_session_enabled():
-            # Create communication queue and send to all the workers.
-            queue = Queue(actor_options={"num_cpus": 0})
-
-        result_futures = self.executor.run_remote(
-            self.train_remote, args=[model_ref, queue])
-
-        results = process_results(result_futures, queue)
-
-        results, state_stream, best_path = results[0]
-        state_dict = load_state_stream(state_stream, to_gpu=self.use_gpu)
-        self._results = results
-        self._model = model
-        self._model.load_state_dict(state_dict)
-        self._model.trainer.accelerator.training_type_plugin = self
-        if self.lightning_module.trainer.checkpoint_callback:
-            self.lightning_module.trainer.checkpoint_callback \
-                .best_model_path = best_path
-
-        if queue:
-            # Shutdown the queue.
-            queue.shutdown()
-
-        return results
-
-    def train_remote(self, model: ObjectRef, queue: Queue = None, **kwargs):
-        """Training function to be executed on each remote worker."""
-        self._model = ray.get(model)
-        self.lightning_module.trainer._accelerator_connector\
-            ._training_type_plugin = self
-        self.lightning_module.trainer._accelerator_connector.accelerator\
-            .training_type_plugin = self
-
-        hvd.init()
-        rank_zero_only.rank = self.global_rank
-
-        if queue is not None:
-            # Initialize session.
-            init_session(rank=self.global_rank, queue=queue)
-
-        # Move the model to the appropriate device.
-        super(HorovodRayPlugin, self).model_to_device()
-
-        # TODO: Make changes in PTL to clean this up.
-        super(HorovodRayPlugin, self).pre_dispatch()
-        results = super(HorovodRayPlugin,
-                        self).start_training(self.lightning_module.trainer)
-        if self.global_rank != 0:
-            # Only want results from the first worker.
-            return None
-
-        best_model_path = None
-        if self.lightning_module.trainer.checkpoint_callback is not None:
-            best_model_path = \
-                self.lightning_module.trainer.checkpoint_callback\
-                    .best_model_path
-
-        return results, to_state_stream(self.lightning_module.state_dict()), \
-            best_model_path
-
-    def post_dispatch(self, trainer: "pl.Trainer"):
-        """Shuts down the RayExecutor."""
+    def teardown(self) -> None:
+        # teardown may be called before `_exit_stack` is set
+        if self._exit_stack:
+            self._exit_stack.__exit__(None, None, None)
+            self._exit_stack = None
+        # Make sure all workers have finished training before returning to the user
+        self.join()
         self.executor.shutdown()
-
+        super().teardown()
+        
     @property
     def is_distributed(self):
         return True
