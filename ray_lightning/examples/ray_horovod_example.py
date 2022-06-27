@@ -73,8 +73,7 @@ def train_mnist(config,
     trainer = pl.Trainer(
         max_epochs=num_epochs,
         callbacks=callbacks,
-        strategy=HorovodRayStrategy(num_workers=num_workers, use_gpu=use_gpu)
-    )
+        strategy=HorovodRayStrategy(num_workers=num_workers, use_gpu=use_gpu))
     trainer.fit(model)
 
 

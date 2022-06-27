@@ -15,7 +15,6 @@ from ray.util import PublicAPI
 
 from ray_lightning import RayLauncher
 
-
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.accelerators import CPUAccelerator

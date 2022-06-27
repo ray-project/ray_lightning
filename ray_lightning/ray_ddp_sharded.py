@@ -21,7 +21,6 @@ else:
     OSS = ShardedDataParallel = object
 
 
-
 # C3 linearization of parent classes will do breadth first since both
 # RayStrategy and DDPSpawnShardedStrategy share a common parent of DDPSpawnStrategy
 @PublicAPI(stability="beta")
