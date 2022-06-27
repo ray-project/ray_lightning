@@ -240,6 +240,8 @@ export PATH=/usr/local/cuda/bin/:$PATH
 export HOROVOD_NCCL_LIB=/usr/local/cuda/lib/
 HOROVOD_NCCL_HOME=/usr/local/cuda HOROVOD_GPU_OPERATIONS=NCCL HOROVOD_WITH_PYTORCH=1 HOROVOD_WITHOUT_TENSORFLOW=1  HOROVOD_WITHOUT_MXNET=1 HOROVOD_WITHOUT_GLOO=1 pip install --no-cache-dir horovod
 ```
+
+[reference 1](https://stackoverflow.com/questions/54948216/usr-lib-x86-64-linux-gnu-libstdc-so-6-version-glibcxx-3-4-21-not-found-req) and [reference 2](https://github.com/horovod/horovod/issues/401) and [reference 3](https://github.com/Lightning-AI/lightning/issues/4472) and [reference 4](https://github.com/horovod/horovod/issues/2276) and [reference 5](https://github.com/Lightning-AI/lightning/blob/master/dockers/base-cuda/Dockerfile#L105-L121) and [reference 6](https://horovod.readthedocs.io/en/stable/gpus_include.html) and [reference 7](https://horovod.readthedocs.io/en/stable/conda_include.html) and [reference 8](https://github.com/horovod/horovod/issues/3545) and [reference 9](https://github.com/KAUST-CTL/horovod-gpu-data-science-project) and [reference 10](https://kose-y.github.io/blog/2017/12/installing-cuda-aware-mpi/)
 <!--$UNCOMMENT## API Reference
 
 ```{eval-rst}
