@@ -43,6 +43,7 @@ else:
 
 from ray_lightning.ray_horovod_launcher import RayHorovodLauncher
 
+
 def get_executable_cls():
     # Only used for testing purposes, currently.
     # We need to override this in tests to ensure test path is set correctly.
@@ -124,7 +125,7 @@ class HorovodRayStrategy(HorovodStrategy):
             use_gpu=self.use_gpu)
         self.executor.start(executable_cls=get_executable_cls())
         self._launcher = RayHorovodLauncher(self, self.executor)
-        
+
     def teardown(self) -> None:
         # teardown may be called before `_exit_stack` is set
         if self._exit_stack:
@@ -134,7 +135,7 @@ class HorovodRayStrategy(HorovodStrategy):
         self.join()
         self.executor.shutdown()
         super().teardown()
-        
+
     @property
     def is_distributed(self):
         return True

@@ -22,7 +22,6 @@ from pytorch_lightning.utilities.model_helpers import is_overridden
 
 from pytorch_lightning.strategies.launchers.spawn import _FakeQueue, _SpawnOutput
 
-
 try:
     import horovod.torch as hvd
     from horovod.ray import RayExecutor
@@ -34,12 +33,12 @@ else:
     HOROVOD_AVAILABLE = True
 
 
-
 class RayHorovodLauncher(_Launcher):
-    def __init__(self, strategy: "RayStrategy", executor: "HorovodRay") -> None:
+    def __init__(self, strategy: "RayStrategy",
+                 executor: "HorovodRay") -> None:
         self._strategy = strategy
         self._executor = executor
-        
+
         if not ray.is_initialized():
             ray.init()
 
@@ -69,7 +68,7 @@ class RayHorovodLauncher(_Launcher):
         if not hvd.is_initialized():
             return self.num_workers
         return hvd.size()
-    
+
     def is_interactive_compatible(self) -> bool:
         return True
 
@@ -95,18 +94,18 @@ class RayHorovodLauncher(_Launcher):
                                 *args: Any,
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
-        
-        def _func(): 
-            return self._wrapping_function(trainer, function, args, kwargs, self.tune_queue)
-        
+        def _func():
+            return self._wrapping_function(trainer, function, args, kwargs,
+                                           self.tune_queue)
+
         self._futures = self._executor.run_remote(_func)
-        
+
         results = process_results(self._futures, self.tune_queue)
         return results[0]
 
     def _wrapping_function(
             self,
-            # global_rank: int, # do i need this? 
+            # global_rank: int, # do i need this?
             trainer: Optional["pl.Trainer"],
             function: Callable,
             args: Any,
@@ -186,4 +185,3 @@ class RayHorovodLauncher(_Launcher):
             # TODO: Remove the if in v1.7
             trainer.lightning_module.get_from_queue(spawn_output.extra)
         self.get_from_queue(trainer, spawn_output.extra)
-
