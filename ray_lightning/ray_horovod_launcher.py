@@ -32,6 +32,8 @@ except (ModuleNotFoundError, ImportError):
 else:
     HOROVOD_AVAILABLE = True
 
+from pytorch_lightning.utilities import rank_zero_only
+
 
 class RayHorovodLauncher(_Launcher):
     def __init__(self, strategy: "RayStrategy",
@@ -105,7 +107,6 @@ class RayHorovodLauncher(_Launcher):
 
     def _wrapping_function(
             self,
-            # global_rank: int, # do i need this?
             trainer: Optional["pl.Trainer"],
             function: Callable,
             args: Any,
