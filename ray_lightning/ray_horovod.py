@@ -41,6 +41,7 @@ except (ModuleNotFoundError, ImportError):
 else:
     HOROVOD_AVAILABLE = True
 
+from ray_lightning.ray_horovod_launcher import RayHorovodLauncher
 
 def get_executable_cls():
     # Only used for testing purposes, currently.
@@ -114,26 +115,7 @@ class HorovodRayStrategy(HorovodStrategy):
         d["executor"] = None
         self.__dict__.update(d)
 
-    @property
-    def global_rank(self) -> int:
-        if not hvd.is_initialized():
-            return 0
-        return hvd.rank()
-
-    @property
-    def local_rank(self) -> int:
-        if not hvd.is_initialized():
-            return 0
-        return hvd.local_rank()
-
-    @property
-    def world_size(self) -> int:
-        if not hvd.is_initialized():
-            return self.num_workers
-        return hvd.size()
-
-    def setup(self):
-        """Creates the RayExecutor object."""
+    def _configure_launcher(self):
         settings = RayExecutor.create_settings(timeout_s=30)
         self.executor = RayExecutor(
             settings,
@@ -141,7 +123,8 @@ class HorovodRayStrategy(HorovodStrategy):
             cpus_per_worker=self.cpus_per_worker,
             use_gpu=self.use_gpu)
         self.executor.start(executable_cls=get_executable_cls())
-
+        self._launcher = RayHorovodLauncher(self, self.executor)
+        
     def teardown(self) -> None:
         # teardown may be called before `_exit_stack` is set
         if self._exit_stack:
