@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 import pytorch_lightning as pl
-from pytorch_lightning.strategies import PLUGIN_INPUT
+from pytorch_lightning.strategies import Strategy
 from pytorch_lightning import LightningModule, Callback, Trainer, \
     LightningDataModule
 
@@ -211,7 +211,7 @@ class XORDataModule(LightningDataModule):
 
 
 def get_trainer(dir,
-                strategy: PLUGIN_INPUT,
+                strategy: Strategy,
                 max_epochs: int = 1,
                 limit_train_batches: int = 10,
                 limit_val_batches: int = 10,
