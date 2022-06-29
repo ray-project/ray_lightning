@@ -41,7 +41,7 @@ except (ModuleNotFoundError, ImportError):
 else:
     HOROVOD_AVAILABLE = True
 
-from ray_lightning.ray_horovod_launcher import RayHorovodLauncher
+from ray_lightning.launchers import RayHorovodLauncher
 
 
 from ray.util.check_serialize import inspect_serializability
