@@ -34,6 +34,14 @@ else:
 
 from pytorch_lightning.utilities import rank_zero_only
 
+from ray.util.check_serialize import inspect_serializability
+
+
+def get_executable_cls():
+    # Only used for testing purposes, currently.
+    # We need to override this in tests to ensure test path is set correctly.
+    return None
+
 
 class RayHorovodLauncher(_Launcher):
     def __init__(self, strategy: "RayStrategy",
@@ -43,15 +51,17 @@ class RayHorovodLauncher(_Launcher):
 
         if not ray.is_initialized():
             ray.init()
+        
+        self.tune_queue = None
 
-    def __getstate__(self):
-        d = self.__dict__.copy()
-        del d["executor"]
-        return d
+    # def __getstate__(self):
+    #     d = self.__dict__.copy()
+    #     del d["executor"]
+    #     return d
 
-    def __setstate__(self, d):
-        d["executor"] = None
-        self.__dict__.update(d)
+    # def __setstate__(self, d):
+    #     d["executor"] = None
+    #     self.__dict__.update(d)
 
     @property
     def global_rank(self) -> int:
@@ -79,7 +89,6 @@ class RayHorovodLauncher(_Launcher):
                *args: Any,
                trainer: Optional["pl.Trainer"] = None,
                **kwargs: Any) -> Any:
-        self.setup_workers()
         spawn_output = self.run_function_on_workers(
             function, *args, trainer=trainer, **kwargs)
 
@@ -96,14 +105,81 @@ class RayHorovodLauncher(_Launcher):
                                 *args: Any,
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
+
+        print(self.tune_queue)
+        # def _func():
+        #     return self._wrapping_function(trainer, function, args, kwargs,
+        #                                    self.tune_queue)
+
+        # inspect_serializability(self._wrapping_function, depth=10)
+        
+        from icecream import ic 
+        # ic(trainer, function, args)
+        ic(self.__dict__)
+
+
+        inspect_serializability(self._strategy, depth=10)
+        inspect_serializability(self._executor, depth=10)
+
+        executor = self._executor
+        self._executor = None
+        self._strategy.executor = None 
+        executor.start(executable_cls=get_executable_cls())
+
+        inspect_serializability(self._strategy, depth=10)
+        print(self._executor)
+        inspect_serializability(self._executor, depth=10)
+
+        # self._futures = executor.run_remote(self._wrapping_function, args = [trainer, function, args, self.tune_queue], kwargs = kwargs)
+        hvd.init()
+        print(function(*args, **kwargs))
+
         def _func():
             return self._wrapping_function(trainer, function, args, kwargs,
                                            self.tune_queue)
+        self._futures = executor.run_remote(_func)
 
-        self._futures = self._executor.run_remote(_func)
+        self._executor = executor
+        self._strategy.executor = executor
+
+        
+        print('dasdas')
+        print(self._futures)
+        print(ray.get(self._futures))
 
         results = process_results(self._futures, self.tune_queue)
+        print('dasdas')
+
+        executor.shutdown()
         return results[0]
+
+
+    # def _wrapping_function(
+    #         self,
+    #         args: Any,
+    #         kwargs: Any,
+    # ) -> Any:
+    #     trainer, function, args, tune_queue = args
+    #     self._strategy.set_remote(True)
+
+    #     hvd.init()
+    #     rank_zero_only.rank = self.global_rank
+
+    #     if tune_queue is not None:
+    #         # Initialize session.
+    #         init_session(rank=self.global_rank, queue=tune_queue)
+
+    #     results = function(*args, **kwargs)
+
+    #     if trainer is not None:
+    #         results = self._collect_rank_zero_results(function.__self__,
+    #                                                   results)
+
+    #     if self.local_rank == 0:
+    #         return move_data_to_device(results, "cpu")
+
+    #     return None
+
 
     def _wrapping_function(
             self,
