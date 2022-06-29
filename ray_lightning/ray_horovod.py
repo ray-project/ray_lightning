@@ -17,7 +17,7 @@ from ray.util import PublicAPI
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.accelerators import CPUAccelerator
-from pytorch_lightning.strategies import HorovodStrategy
+from pytorch_lightning.strategies import HorovodStrategy, ParallelStrategy
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 import ray
