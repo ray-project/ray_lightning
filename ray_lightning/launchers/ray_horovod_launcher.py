@@ -106,33 +106,10 @@ class RayHorovodLauncher(_Launcher):
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
 
-        print(self.tune_queue)
-        # def _func():
-        #     return self._wrapping_function(trainer, function, args, kwargs,
-        #                                    self.tune_queue)
-
-        # inspect_serializability(self._wrapping_function, depth=10)
-        
-        from icecream import ic 
-        # ic(trainer, function, args)
-        ic(self.__dict__)
-
-
-        inspect_serializability(self._strategy, depth=10)
-        inspect_serializability(self._executor, depth=10)
-
         executor = self._executor
         self._executor = None
         self._strategy.executor = None 
         executor.start(executable_cls=get_executable_cls())
-
-        inspect_serializability(self._strategy, depth=10)
-        print(self._executor)
-        inspect_serializability(self._executor, depth=10)
-
-        # self._futures = executor.run_remote(self._wrapping_function, args = [trainer, function, args, self.tune_queue], kwargs = kwargs)
-        hvd.init()
-        print(function(*args, **kwargs))
 
         def _func():
             return self._wrapping_function(trainer, function, args, kwargs,
@@ -142,44 +119,10 @@ class RayHorovodLauncher(_Launcher):
         self._executor = executor
         self._strategy.executor = executor
 
-        
-        print('dasdas')
-        print(self._futures)
-        print(ray.get(self._futures))
-
-        results = process_results(self._futures, self.tune_queue)
-        print('dasdas')
 
         executor.shutdown()
+        results = process_results(self._futures, self.tune_queue)
         return results[0]
-
-
-    # def _wrapping_function(
-    #         self,
-    #         args: Any,
-    #         kwargs: Any,
-    # ) -> Any:
-    #     trainer, function, args, tune_queue = args
-    #     self._strategy.set_remote(True)
-
-    #     hvd.init()
-    #     rank_zero_only.rank = self.global_rank
-
-    #     if tune_queue is not None:
-    #         # Initialize session.
-    #         init_session(rank=self.global_rank, queue=tune_queue)
-
-    #     results = function(*args, **kwargs)
-
-    #     if trainer is not None:
-    #         results = self._collect_rank_zero_results(function.__self__,
-    #                                                   results)
-
-    #     if self.local_rank == 0:
-    #         return move_data_to_device(results, "cpu")
-
-    #     return None
-
 
     def _wrapping_function(
             self,

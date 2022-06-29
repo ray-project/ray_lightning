@@ -128,10 +128,7 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
             num_workers=self.num_workers,
             cpus_per_worker=self.cpus_per_worker,
             use_gpu=self.use_gpu)
-        # self.executor.start(executable_cls=get_executable_cls())
 
-        inspect_serializability(self.executor)
-        # exit()
         self._launcher = RayHorovodLauncher(self, self.executor)
 
     def teardown(self) -> None:
