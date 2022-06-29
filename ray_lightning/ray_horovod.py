@@ -44,6 +44,8 @@ else:
 from ray_lightning.ray_horovod_launcher import RayHorovodLauncher
 
 
+from ray.util.check_serialize import inspect_serializability
+
 def get_executable_cls():
     # Only used for testing purposes, currently.
     # We need to override this in tests to ensure test path is set correctly.
@@ -51,7 +53,7 @@ def get_executable_cls():
 
 
 @PublicAPI(stability="beta")
-class HorovodRayStrategy(HorovodStrategy):
+class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
     """Pytorch Lightning Strategy for Horovod training on a Ray cluster.
 
     This strategy is used to manage distributed training on a Ray cluster
@@ -101,20 +103,24 @@ class HorovodRayStrategy(HorovodStrategy):
             raise RuntimeError("Please intall Horovod to use this strategy.")
         if not ray.is_initialized():
             ray.init()
-        super().__init__()
+        # super().__init__()
+        ParallelStrategy.__init__(self, accelerator='gpu' if use_gpu else 'cpu')
         self.num_workers = num_workers
         self.cpus_per_worker = num_cpus_per_worker
         self.use_gpu = use_gpu
         self.executor = None
+        self._exit_stack = None 
 
-    def __getstate__(self):
-        d = self.__dict__.copy()
-        del d["executor"]
-        return d
+        self._is_remote = False
 
-    def __setstate__(self, d):
-        d["executor"] = None
-        self.__dict__.update(d)
+    # def __getstate__(self):
+    #     d = self.__dict__.copy()
+    #     del d["executor"]
+    #     return d
+
+    # def __setstate__(self, d):
+    #     d["executor"] = None
+    #     self.__dict__.update(d)
 
     def _configure_launcher(self):
         settings = RayExecutor.create_settings(timeout_s=30)
@@ -123,22 +129,28 @@ class HorovodRayStrategy(HorovodStrategy):
             num_workers=self.num_workers,
             cpus_per_worker=self.cpus_per_worker,
             use_gpu=self.use_gpu)
-        self.executor.start(executable_cls=get_executable_cls())
+        # self.executor.start(executable_cls=get_executable_cls())
+
+        inspect_serializability(self.executor)
+        # exit()
         self._launcher = RayHorovodLauncher(self, self.executor)
 
     def teardown(self) -> None:
         # teardown may be called before `_exit_stack` is set
-        if self._exit_stack:
-            self._exit_stack.__exit__(None, None, None)
-            self._exit_stack = None
+        # if self._exit_stack:
+        #     self._exit_stack.__exit__(None, None, None)
+        #     self._exit_stack = None
         # Make sure all workers have finished training before returning to the user
         self.join()
-        self.executor.shutdown()
+        # self.executor.shutdown()
         super().teardown()
 
     @property
     def is_distributed(self):
         return True
+
+    def set_remote(self, remote: bool):
+        self._is_remote = remote
 
     @property
     def root_device(self):
