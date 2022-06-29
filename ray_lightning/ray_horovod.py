@@ -13,7 +13,6 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from pytorch_lightning.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
 
-from ray_lightning import RayLauncher
 
 import torch
 import pytorch_lightning as pl
