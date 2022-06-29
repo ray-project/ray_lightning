@@ -121,7 +121,7 @@ class RayHorovodLauncher(_Launcher):
 
 
         executor.shutdown()
-        results = process_results(self._futures, self.tune_queue)
+        # results = process_results(self._futures, self.tune_queue)
         return results[0]
 
     def _wrapping_function(
