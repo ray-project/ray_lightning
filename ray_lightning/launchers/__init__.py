@@ -1,5 +1,5 @@
-from ray_lightning.ray_launcher import RayLauncher
-from ray_lightning.ray_horovod_launcher import RayHorovodLauncher
+from ray_lightning.launchers.ray_launcher import RayLauncher
+from ray_lightning.launchers.ray_horovod_launcher import RayHorovodLauncher
 
 
 
