@@ -206,3 +206,27 @@ class RayHorovodLauncher(_Launcher):
             # TODO: Remove the if in v1.7
             trainer.lightning_module.get_from_queue(spawn_output.extra)
         self.get_from_queue(trainer, spawn_output.extra)
+
+
+    def add_to_queue(self, trainer: "pl.Trainer", queue: "_FakeQueue") -> None:
+        """Appends the :attr:`trainer.callback_metrics` dictionary to the given queue. To avoid issues with memory
+        sharing, we cast the data to numpy.
+        Args:
+            trainer: reference to the Trainer.
+            queue: the instance of the queue to append the data.
+        """
+        callback_metrics: dict = apply_to_collection(
+            trainer.callback_metrics, Tensor, lambda x: x.cpu().numpy()
+        )  # send as numpy to avoid issues with memory sharing
+        queue.put(callback_metrics)
+
+    def get_from_queue(self, trainer: "pl.Trainer", queue: "_FakeQueue") -> None:
+        """Retrieve the :attr:`trainer.callback_metrics` dictionary from the given queue. To preserve consistency,
+        we cast back the data to ``torch.Tensor``.
+        Args:
+            trainer: reference to the Trainer.
+            queue: the instance of the queue from where to get the data.
+        """
+        # NOTE: `add_to_queue` needs to be called before
+        callback_metrics: dict = queue.get()
+        trainer.callback_metrics.update(apply_to_collection(callback_metrics, np.ndarray, lambda x: torch.tensor(x)))
