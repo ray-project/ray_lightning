@@ -119,6 +119,7 @@ class RayHorovodLauncher(_Launcher):
         self._executor = executor
         self._strategy.executor = executor
 
+        print(ray.get(self._futures))
 
         executor.shutdown()
         results = process_results(self._futures, self.tune_queue)
