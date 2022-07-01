@@ -102,7 +102,7 @@ class RayStrategy(DDPSpawnStrategy):
         self._is_remote = False
 
         super().__init__(
-            accelerator='gpu' if use_gpu else 'cpu',
+            accelerator="gpu" if use_gpu else "cpu",
             parallel_devices=[],
             cluster_environment=None,
             **ddp_kwargs)
@@ -162,7 +162,7 @@ class RayStrategy(DDPSpawnStrategy):
                 torch_distributed_backend,
                 rank=global_rank,
                 world_size=world_size,
-                init_method='env://')
+                init_method="env://")
 
         # on rank=0 let everyone know training is starting
         rank_zero_info(f"{'-' * 100}\n"

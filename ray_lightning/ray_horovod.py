@@ -1,33 +1,12 @@
-from typing import Callable, Dict, List, Union, Any, Tuple, Optional
-
-import warnings
-
 import torch
 
-import pytorch_lightning as pl
-from pytorch_lightning.strategies import DDPSpawnStrategy
-from pytorch_lightning.utilities.rank_zero import rank_zero_only
-
-import ray
-from pytorch_lightning.utilities.rank_zero import rank_zero_info
-from pytorch_lightning.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
 
-import torch
-import pytorch_lightning as pl
-from pytorch_lightning.accelerators import CPUAccelerator
 from pytorch_lightning.strategies import HorovodStrategy, ParallelStrategy
-from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 import ray
-from ray import ObjectRef
-from ray.util import PublicAPI
-from ray.util.queue import Queue
 
-from ray_lightning.session import init_session
-from ray_lightning.util import process_results, Unavailable, to_state_stream, \
-    load_state_stream
-from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
+from ray_lightning.util import Unavailable
 
 try:
     import horovod.torch as hvd
@@ -40,8 +19,6 @@ else:
     HOROVOD_AVAILABLE = True
 
 from ray_lightning.launchers import RayHorovodLauncher
-
-from ray.util.check_serialize import inspect_serializability
 
 
 def get_executable_cls():
@@ -103,7 +80,7 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
             ray.init()
         # super().__init__()
         ParallelStrategy.__init__(
-            self, accelerator='gpu' if use_gpu else 'cpu')
+            self, accelerator="gpu" if use_gpu else "cpu")
         self.num_workers = num_workers
         self.cpus_per_worker = num_cpus_per_worker
         self.use_gpu = use_gpu
@@ -111,15 +88,6 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
         self._exit_stack = None
 
         self._is_remote = False
-
-    # def __getstate__(self):
-    #     d = self.__dict__.copy()
-    #     del d["executor"]
-    #     return d
-
-    # def __setstate__(self, d):
-    #     d["executor"] = None
-    #     self.__dict__.update(d)
 
     def _configure_launcher(self):
         settings = RayExecutor.create_settings(timeout_s=30)
@@ -132,13 +100,7 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
         self._launcher = RayHorovodLauncher(self, self.executor)
 
     def teardown(self) -> None:
-        # teardown may be called before `_exit_stack` is set
-        # if self._exit_stack:
-        #     self._exit_stack.__exit__(None, None, None)
-        #     self._exit_stack = None
-        # Make sure all workers have finished training before returning to the user
         self.join()
-        # self.executor.shutdown()
         super().teardown()
 
     @property

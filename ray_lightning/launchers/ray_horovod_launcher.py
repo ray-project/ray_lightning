@@ -1,29 +1,26 @@
-from typing import Callable, List, Any, Tuple, Optional
-
-from collections import defaultdict
-from contextlib import closing
-import os
-import socket
+from typing import Callable, Any, Optional
 
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.launchers import _Launcher
-from pytorch_lightning.utilities.apply_func import apply_to_collection, move_data_to_device
+from pytorch_lightning.utilities.apply_func import apply_to_collection, \
+    move_data_to_device
 from torch import Tensor
 import numpy as np
 import torch
 
 import ray
 from pytorch_lightning.utilities.rank_zero import rank_zero_debug
+from pytorch_lightning.strategies import Strategy
 from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Unavailable, to_state_stream, \
     load_state_stream
-from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 from pytorch_lightning.utilities.model_helpers import is_overridden
 
-from pytorch_lightning.strategies.launchers.spawn import _FakeQueue, _SpawnOutput
+from pytorch_lightning.strategies.launchers.spawn import _FakeQueue, \
+    _SpawnOutput
 
 try:
     import horovod.torch as hvd
@@ -37,8 +34,6 @@ else:
 
 from pytorch_lightning.utilities import rank_zero_only
 
-from ray.util.check_serialize import inspect_serializability
-
 
 def get_executable_cls():
     # Only used for testing purposes, currently.
@@ -47,8 +42,7 @@ def get_executable_cls():
 
 
 class RayHorovodLauncher(_Launcher):
-    def __init__(self, strategy: "RayStrategy",
-                 executor: "HorovodRay") -> None:
+    def __init__(self, strategy: "Strategy", executor: "RayExecutor") -> None:
         self._strategy = strategy
         self._executor = executor
 
@@ -159,9 +153,9 @@ class RayHorovodLauncher(_Launcher):
                                    results: Any) -> Optional["_SpawnOutput"]:
         rank_zero_debug("Finalizing the DDP spawn environment.")
         checkpoint_callback = trainer.checkpoint_callback
-        best_model_path = checkpoint_callback.best_model_path if checkpoint_callback else None
+        best_model_path = checkpoint_callback.best_model_path \
+            if checkpoint_callback else None
 
-        # requires to compute the state_dict on all processes in case Metrics are present
         state_dict = trainer.lightning_module.state_dict()
 
         if self._strategy.global_rank != 0:
@@ -210,7 +204,8 @@ class RayHorovodLauncher(_Launcher):
         self.get_from_queue(trainer, spawn_output.extra)
 
     def add_to_queue(self, trainer: "pl.Trainer", queue: "_FakeQueue") -> None:
-        """Appends the :attr:`trainer.callback_metrics` dictionary to the given queue. To avoid issues with memory
+        """Appends the :attr:`trainer.callback_metrics` dictionary to the
+        given queue. To avoid issues with memory
         sharing, we cast the data to numpy.
         Args:
             trainer: reference to the Trainer.
@@ -223,7 +218,8 @@ class RayHorovodLauncher(_Launcher):
 
     def get_from_queue(self, trainer: "pl.Trainer",
                        queue: "_FakeQueue") -> None:
-        """Retrieve the :attr:`trainer.callback_metrics` dictionary from the given queue. To preserve consistency,
+        """Retrieve the :attr:`trainer.callback_metrics` dictionary
+        from the given queue. To preserve consistency,
         we cast back the data to ``torch.Tensor``.
         Args:
             trainer: reference to the Trainer.

@@ -7,7 +7,8 @@ import socket
 
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.launchers import _Launcher
-from pytorch_lightning.utilities.apply_func import apply_to_collection, move_data_to_device
+from pytorch_lightning.utilities.apply_func import apply_to_collection,\
+    move_data_to_device
 from torch import Tensor
 import numpy as np
 import torch
@@ -22,8 +23,9 @@ from ray_lightning.util import process_results, to_state_stream, \
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 from pytorch_lightning.utilities.model_helpers import is_overridden
-
-from pytorch_lightning.strategies.launchers.spawn import _FakeQueue, _SpawnOutput
+from pytorch_lightning.strategies import Strategy
+from pytorch_lightning.strategies.launchers.spawn import _FakeQueue,\
+    _SpawnOutput
 
 
 def find_free_port():
@@ -34,7 +36,7 @@ def find_free_port():
 
 
 class RayLauncher(_Launcher):
-    def __init__(self, strategy: "RayStrategy") -> None:
+    def __init__(self, strategy: "Strategy") -> None:
         self._strategy = strategy
         self._start_method = "ray"
         self._workers = []
@@ -247,9 +249,9 @@ class RayLauncher(_Launcher):
                                    results: Any) -> Optional["_SpawnOutput"]:
         rank_zero_debug("Finalizing the DDP spawn environment.")
         checkpoint_callback = trainer.checkpoint_callback
-        best_model_path = checkpoint_callback.best_model_path if checkpoint_callback else None
+        best_model_path = checkpoint_callback.best_model_path \
+            if checkpoint_callback else None
 
-        # requires to compute the state_dict on all processes in case Metrics are present
         state_dict = trainer.lightning_module.state_dict()
 
         if self._strategy.global_rank != 0:
@@ -298,7 +300,8 @@ class RayLauncher(_Launcher):
         self.get_from_queue(trainer, spawn_output.extra)
 
     def add_to_queue(self, trainer: "pl.Trainer", queue: "_FakeQueue") -> None:
-        """Appends the :attr:`trainer.callback_metrics` dictionary to the given queue. To avoid issues with memory
+        """Appends the :attr:`trainer.callback_metrics` dictionary
+        to the given queue. To avoid issues with memory
         sharing, we cast the data to numpy.
         Args:
             trainer: reference to the Trainer.
@@ -311,7 +314,8 @@ class RayLauncher(_Launcher):
 
     def get_from_queue(self, trainer: "pl.Trainer",
                        queue: "_FakeQueue") -> None:
-        """Retrieve the :attr:`trainer.callback_metrics` dictionary from the given queue. To preserve consistency,
+        """Retrieve the :attr:`trainer.callback_metrics` dictionary
+        from the given queue. To preserve consistency,
         we cast back the data to ``torch.Tensor``.
         Args:
             trainer: reference to the Trainer.
