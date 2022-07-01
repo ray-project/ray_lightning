@@ -305,11 +305,12 @@ class RayLauncher(_Launcher):
             queue: the instance of the queue to append the data.
         """
         callback_metrics: dict = apply_to_collection(
-            trainer.callback_metrics, Tensor, lambda x: x.cpu().numpy()
-        )  # send as numpy to avoid issues with memory sharing
+            trainer.callback_metrics, Tensor, lambda x: x.cpu().numpy(
+            ))  # send as numpy to avoid issues with memory sharing
         queue.put(callback_metrics)
 
-    def get_from_queue(self, trainer: "pl.Trainer", queue: "_FakeQueue") -> None:
+    def get_from_queue(self, trainer: "pl.Trainer",
+                       queue: "_FakeQueue") -> None:
         """Retrieve the :attr:`trainer.callback_metrics` dictionary from the given queue. To preserve consistency,
         we cast back the data to ``torch.Tensor``.
         Args:
@@ -318,7 +319,10 @@ class RayLauncher(_Launcher):
         """
         # NOTE: `add_to_queue` needs to be called before
         callback_metrics: dict = queue.get()
-        trainer.callback_metrics.update(apply_to_collection(callback_metrics, np.ndarray, lambda x: torch.tensor(x)))
+        trainer.callback_metrics.update(
+            apply_to_collection(callback_metrics,
+                                np.ndarray, lambda x: torch.tensor(x)))
+
 
 @ray.remote
 class RayExecutor:

@@ -13,7 +13,6 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_info
 from pytorch_lightning.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
 
-
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.accelerators import CPUAccelerator
@@ -42,8 +41,8 @@ else:
 
 from ray_lightning.launchers import RayHorovodLauncher
 
-
 from ray.util.check_serialize import inspect_serializability
+
 
 def get_executable_cls():
     # Only used for testing purposes, currently.
@@ -103,12 +102,13 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
         if not ray.is_initialized():
             ray.init()
         # super().__init__()
-        ParallelStrategy.__init__(self, accelerator='gpu' if use_gpu else 'cpu')
+        ParallelStrategy.__init__(
+            self, accelerator='gpu' if use_gpu else 'cpu')
         self.num_workers = num_workers
         self.cpus_per_worker = num_cpus_per_worker
         self.use_gpu = use_gpu
         self.executor = None
-        self._exit_stack = None 
+        self._exit_stack = None
 
         self._is_remote = False
 

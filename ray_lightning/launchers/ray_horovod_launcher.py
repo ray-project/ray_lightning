@@ -54,7 +54,7 @@ class RayHorovodLauncher(_Launcher):
 
         if not ray.is_initialized():
             ray.init()
-        
+
         self.tune_queue = None
 
     # def __getstate__(self):
@@ -111,12 +111,13 @@ class RayHorovodLauncher(_Launcher):
 
         executor = self._executor
         self._executor = None
-        self._strategy.executor = None 
+        self._strategy.executor = None
         executor.start(executable_cls=get_executable_cls())
 
         def _func():
             return self._wrapping_function(trainer, function, args, kwargs,
                                            self.tune_queue)
+
         self._futures = executor.run_remote(_func)
 
         self._executor = executor
@@ -208,7 +209,6 @@ class RayHorovodLauncher(_Launcher):
             trainer.lightning_module.get_from_queue(spawn_output.extra)
         self.get_from_queue(trainer, spawn_output.extra)
 
-
     def add_to_queue(self, trainer: "pl.Trainer", queue: "_FakeQueue") -> None:
         """Appends the :attr:`trainer.callback_metrics` dictionary to the given queue. To avoid issues with memory
         sharing, we cast the data to numpy.
@@ -217,11 +217,12 @@ class RayHorovodLauncher(_Launcher):
             queue: the instance of the queue to append the data.
         """
         callback_metrics: dict = apply_to_collection(
-            trainer.callback_metrics, Tensor, lambda x: x.cpu().numpy()
-        )  # send as numpy to avoid issues with memory sharing
+            trainer.callback_metrics, Tensor, lambda x: x.cpu().numpy(
+            ))  # send as numpy to avoid issues with memory sharing
         queue.put(callback_metrics)
 
-    def get_from_queue(self, trainer: "pl.Trainer", queue: "_FakeQueue") -> None:
+    def get_from_queue(self, trainer: "pl.Trainer",
+                       queue: "_FakeQueue") -> None:
         """Retrieve the :attr:`trainer.callback_metrics` dictionary from the given queue. To preserve consistency,
         we cast back the data to ``torch.Tensor``.
         Args:
@@ -230,4 +231,6 @@ class RayHorovodLauncher(_Launcher):
         """
         # NOTE: `add_to_queue` needs to be called before
         callback_metrics: dict = queue.get()
-        trainer.callback_metrics.update(apply_to_collection(callback_metrics, np.ndarray, lambda x: torch.tensor(x)))
+        trainer.callback_metrics.update(
+            apply_to_collection(callback_metrics,
+                                np.ndarray, lambda x: torch.tensor(x)))
