@@ -1,4 +1,5 @@
-from typing import Callable, List, Any, Tuple, Optional
+from typing import Callable, List, Any, Tuple, Optional, \
+    NamedTuple, Dict
 
 from collections import defaultdict
 from contextlib import closing
@@ -7,9 +8,10 @@ import socket
 
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.launchers import _Launcher
+from pytorch_lightning.trainer.states import TrainerState
 from pytorch_lightning.utilities.apply_func import apply_to_collection,\
     move_data_to_device
-from torch import Tensor
+from pytorch_lightning.utilities.types import _PATH
 import numpy as np
 import torch
 
@@ -21,11 +23,7 @@ from ray_lightning.session import init_session
 from ray_lightning.util import process_results, to_state_stream, \
     load_state_stream
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
-
-from pytorch_lightning.utilities.model_helpers import is_overridden
 from pytorch_lightning.strategies import Strategy
-from pytorch_lightning.strategies.launchers.spawn import _FakeQueue,\
-    _SpawnOutput
 
 
 def find_free_port():
@@ -60,14 +58,14 @@ class RayLauncher(_Launcher):
                trainer: Optional["pl.Trainer"] = None,
                **kwargs: Any) -> Any:
         self.setup_workers()
-        spawn_output = self.run_function_on_workers(
+        ray_output = self.run_function_on_workers(
             function, *args, trainer=trainer, **kwargs)
 
         if trainer is None:
-            return_value = spawn_output
+            return_value = ray_output
         else:
-            self._recover_results_in_main_process(spawn_output, trainer)
-            return_value = spawn_output.trainer_results
+            self._recover_results_in_main_process(ray_output, trainer)
+            return_value = ray_output.trainer_results
 
         self.teardown_workers()
         return return_value
@@ -246,7 +244,7 @@ class RayLauncher(_Launcher):
         return None
 
     def _collect_rank_zero_results(self, trainer: "pl.Trainer",
-                                   results: Any) -> Optional["_SpawnOutput"]:
+                                   results: Any) -> Optional["_RayOutput"]:
         rank_zero_debug("Finalizing the DDP spawn environment.")
         checkpoint_callback = trainer.checkpoint_callback
         best_model_path = checkpoint_callback.best_model_path \
@@ -263,25 +261,28 @@ class RayLauncher(_Launcher):
         # model state stream directly.
         model_state_stream = to_state_stream(state_dict)
 
-        # adds the `callback_metrics` to the queue
-        extra = _FakeQueue()
-        if is_overridden("add_to_queue", trainer.lightning_module):
-            # TODO: Remove the if in v1.7
-            trainer.lightning_module.add_to_queue(extra)
-        self.add_to_queue(trainer, extra)
+        # adds the `callback_metrics`
+        callback_metrics: dict = apply_to_collection(
+            trainer.callback_metrics, torch.Tensor, lambda x: x.cpu().numpy(
+            ))  # send as numpy to avoid issues with memory sharing
 
-        return _SpawnOutput(best_model_path, model_state_stream, trainer.state,
-                            results, extra)
+        # Same for logged_metrics
+        logged_metrics: dict = apply_to_collection(
+            trainer.logged_metrics, torch.Tensor, lambda x: x.cpu().numpy(
+            ))  # send as numpy to avoid issues with memory sharing
 
-    def _recover_results_in_main_process(self, spawn_output: "_SpawnOutput",
+        return _RayOutput(best_model_path, model_state_stream, trainer.state,
+                          results, callback_metrics, logged_metrics)
+
+    def _recover_results_in_main_process(self, ray_output: "_RayOutput",
                                          trainer: "pl.Trainer") -> None:
         # transfer back the best path to the trainer
         if trainer.checkpoint_callback:
             trainer.checkpoint_callback.best_model_path = str(
-                spawn_output.best_model_path)
+                ray_output.best_model_path)
 
-        if spawn_output.weights_path is not None:
-            state_stream = spawn_output.weights_path
+        if ray_output.weights_path is not None:
+            state_stream = ray_output.weights_path
             # DDPSpawnPlugin.__recover_child_process_weights begin
             # Difference here is that instead of writing the model weights to a
             # file and loading it, we use the state dict of the model directly.
@@ -290,41 +291,13 @@ class RayLauncher(_Launcher):
             # Set the state for PTL using the output from remote training.
             trainer.lightning_module.load_state_dict(state_dict)
 
-        trainer.state = spawn_output.trainer_state
+        trainer.state = ray_output.trainer_state
 
-        # get the `callback_metrics` and set it to the trainer
-        if is_overridden("get_from_queue", trainer.lightning_module):
-            # only in case the user does not override it.
-            # TODO: Remove the if in v1.7
-            trainer.lightning_module.get_from_queue(spawn_output.extra)
-        self.get_from_queue(trainer, spawn_output.extra)
-
-    def add_to_queue(self, trainer: "pl.Trainer", queue: "_FakeQueue") -> None:
-        """Appends the :attr:`trainer.callback_metrics` dictionary
-        to the given queue. To avoid issues with memory
-        sharing, we cast the data to numpy.
-        Args:
-            trainer: reference to the Trainer.
-            queue: the instance of the queue to append the data.
-        """
-        callback_metrics: dict = apply_to_collection(
-            trainer.callback_metrics, Tensor, lambda x: x.cpu().numpy(
-            ))  # send as numpy to avoid issues with memory sharing
-        queue.put(callback_metrics)
-
-    def get_from_queue(self, trainer: "pl.Trainer",
-                       queue: "_FakeQueue") -> None:
-        """Retrieve the :attr:`trainer.callback_metrics` dictionary
-        from the given queue. To preserve consistency,
-        we cast back the data to ``torch.Tensor``.
-        Args:
-            trainer: reference to the Trainer.
-            queue: the instance of the queue from where to get the data.
-        """
-        # NOTE: `add_to_queue` needs to be called before
-        callback_metrics: dict = queue.get()
         trainer.callback_metrics.update(
-            apply_to_collection(callback_metrics,
+            apply_to_collection(ray_output.callback_metrics,
+                                np.ndarray, lambda x: torch.tensor(x)))
+        trainer.logged_metrics.update(
+            apply_to_collection(ray_output.logged_metrics,
                                 np.ndarray, lambda x: torch.tensor(x)))
 
 
@@ -354,3 +327,12 @@ class RayExecutor:
     def execute(self, fn: Callable, *args, **kwargs):
         """Execute the provided function and return the result."""
         return fn(*args, **kwargs)
+
+
+class _RayOutput(NamedTuple):
+    best_model_path: Optional[_PATH]
+    weights_path: Optional[_PATH]
+    trainer_state: TrainerState
+    trainer_results: Any
+    callback_metrics: Dict[str, Any]
+    logged_metrics: Dict[str, Any]

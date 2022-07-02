@@ -332,6 +332,8 @@ def test_metrics(tmpdir, ray_start_2_cpus):
         strategy=strategy,
         max_epochs=1,
         num_sanity_val_steps=0,
+        limit_train_batches=2,
+        limit_val_batches=2,
         reload_dataloaders_every_n_epochs=1)
     dataset = XORDataModule()
     trainer.fit(model, dataset)
