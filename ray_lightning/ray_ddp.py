@@ -190,7 +190,7 @@ class RayStrategy(DDPSpawnStrategy):
 
     @property
     def root_device(self):
-        if self._device: 
+        if self._device:
             return self._device
         if self.use_gpu and torch.cuda.is_available():
             if self._is_remote:
