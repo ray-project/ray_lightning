@@ -100,6 +100,7 @@ class RayStrategy(DDPSpawnStrategy):
         self._node_rank = 0
 
         self._is_remote = False
+        self._device = None
 
         super().__init__(
             accelerator="gpu" if use_gpu else "cpu",
@@ -189,7 +190,8 @@ class RayStrategy(DDPSpawnStrategy):
 
     @property
     def root_device(self):
-
+        if self._device: 
+            return self._device
         if self.use_gpu and torch.cuda.is_available():
             if self._is_remote:
                 # Adjust to support multiple GPUs per worker or fractional
@@ -202,6 +204,10 @@ class RayStrategy(DDPSpawnStrategy):
                 return torch.device("cuda", 0)
         else:
             return torch.device("cpu")
+
+    @root_device.setter
+    def root_device(self, device):
+        self._device = device
 
     @property
     def distributed_sampler_kwargs(self):
