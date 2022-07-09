@@ -180,9 +180,17 @@ class RayStrategy(DDPSpawnStrategy):
     def local_rank(self) -> int:
         return self._local_rank
 
+    @local_rank.setter
+    def local_rank(self, value: int):
+        self._local_rank = value
+    
     @property
     def global_rank(self) -> int:
         return self._global_rank
+
+    @global_rank.setter
+    def global_rank(self, value: int):
+        self._global_rank = value
 
     @property
     def node_rank(self) -> int:

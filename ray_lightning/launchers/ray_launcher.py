@@ -233,6 +233,8 @@ class RayLauncher(_Launcher):
 
         self._strategy._worker_setup(process_idx=global_rank)
         function.__self__.strategy.root_device = self._strategy.root_device
+        function.__self__.strategy.global_rank = self._strategy.global_rank
+        function.__self__.strategy.local_rank = self._strategy.local_rank
 
         results = function(*args, **kwargs)
 
