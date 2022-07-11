@@ -236,7 +236,7 @@ class RayLauncher(_Launcher):
         function.__self__.strategy.global_rank = self._strategy.global_rank
         # function.__self__.strategy.local_rank = self._strategy.local_rank
         self._strategy.set_cuda_device_if_used()
-        
+
         results = function(*args, **kwargs)
 
         if trainer is not None:

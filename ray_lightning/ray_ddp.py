@@ -14,7 +14,6 @@ from pytorch_lightning.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
 
 from ray_lightning.launchers import RayLauncher
-from ray_lightning.accelerators import _GPUAccelerator
 
 
 @PublicAPI(stability="beta")
@@ -184,7 +183,7 @@ class RayStrategy(DDPSpawnStrategy):
     @local_rank.setter
     def local_rank(self, value: int):
         self._local_rank = value
-    
+
     @property
     def global_rank(self) -> int:
         return self._global_rank
@@ -220,15 +219,14 @@ class RayStrategy(DDPSpawnStrategy):
 
     def set_cuda_device_if_used(self):
         """Set the CUDA device to use for the root node."""
-        if self.use_gpu: 
+        if self.use_gpu:
             # overwrite the logger
             gpu_available = True
             gpu_type = " (cuda)"
             gpu_used = True
             rank_zero_info(
                 f"GPU available: {gpu_available}{gpu_type}, used: {gpu_used} "
-                "(Please ignore the previous info [GPU used: False])."
-            )
+                "(Please ignore the previous info [GPU used: False]).")
 
             torch.cuda.set_device(self.root_device)
 
