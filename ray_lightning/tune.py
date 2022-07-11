@@ -169,7 +169,7 @@ if TUNE_INSTALLED:
         def _handle(self, trainer: Trainer, pl_module: LightningModule):
             if trainer.sanity_checking:
                 return
-            checkpoint_dict = trainer.checkpoint_connector.dump_checkpoint()
+            checkpoint_dict = trainer._checkpoint_connector.dump_checkpoint()
             # Convert to a state stream first.
             checkpoint_stream = to_state_stream(checkpoint_dict)
             global_step = trainer.global_step
