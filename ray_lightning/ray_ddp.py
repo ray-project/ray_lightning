@@ -14,6 +14,7 @@ from pytorch_lightning.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
 
 from ray_lightning.launchers import RayLauncher
+from ray_lightning.accelerators import _GPUAccelerator
 
 
 @PublicAPI(stability="beta")
@@ -103,7 +104,7 @@ class RayStrategy(DDPSpawnStrategy):
         self._device = None
 
         super().__init__(
-            accelerator="gpu" if use_gpu else "cpu",
+            accelerator="_gpu" if use_gpu else "cpu",
             parallel_devices=[],
             cluster_environment=None,
             **ddp_kwargs)
@@ -216,6 +217,20 @@ class RayStrategy(DDPSpawnStrategy):
     @root_device.setter
     def root_device(self, device):
         self._device = device
+
+    def set_cuda_device_if_used(self):
+        """Set the CUDA device to use for the root node."""
+        if self.use_gpu: 
+            # overwrite the logger
+            gpu_available = True
+            gpu_type = " (cuda)"
+            gpu_used = True
+            rank_zero_info(
+                f"GPU available: {gpu_available}{gpu_type}, used: {gpu_used} "
+                "(Please ignore the previous info [GPU used: False])."
+            )
+
+            torch.cuda.set_device(self.root_device)
 
     @property
     def distributed_sampler_kwargs(self):
