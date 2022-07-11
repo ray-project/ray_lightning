@@ -12,6 +12,9 @@
 # limitations under the License.
 from pytorch_lightning.accelerators.registry import \
     call_register_accelerators  # noqa: F401
+from ray_lightning.accelerators.delayed_gpu_accelerator import _GPUAccelerator
 
 ACCELERATORS_BASE_MODULE = "ray_lightning.accelerators"
 call_register_accelerators(ACCELERATORS_BASE_MODULE)
+
+__all__ = ["_GPUAccelerator"]
