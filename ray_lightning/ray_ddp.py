@@ -14,6 +14,8 @@ from pytorch_lightning.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
 
 from ray_lightning.launchers import RayLauncher
+from ray_lightning.accelerators import \
+    _GPUAccelerator  # noqa: F401
 
 
 @PublicAPI(stability="beta")
