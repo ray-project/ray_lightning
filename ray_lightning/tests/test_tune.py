@@ -5,7 +5,7 @@ import ray
 import torch
 from ray import tune
 
-from ray_lightning import RayStrategy, HorovodRayPlugin
+from ray_lightning import RayStrategy, HorovodRayStrategy
 from ray_lightning.tests.utils import BoringModel, get_trainer
 from ray_lightning.tune import TuneReportCallback, \
     TuneReportCheckpointCallback, get_tune_resources
@@ -59,7 +59,7 @@ def test_tune_iteration_ddp(tmpdir, ray_start_4_cpus):
 
 def test_tune_iteration_horovod(tmpdir, ray_start_4_cpus):
     """Tests if each HorovodRay trial runs the correct number of iterations."""
-    strategy = HorovodRayPlugin(num_workers=2, use_gpu=False)
+    strategy = HorovodRayStrategy(num_workers=2, use_gpu=False)
     tune_test(tmpdir, strategy)
 
 
@@ -86,7 +86,7 @@ def test_checkpoint_ddp(tmpdir, ray_start_4_cpus):
 
 def test_checkpoint_horovod(tmpdir, ray_start_4_cpus):
     """Tests if Tune checkpointing works with HorovodRayAccelerator."""
-    strategy = HorovodRayPlugin(num_workers=2, use_gpu=False)
+    strategy = HorovodRayStrategy(num_workers=2, use_gpu=False)
     checkpoint_test(tmpdir, strategy)
 
 
@@ -102,5 +102,5 @@ def test_checkpoint_ddp_gpu(tmpdir, ray_start_4_cpus_4_gpus):
     torch.cuda.device_count() < 4, reason="test requires multi-GPU machine")
 def test_checkpoint_horovod_gpu(tmpdir, ray_start_4_cpus_4_gpus):
     """Tests if Tune checkpointing works with HorovodRayAccelerator."""
-    strategy = HorovodRayPlugin(num_workers=2, use_gpu=True)
+    strategy = HorovodRayStrategy(num_workers=2, use_gpu=True)
     checkpoint_test(tmpdir, strategy)
