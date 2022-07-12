@@ -246,3 +246,4 @@ class RayStrategy(DDPSpawnStrategy):
     def teardown(self) -> None:
         self.accelerator = None
         super().teardown()
+        
