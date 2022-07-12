@@ -19,6 +19,8 @@ else:
     HOROVOD_AVAILABLE = True
 
 from ray_lightning.launchers import RayHorovodLauncher
+from ray_lightning.accelerators import \
+    _GPUAccelerator  # noqa: F401
 
 
 def get_executable_cls():
@@ -80,7 +82,7 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
             ray.init()
         # super().__init__()
         ParallelStrategy.__init__(
-            self, accelerator="gpu" if use_gpu else "cpu")
+            self, accelerator="_gpu" if use_gpu else "cpu")
         self.num_workers = num_workers
         self.cpus_per_worker = num_cpus_per_worker
         self.use_gpu = use_gpu
