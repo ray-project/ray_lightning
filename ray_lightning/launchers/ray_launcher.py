@@ -16,6 +16,7 @@ import numpy as np
 import torch
 
 import ray
+from ray import ObjectRef
 from pytorch_lightning.utilities.rank_zero import rank_zero_debug
 from ray.util.queue import Queue
 
@@ -205,11 +206,18 @@ class RayLauncher(_Launcher):
                                 *args: Any,
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
+        model = trainer.model 
+        model_ref = ray.put(model)
+        trainer.model = None
+        new_args = tuple( [ None ] + list(args[1:]) )
+
         self._futures = [
             w.execute.remote(self._wrapping_function, i, self._global_to_local,
-                             trainer, function, args, kwargs, self.tune_queue)
+                             function, model_ref, new_args, kwargs, self.tune_queue)
             for i, w in enumerate(self._workers)
         ]
+
+        trainer.model = model
 
         results = process_results(self._futures, self.tune_queue)
         return results[0]
@@ -218,8 +226,8 @@ class RayLauncher(_Launcher):
             self,
             global_rank: int,
             global_to_local: List[Optional[Tuple[int, int]]],
-            trainer: Optional["pl.Trainer"],
             function: Callable,
+            model_ref: ObjectRef,
             args: Any,
             kwargs: Any,
             tune_queue: Queue,
@@ -227,20 +235,25 @@ class RayLauncher(_Launcher):
         self._strategy.set_remote(True)
         self._strategy.set_global_to_local(global_to_local)
 
+        trainer = function.__self__
+        trainer.model = model_ref
+        args = tuple( [ model_ref ] + list(args[1:]) )
+
+        trainer._data_connector.prepare_data()
         if tune_queue is not None:
             # Initialize session.
             init_session(rank=global_rank, queue=tune_queue)
 
         self._strategy._worker_setup(process_idx=global_rank)
-        function.__self__.strategy.root_device = self._strategy.root_device
-        function.__self__.strategy.global_rank = self._strategy.global_rank
-        # function.__self__.strategy.local_rank = self._strategy.local_rank
+        trainer.strategy.root_device = self._strategy.root_device
+        trainer.strategy.global_rank = self._strategy.global_rank
+        trainer.strategy.local_rank = self._strategy.local_rank
         self._strategy.set_cuda_device_if_used()
 
         results = function(*args, **kwargs)
 
         if trainer is not None:
-            results = self._collect_rank_zero_results(function.__self__,
+            results = self._collect_rank_zero_results(trainer,
                                                       results)
 
         if self._strategy.local_rank == 0:
