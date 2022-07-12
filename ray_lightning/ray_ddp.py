@@ -242,3 +242,7 @@ class RayStrategy(DDPSpawnStrategy):
     @property
     def _is_single_process_single_device(self):
         return True
+
+    def teardown(self) -> None:
+        self.accelerator = None
+        super().teardown()

@@ -69,6 +69,7 @@ class RayLauncher(_Launcher):
             return_value = ray_output.trainer_results
 
         self.teardown_workers()
+        self._strategy.teardown()
         return return_value
 
     def setup_workers(self, tune_enabled: bool = True) -> None:
@@ -259,6 +260,8 @@ class RayLauncher(_Launcher):
         if self._strategy.local_rank == 0:
             return move_data_to_device(results, "cpu")
 
+        trainer._teardown()
+        trainer._call_teardown_hook()
         return None
 
     def _collect_rank_zero_results(self, trainer: "pl.Trainer",
