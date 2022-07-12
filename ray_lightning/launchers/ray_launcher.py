@@ -206,14 +206,15 @@ class RayLauncher(_Launcher):
                                 *args: Any,
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
-        model = trainer.model 
+        model = trainer.model
         model_ref = ray.put(model)
         trainer.model = None
-        new_args = tuple( [ None ] + list(args[1:]) )
+        new_args = tuple([None] + list(args[1:]))
 
         self._futures = [
             w.execute.remote(self._wrapping_function, i, self._global_to_local,
-                             function, model_ref, new_args, kwargs, self.tune_queue)
+                             function, model_ref, new_args, kwargs,
+                             self.tune_queue)
             for i, w in enumerate(self._workers)
         ]
 
@@ -237,7 +238,7 @@ class RayLauncher(_Launcher):
 
         trainer = function.__self__
         trainer.model = model_ref
-        args = tuple( [ model_ref ] + list(args[1:]) )
+        args = tuple([model_ref] + list(args[1:]))
 
         trainer._data_connector.prepare_data()
         if tune_queue is not None:
@@ -253,8 +254,7 @@ class RayLauncher(_Launcher):
         results = function(*args, **kwargs)
 
         if trainer is not None:
-            results = self._collect_rank_zero_results(trainer,
-                                                      results)
+            results = self._collect_rank_zero_results(trainer, results)
 
         if self._strategy.local_rank == 0:
             return move_data_to_device(results, "cpu")
