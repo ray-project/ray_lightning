@@ -47,8 +47,11 @@ def tune_test(dir, strategy):
         resources_per_trial=get_tune_resources(
             num_workers=strategy.num_workers, use_gpu=strategy.use_gpu),
         num_samples=2)
-    assert all(analysis.results_df["training_iteration"] ==
-               analysis.results_df["config.max_epochs"])
+    # fix TUNE_RESULT_DELIM issue
+    config_max_epochs = analysis.results_df.get(
+        "config.max_epochs", False) or analysis.results_df.get(
+            "config/max_epochs", False)
+    assert all(analysis.results_df["training_iteration"] == config_max_epochs)
 
 
 def test_tune_iteration_ddp(tmpdir, ray_start_4_cpus):
