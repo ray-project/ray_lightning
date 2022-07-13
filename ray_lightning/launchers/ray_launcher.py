@@ -195,6 +195,7 @@ class RayLauncher(_Launcher):
             all_gpu_ids = ",".join([str(gpu_id) for gpu_id in gpu_ids])
 
             def set_gpu_ids():
+                os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
                 os.environ["CUDA_VISIBLE_DEVICES"] = all_gpu_ids
 
             for worker_id in node_id_to_worker_id[node_id]:
@@ -250,14 +251,14 @@ class RayLauncher(_Launcher):
         trainer.strategy.root_device = self._strategy.root_device
         trainer.strategy.global_rank = self._strategy.global_rank
         trainer.strategy.local_rank = self._strategy.local_rank
-        self._strategy.set_cuda_device_if_used()
+        trainer.strategy.set_cuda_device_if_used()
 
         results = function(*args, **kwargs)
 
         if trainer is not None:
             results = self._collect_rank_zero_results(trainer, results)
 
-        if self._strategy.local_rank == 0:
+        if trainer.strategy.local_rank == 0:
             return move_data_to_device(results, "cpu")
 
         trainer._teardown()

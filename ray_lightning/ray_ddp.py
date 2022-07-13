@@ -206,7 +206,10 @@ class RayStrategy(DDPSpawnStrategy):
             if self._is_remote:
                 # Adjust to support multiple GPUs per worker or fractional
                 # GPUs per worker.
-                device_id = ray.get_gpu_ids()[0]
+                gpu_id = ray.get_gpu_ids()[0]
+                cuda_visible_list = list(
+                    map(int, ray._private.utils.get_cuda_visible_devices()))
+                device_id = cuda_visible_list.index(gpu_id)
                 return torch.device("cuda", device_id)
             else:
                 # If the root device is requested on the driver, just return
