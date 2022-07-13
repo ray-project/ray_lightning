@@ -122,9 +122,9 @@ class RayHorovodLauncher(_Launcher):
     ) -> Any:
         self._strategy.set_remote(True)
         
-        hvd.init()
         trainer = function.__self__
         trainer._data_connector.prepare_data()
+        hvd.init()
         
         rank_zero_only.rank = self.global_rank
 
