@@ -104,3 +104,11 @@ def test_checkpoint_horovod_gpu(tmpdir, ray_start_4_cpus_4_gpus):
     """Tests if Tune checkpointing works with HorovodRayAccelerator."""
     strategy = HorovodRayStrategy(num_workers=2, use_gpu=True)
     checkpoint_test(tmpdir, strategy)
+
+
+@pytest.mark.skipif(
+    torch.cuda.device_count() < 4, reason="test requires multi-GPU machine")
+def test_tune_iteration_ddp_gpu(tmpdir, ray_start_4_cpus_4_gpus):
+    """Tests if each RayStrategy runs the correct number of iterations."""
+    strategy = RayStrategy(num_workers=2, use_gpu=True)
+    tune_test(tmpdir, strategy)
