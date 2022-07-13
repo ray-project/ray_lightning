@@ -51,15 +51,6 @@ class RayHorovodLauncher(_Launcher):
 
         self.tune_queue = None
 
-    # def __getstate__(self):
-    #     d = self.__dict__.copy()
-    #     del d["executor"]
-    #     return d
-
-    # def __setstate__(self, d):
-    #     d["executor"] = None
-    #     self.__dict__.update(d)
-
     @property
     def global_rank(self) -> int:
         if not hvd.is_initialized():
@@ -130,8 +121,11 @@ class RayHorovodLauncher(_Launcher):
             tune_queue: Queue,
     ) -> Any:
         self._strategy.set_remote(True)
-
+        
         hvd.init()
+        trainer = function.__self__
+        trainer._data_connector.prepare_data()
+        
         rank_zero_only.rank = self.global_rank
 
         if tune_queue is not None:
