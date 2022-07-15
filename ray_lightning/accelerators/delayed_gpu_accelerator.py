@@ -37,7 +37,6 @@ class _GPUAccelerator(Accelerator):
                 If the selected device is not GPU.
         """
         super().setup_environment(root_device)
-        # torch.cuda.set_device(root_device)
 
     def setup(self, trainer: "pl.Trainer") -> None:
         # TODO refactor input from trainer to local_rank @four4fish

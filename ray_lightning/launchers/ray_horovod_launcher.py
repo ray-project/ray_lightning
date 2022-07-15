@@ -144,18 +144,11 @@ class RayHorovodLauncher(_Launcher):
         trainer._data_connector.prepare_data()
 
         hvd.init()
-        #         trainer.strategy.local_rank = self.local_rank
         rank_zero_only.rank = self.global_rank
-
         trainer.strategy.set_cuda_device_if_used()
 
         # Move the model to the appropriate device.
         trainer.strategy.model_to_device()
-
-        #         trainer.strategy.setup_optimizers(trainer)
-        #         trainer.strategy.setup_precision_plugin()
-        #         optimizers_to_device(trainer.strategy.optimizers,\
-        # trainer.strategy.root_device)
 
         if tune_queue is not None:
             # Initialize session.

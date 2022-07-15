@@ -110,8 +110,6 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
     def setup(self, trainer: "pl.Trainer") -> None:
 
         self.model_to_device()
-        #         super().setup(trainer)
-
         self.accelerator.setup(trainer)
         self.setup_optimizers(trainer)
         self.setup_precision_plugin()
@@ -145,15 +143,6 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
             scheduler.base_lrs = [
                 lr * self.world_size for lr in scheduler.base_lrs
             ]
-
-
-#         Horovod: broadcast parameters & optimizer state
-#         to ensure consistent initialization
-#         hvd.broadcast_parameters(self.lightning_module.state_dict(),\
-#            root_rank=0)
-
-#         for optimizer in optimizers:
-#             hvd.broadcast_optimizer_state(optimizer, root_rank=0)
 
         accumulation_scheduler = trainer.accumulation_scheduler
         if accumulation_scheduler.epochs != [0]:
