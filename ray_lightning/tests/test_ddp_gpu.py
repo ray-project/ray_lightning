@@ -108,10 +108,11 @@ def test_correct_devices(tmpdir, ray_start_4_gpus, num_gpus_per_worker,
 
     class CheckDevicesCallback(Callback):
         def on_epoch_end(self, trainer, pl_module):
-            assert trainer.root_gpu == get_gpu_placement(
+            assert trainer.strategy.root_device.index == get_gpu_placement(
                 trainer.local_rank, num_gpus_per_worker)
-            assert trainer.root_gpu == pl_module.device.index
-            assert torch.cuda.current_device() == trainer.root_gpu
+            assert trainer.strategy.root_device.index == pl_module.device.index
+            assert torch.cuda.current_device(
+            ) == trainer.strategy.root_device.index
 
     strategy = RayStrategy(
         num_workers=2,
