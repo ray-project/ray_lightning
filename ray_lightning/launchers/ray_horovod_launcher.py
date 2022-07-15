@@ -121,11 +121,11 @@ class RayHorovodLauncher(_Launcher):
             tune_queue: Queue,
     ) -> Any:
         self._strategy.set_remote(True)
-        
+
         trainer = function.__self__
         trainer._data_connector.prepare_data()
         hvd.init()
-        
+
         rank_zero_only.rank = self.global_rank
 
         if tune_queue is not None:
