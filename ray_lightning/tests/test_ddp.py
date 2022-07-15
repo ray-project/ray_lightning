@@ -247,23 +247,23 @@ def test_load(tmpdir, ray_start_2_cpus, num_workers):
     load_test(trainer, model)
 
 
-# @pytest.mark.parametrize("num_workers", [1, 2])
-# def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
-#     """Tests if trained model has high accuracy on test set."""
-#     config = {
-#         "layer_1": 32,
-#         "layer_2": 32,
-#         "lr": 1e-2,
-#         "batch_size": 32,
-#     }
+@pytest.mark.parametrize("num_workers", [1, 2])
+def test_predict(tmpdir, ray_start_2_cpus, seed, num_workers):
+    """Tests if trained model has high accuracy on test set."""
+    config = {
+        "layer_1": 32,
+        "layer_2": 32,
+        "lr": 1e-2,
+        "batch_size": 32,
+    }
 
-#     model = LightningMNISTClassifier(config, tmpdir)
-#     dm = MNISTDataModule(
-#         data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
-#     strategy = RayStrategy(num_workers=num_workers, use_gpu=False)
-#     trainer = get_trainer(
-#         tmpdir, limit_train_batches=20, max_epochs=1, strategy=strategy)
-#     predict_test(trainer, model, dm)
+    model = LightningMNISTClassifier(config, tmpdir)
+    dm = MNISTDataModule(
+        data_dir=tmpdir, num_workers=1, batch_size=config["batch_size"])
+    strategy = RayStrategy(num_workers=num_workers, use_gpu=False)
+    trainer = get_trainer(
+        tmpdir, limit_train_batches=20, max_epochs=1, strategy=strategy)
+    predict_test(trainer, model, dm)
 
 
 @pytest.mark.parametrize("num_workers", [1, 2])
