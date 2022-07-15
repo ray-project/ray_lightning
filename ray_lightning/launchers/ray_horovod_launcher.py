@@ -21,6 +21,7 @@ from pytorch_lightning.utilities.model_helpers import is_overridden
 
 from pytorch_lightning.strategies.launchers.spawn import _FakeQueue, \
     _SpawnOutput
+from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 try:
     import horovod.torch as hvd
@@ -105,6 +106,10 @@ class RayHorovodLauncher(_Launcher):
 
         executor.start(executable_cls=get_executable_cls())
 
+        if TUNE_INSTALLED and is_session_enabled():
+            # Create communication queue and send to all the workers.
+            self.tune_queue = Queue(actor_options={"num_cpus": 0})
+
         def _func():
             return self._wrapping_function(function, model_ref, new_args,
                                            kwargs, self.tune_queue)
@@ -148,7 +153,7 @@ class RayHorovodLauncher(_Launcher):
         #         trainer.strategy.setup_optimizers(trainer)
         #         trainer.strategy.setup_precision_plugin()
         #         optimizers_to_device(trainer.strategy.optimizers,\
-        #            trainer.strategy.root_device)
+        # trainer.strategy.root_device)
 
         if tune_queue is not None:
             # Initialize session.
