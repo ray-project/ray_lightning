@@ -78,7 +78,7 @@ def checkpoint_test(dir, strategy):
         log_to_file=True,
         metric="val_loss",
         mode="min")
-    assert os.path.exists(analysis.best_checkpoint)
+    assert analysis.best_checkpoint is not None
 
 
 def test_checkpoint_ddp(tmpdir, ray_start_4_cpus):
