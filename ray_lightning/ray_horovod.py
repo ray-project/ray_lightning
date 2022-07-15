@@ -1,10 +1,12 @@
 import torch
+from contextlib import ExitStack
 
 from ray.util import PublicAPI
 
 from pytorch_lightning.strategies import HorovodStrategy, ParallelStrategy
-
+import pytorch_lightning as pl
 import ray
+from pytorch_lightning.utilities.exceptions import MisconfigurationException
 
 from ray_lightning.util import Unavailable
 
@@ -17,10 +19,14 @@ except (ModuleNotFoundError, ImportError):
     hvd = Unavailable
 else:
     HOROVOD_AVAILABLE = True
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
 from ray_lightning.launchers import RayHorovodLauncher
 from ray_lightning.accelerators import \
     _GPUAccelerator  # noqa: F401
+
+from pytorch_lightning.core.optimizer import LightningOptimizer
+from pytorch_lightning.utilities.optimizer import optimizers_to_device
 
 
 def get_executable_cls():
@@ -80,7 +86,6 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
             raise RuntimeError("Please intall Horovod to use this strategy.")
         if not ray.is_initialized():
             ray.init()
-        # super().__init__()
         ParallelStrategy.__init__(
             self, accelerator="_gpu" if use_gpu else "cpu")
         self.num_workers = num_workers
@@ -88,6 +93,7 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
         self.use_gpu = use_gpu
         self.executor = None
         self._exit_stack = None
+        self._local_rank = 0
 
         self._is_remote = False
 
@@ -99,7 +105,85 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
             cpus_per_worker=self.cpus_per_worker,
             use_gpu=self.use_gpu)
 
-        self._launcher = RayHorovodLauncher(self, self.executor)
+        self._launcher = RayHorovodLauncher(self)
+
+    def setup(self, trainer: "pl.Trainer") -> None:
+
+        self.model_to_device()
+        #         super().setup(trainer)
+
+        self.accelerator.setup(trainer)
+        self.setup_optimizers(trainer)
+        self.setup_precision_plugin()
+        optimizers_to_device(self.optimizers, self.root_device)
+
+        self._exit_stack = ExitStack()
+        self._exit_stack.__enter__()
+
+        if not trainer.training:
+            # no need to setup optimizers
+            return
+
+        def _unpack_lightning_optimizer(opt):
+            return opt._optimizer if isinstance(opt,
+                                                LightningOptimizer) else opt
+
+        optimizers = self.optimizers
+        optimizers = [_unpack_lightning_optimizer(opt) for opt in optimizers]
+
+        # Horovod: scale the learning rate by the number
+        # of workers to account for increased total batch size
+        for optimizer in optimizers:
+            for param_group in optimizer.param_groups:
+                param_group["lr"] *= self.world_size
+
+        # Horovod: adjust base LR used by schedulers
+        # to match scaled optimizer initial LR
+        lr_scheduler_configs = self.lr_scheduler_configs
+        for config in lr_scheduler_configs:
+            scheduler = config.scheduler
+            scheduler.base_lrs = [
+                lr * self.world_size for lr in scheduler.base_lrs
+            ]
+
+
+#         Horovod: broadcast parameters & optimizer state
+#         to ensure consistent initialization
+#         hvd.broadcast_parameters(self.lightning_module.state_dict(),\
+#            root_rank=0)
+
+#         for optimizer in optimizers:
+#             hvd.broadcast_optimizer_state(optimizer, root_rank=0)
+
+        accumulation_scheduler = trainer.accumulation_scheduler
+        if accumulation_scheduler.epochs != [0]:
+            raise MisconfigurationException(
+                "Horovod currently does not support different"
+                " `accumulate_grad_batches` at different epochs.")
+
+        self.optimizers = self._wrap_optimizers(
+            optimizers, trainer.accumulate_grad_batches)
+        for optimizer in self.optimizers:
+            # Synchronization will be performed explicitly following backward()
+            self._exit_stack.enter_context(optimizer.skip_synchronize())
+
+    @property
+    def global_rank(self) -> int:
+        if not hvd.is_initialized():
+            return 0
+        return hvd.rank()
+
+    @property
+    def local_rank(self) -> int:
+        if not hvd.is_initialized():
+            return 0
+        return hvd.local_rank()
+
+    @property
+    def world_size(self) -> int:
+        if not hvd.is_initialized():
+            return self.num_workers
+        return hvd.size()
 
     def teardown(self) -> None:
         self.join()
@@ -121,3 +205,16 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
                 return torch.device("cuda", 0)
         else:
             return torch.device("cpu")
+
+    def set_cuda_device_if_used(self):
+        """Set the CUDA device to use for the root node."""
+        if self.use_gpu:
+            # overwrite the logger
+            gpu_available = True
+            gpu_type = " (cuda)"
+            gpu_used = True
+            rank_zero_info(
+                f"GPU available: {gpu_available}{gpu_type}, used: {gpu_used} "
+                "(Please ignore the previous info [GPU used: False]).")
+
+            torch.cuda.set_device(self.root_device)
