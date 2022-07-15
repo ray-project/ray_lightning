@@ -25,23 +25,23 @@ def seed():
     pl.seed_everything(0)
 
 
-# def test_ddp_choice_sharded(tmpdir, ray_start_2_cpus, seed):
-#     """Tests if sharded strategy is properly recognized."""
+def test_ddp_choice_sharded(tmpdir, ray_start_2_cpus, seed):
+    """Tests if sharded strategy is properly recognized."""
 
-#     class CB(Callback):
-#         def on_fit_start(self, trainer, pl_module):
-#             assert isinstance(trainer.strategy, RayShardedStrategy)
-#             raise SystemExit()
+    class CB(Callback):
+        def on_fit_start(self, trainer, pl_module):
+            assert isinstance(trainer.strategy, RayShardedStrategy)
+            raise ValueError()
 
-#     model = BoringModel()
-#     trainer = Trainer(
-#         fast_dev_run=True,
-#         strategy=RayShardedStrategy(num_workers=2),
-#         callbacks=[CB()],
-#     )
+    model = BoringModel()
+    trainer = Trainer(
+        fast_dev_run=True,
+        strategy=RayShardedStrategy(num_workers=2),
+        callbacks=[CB()],
+    )
 
-#     with pytest.raises(SystemExit):
-#         trainer.fit(model)
+    with pytest.raises(ValueError):
+        trainer.fit(model)
 
 
 def test_ddp_sharded_plugin_checkpoint(tmpdir, ray_start_2_cpus, seed):
