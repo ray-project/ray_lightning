@@ -42,9 +42,9 @@ def get_executable_cls():
 
 
 class RayHorovodLauncher(_Launcher):
-    def __init__(self, strategy: "Strategy", executor: "RayExecutor") -> None:
+    def __init__(self, strategy: "Strategy") -> None:
         self._strategy = strategy
-        self._executor = executor
+        self._executor = strategy.executor
 
         if not ray.is_initialized():
             ray.init()
@@ -94,19 +94,26 @@ class RayHorovodLauncher(_Launcher):
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
 
+        model = trainer.model
+        model_ref = ray.put(model)
+        trainer.model = None
+        new_args = tuple([None] + list(args[1:]))
+
         executor = self._executor
         self._executor = None
         self._strategy.executor = None
+
         executor.start(executable_cls=get_executable_cls())
 
         def _func():
-            return self._wrapping_function(trainer, function, args, kwargs,
-                                           self.tune_queue)
+            return self._wrapping_function(function, model_ref, new_args,
+                                           kwargs, self.tune_queue)
 
         self._futures = executor.run_remote(_func)
 
         self._executor = executor
         self._strategy.executor = executor
+        trainer.model = model
 
         results = process_results(self._futures, self.tune_queue)
         executor.shutdown()
@@ -114,8 +121,8 @@ class RayHorovodLauncher(_Launcher):
 
     def _wrapping_function(
             self,
-            trainer: Optional["pl.Trainer"],
             function: Callable,
+            model_ref: Any,
             args: Any,
             kwargs: Any,
             tune_queue: Queue,
@@ -123,10 +130,25 @@ class RayHorovodLauncher(_Launcher):
         self._strategy.set_remote(True)
 
         trainer = function.__self__
-        trainer._data_connector.prepare_data()
-        hvd.init()
+        model = ray.get(model_ref)
+        trainer.model = model
+        args = tuple([model] + list(args[1:]))
 
+        trainer._data_connector.prepare_data()
+
+        hvd.init()
+        #         trainer.strategy.local_rank = self.local_rank
         rank_zero_only.rank = self.global_rank
+
+        trainer.strategy.set_cuda_device_if_used()
+
+        # Move the model to the appropriate device.
+        trainer.strategy.model_to_device()
+
+        #         trainer.strategy.setup_optimizers(trainer)
+        #         trainer.strategy.setup_precision_plugin()
+        #         optimizers_to_device(trainer.strategy.optimizers,\
+        #            trainer.strategy.root_device)
 
         if tune_queue is not None:
             # Initialize session.
