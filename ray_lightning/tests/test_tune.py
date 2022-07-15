@@ -49,7 +49,9 @@ def tune_test(dir, strategy):
         num_samples=2)
     # fix TUNE_RESULT_DELIM issue
     config_max_epochs = analysis.results_df.get(
-        "config.max_epochs", False) or analysis.results_df.get(
+        "config.max_epochs", False)
+    if config_max_epochs is False:
+        config_max_epochs = analysis.results_df.get(
             "config/max_epochs", False)
     assert all(analysis.results_df["training_iteration"] == config_max_epochs)
 
