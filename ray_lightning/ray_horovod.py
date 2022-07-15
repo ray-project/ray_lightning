@@ -187,6 +187,7 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
 
     def teardown(self) -> None:
         self.join()
+        self.accelerator = None
         super().teardown()
 
     @property
