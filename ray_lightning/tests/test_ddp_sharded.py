@@ -4,8 +4,7 @@ import pytest
 import torch
 
 import pytorch_lightning as pl
-from pytorch_lightning import Trainer
-# from pytorch_lightning import Callback, Trainer
+from pytorch_lightning import Callback, Trainer
 
 import ray
 
