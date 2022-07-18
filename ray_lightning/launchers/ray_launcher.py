@@ -267,7 +267,7 @@ class RayLauncher(_Launcher):
 
     def _collect_rank_zero_results(self, trainer: "pl.Trainer",
                                    results: Any) -> Optional["_RayOutput"]:
-        rank_zero_debug("Finalizing the DDP spawn environment.")
+        rank_zero_debug("Finalizing the Ray launcher environment.")
         checkpoint_callback = trainer.checkpoint_callback
         best_model_path = checkpoint_callback.best_model_path \
             if checkpoint_callback else None

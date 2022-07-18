@@ -28,7 +28,12 @@ _log = logging.getLogger(__name__)
 
 
 class _GPUAccelerator(Accelerator):
-    """Accelerator for GPU devices."""
+    """Accelerator for GPU devices.
+
+    adapted from:
+    https://github.com/Lightning-AI/lightning/blob/master/src/pytorch_lightning/accelerators/gpu.py#L43
+    but remove `torch.cuda.set_device(root_device)` in `setup_environment`
+    """
 
     def setup_environment(self, root_device: torch.device) -> None:
         """
