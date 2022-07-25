@@ -34,6 +34,8 @@ else:
     HOROVOD_AVAILABLE = True
 
 from pytorch_lightning.utilities import rank_zero_only
+from ray_lightning.accelerators import \
+    _GPUAccelerator  # noqa: F401
 
 
 def get_executable_cls():
@@ -147,7 +149,9 @@ class RayHorovodLauncher(_Launcher):
 
         hvd.init()
         rank_zero_only.rank = self.global_rank
-        trainer.strategy.set_cuda_device_if_used()
+        if isinstance(trainer.strategy.accelerator, _GPUAccelerator):
+            trainer.strategy.accelerator.set_cuda_device_if_used(
+                trainer.strategy)
 
         # Move the model to the appropriate device.
         trainer.strategy.model_to_device()
