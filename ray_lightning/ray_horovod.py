@@ -1,12 +1,9 @@
 import torch
-from contextlib import ExitStack
 
 from ray.util import PublicAPI
 
 from pytorch_lightning.strategies import HorovodStrategy, ParallelStrategy
-import pytorch_lightning as pl
 import ray
-from pytorch_lightning.utilities.exceptions import MisconfigurationException
 
 from ray_lightning.util import Unavailable
 
@@ -25,9 +22,6 @@ from ray_lightning.launchers import RayHorovodLauncher
 from ray_lightning.accelerators import \
     _GPUAccelerator  # noqa: F401
 
-from pytorch_lightning.core.optimizer import LightningOptimizer
-from pytorch_lightning.utilities.optimizer import optimizers_to_device
-
 
 def get_executable_cls():
     # Only used for testing purposes, currently.
@@ -36,7 +30,7 @@ def get_executable_cls():
 
 
 @PublicAPI(stability="beta")
-class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
+class HorovodRayStrategy(HorovodStrategy):
     """Pytorch Lightning Strategy for Horovod training on a Ray cluster.
 
     This strategy is used to manage distributed training on a Ray cluster
@@ -107,55 +101,6 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
 
         self._launcher = RayHorovodLauncher(self)
 
-    def setup(self, trainer: "pl.Trainer") -> None:
-
-        self.model_to_device()
-        self.accelerator.setup(trainer)
-        self.setup_optimizers(trainer)
-        self.setup_precision_plugin()
-        optimizers_to_device(self.optimizers, self.root_device)
-
-        self._exit_stack = ExitStack()
-        self._exit_stack.__enter__()
-
-        if not trainer.training:
-            # no need to setup optimizers
-            return
-
-        def _unpack_lightning_optimizer(opt):
-            return opt._optimizer if isinstance(opt,
-                                                LightningOptimizer) else opt
-
-        optimizers = self.optimizers
-        optimizers = [_unpack_lightning_optimizer(opt) for opt in optimizers]
-
-        # Horovod: scale the learning rate by the number
-        # of workers to account for increased total batch size
-        for optimizer in optimizers:
-            for param_group in optimizer.param_groups:
-                param_group["lr"] *= self.world_size
-
-        # Horovod: adjust base LR used by schedulers
-        # to match scaled optimizer initial LR
-        lr_scheduler_configs = self.lr_scheduler_configs
-        for config in lr_scheduler_configs:
-            scheduler = config.scheduler
-            scheduler.base_lrs = [
-                lr * self.world_size for lr in scheduler.base_lrs
-            ]
-
-        accumulation_scheduler = trainer.accumulation_scheduler
-        if accumulation_scheduler.epochs != [0]:
-            raise MisconfigurationException(
-                "Horovod currently does not support different"
-                " `accumulate_grad_batches` at different epochs.")
-
-        self.optimizers = self._wrap_optimizers(
-            optimizers, trainer.accumulate_grad_batches)
-        for optimizer in self.optimizers:
-            # Synchronization will be performed explicitly following backward()
-            self._exit_stack.enter_context(optimizer.skip_synchronize())
-
     @property
     def global_rank(self) -> int:
         if not hvd.is_initialized():
@@ -200,11 +145,8 @@ class HorovodRayStrategy(HorovodStrategy, ParallelStrategy):
         """Set the CUDA device to use for the root node."""
         if self.use_gpu:
             # overwrite the logger
-            gpu_available = True
-            gpu_type = " (cuda)"
-            gpu_used = True
             rank_zero_info(
-                f"GPU available: {gpu_available}{gpu_type}, used: {gpu_used} "
+                "GPU available: True (cuda), used: True "
                 "(Please ignore the previous info [GPU used: False]).")
 
             torch.cuda.set_device(self.root_device)
