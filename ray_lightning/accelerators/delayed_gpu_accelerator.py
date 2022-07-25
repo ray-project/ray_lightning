@@ -23,8 +23,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.accelerators.accelerator import Accelerator
 from pytorch_lightning.utilities import device_parser
 from pytorch_lightning.utilities.types import _DEVICE
-from pytorch_lightning.strategies import Strategy
-from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
 _log = logging.getLogger(__name__)
 
@@ -59,16 +57,6 @@ class _GPUAccelerator(Accelerator):
         devices = os.getenv("CUDA_VISIBLE_DEVICES", all_gpu_ids)
         _log.info(
             f"LOCAL_RANK: {local_rank} - CUDA_VISIBLE_DEVICES: [{devices}]")
-
-    def set_cuda_device_if_used(self, strategy: "Strategy") -> None:
-        """Set the CUDA device to use for the root node."""
-        if strategy.use_gpu:
-            # overwrite the logger
-            rank_zero_info(
-                "GPU available: True (cuda), used: True "
-                "(Please ignore the previous info [GPU used: False]).")
-
-            torch.cuda.set_device(strategy.root_device)
 
     def get_device_stats(self, device: _DEVICE) -> Dict[str, Any]:
         """Gets stats for the given GPU device.

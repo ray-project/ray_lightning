@@ -22,7 +22,7 @@ from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, to_state_stream, \
-    load_state_stream
+    load_state_stream, set_cuda_device_if_used
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 from pytorch_lightning.strategies import Strategy
 
@@ -254,7 +254,7 @@ class RayLauncher(_Launcher):
         trainer.strategy.root_device = self._strategy.root_device
         trainer.strategy.global_rank = self._strategy.global_rank
         trainer.strategy.local_rank = self._strategy.local_rank
-        trainer.strategy.set_cuda_device_if_used()
+        set_cuda_device_if_used(trainer.strategy)
 
         results = function(*args, **kwargs)
 

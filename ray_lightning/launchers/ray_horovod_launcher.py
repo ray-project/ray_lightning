@@ -15,7 +15,7 @@ from ray.util.queue import Queue
 
 from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Unavailable, to_state_stream, \
-    load_state_stream
+    load_state_stream, set_cuda_device_if_used
 
 from pytorch_lightning.utilities.model_helpers import is_overridden
 
@@ -149,9 +149,7 @@ class RayHorovodLauncher(_Launcher):
 
         hvd.init()
         rank_zero_only.rank = self.global_rank
-        if isinstance(trainer.strategy.accelerator, _GPUAccelerator):
-            trainer.strategy.accelerator.set_cuda_device_if_used(
-                trainer.strategy)
+        set_cuda_device_if_used(trainer.strategy)
 
         # Move the model to the appropriate device.
         trainer.strategy.model_to_device()
