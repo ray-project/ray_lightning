@@ -241,6 +241,15 @@ class RayLauncher(_Launcher):
         self._strategy.set_remote(True)
         self._strategy.set_global_to_local(global_to_local)
 
+        # `function` is a trainer's class method
+        # in the ray remote tasks, its object `trainer` will also
+        # be copied when the function is remoted.
+        # ALERT: passing the trainer as an argument of `_wrapping_function`
+        # does not fillfullied our purpose. Ray remote tasks will
+        # create another copy of trainer so that
+        # `function.__self__ != trainer`, in which the side effect only
+        # happens to `function.__self__` when running
+        # `function(*args, **kwargs)`
         trainer = function.__self__
         trainer.model = model_ref
         args = tuple([model_ref] + list(args[1:]))

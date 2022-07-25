@@ -140,6 +140,15 @@ class RayHorovodLauncher(_Launcher):
     ) -> Any:
         self._strategy.set_remote(True)
 
+        # `function` is a trainer's class method
+        # in the ray remote tasks, its object `trainer` will also
+        # be copied when the function is remoted.
+        # ALERT: passing the trainer as an argument of `_wrapping_function`
+        # does not fillfullied our purpose. Ray remote tasks will
+        # create another copy of trainer so that
+        # `function.__self__ != trainer`, in which the side effect only
+        # happens to `function.__self__` when running
+        # `function(*args, **kwargs)`
         trainer = function.__self__
         model = ray.get(model_ref)
         trainer.model = model
