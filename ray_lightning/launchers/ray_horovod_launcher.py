@@ -31,17 +31,12 @@ else:
 from pytorch_lightning.utilities import rank_zero_only
 from ray_lightning.accelerators import \
     _GPUAccelerator  # noqa: F401
-from ray_lightning.launchers.utils import _RayOutput
-
-
-def get_executable_cls():
-    # Only used for testing purposes, currently.
-    # We need to override this in tests to ensure test path is set correctly.
-    return None
+from ray_lightning.launchers.utils import _RayOutput, get_executable_cls
 
 
 class RayHorovodLauncher(_Launcher):
     def __init__(self, strategy: "Strategy") -> None:
+        """Initialize the Ray horovod launcher."""
         self._strategy = strategy
         self._executor = strategy.executor
 
@@ -52,23 +47,33 @@ class RayHorovodLauncher(_Launcher):
 
     @property
     def global_rank(self) -> int:
+        """Return the global rank of the current process.
+            run on the worker node.
+        """
         if not hvd.is_initialized():
             return 0
         return hvd.rank()
 
     @property
     def local_rank(self) -> int:
+        """Return the local rank of the current process.
+            run on the worker node.
+        """
         if not hvd.is_initialized():
             return 0
         return hvd.local_rank()
 
     @property
     def world_size(self) -> int:
+        """Return the world size of the current process.
+            run on the worker node.
+        """
         if not hvd.is_initialized():
             return self.num_workers
         return hvd.size()
 
     def is_interactive_compatible(self) -> bool:
+        """Return whether the launcher is interactive compatible."""
         return True
 
     def launch(self,
@@ -76,14 +81,15 @@ class RayHorovodLauncher(_Launcher):
                *args: Any,
                trainer: Optional["pl.Trainer"] = None,
                **kwargs: Any) -> Any:
-        spawn_output = self.run_function_on_workers(
+        """Launch the function on the workers and collect the results."""
+        ray_output = self.run_function_on_workers(
             function, *args, trainer=trainer, **kwargs)
 
         if trainer is None:
             raise NotImplementedError(
                 "Ray launcher does not support trainer is None!")
-        self._recover_results_in_main_process(spawn_output, trainer)
-        return_value = spawn_output.trainer_results
+        self._recover_results_in_main_process(ray_output, trainer)
+        return_value = ray_output.trainer_results
 
         return return_value
 
@@ -92,7 +98,13 @@ class RayHorovodLauncher(_Launcher):
                                 *args: Any,
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
+        """Run the function on the workers and collect the results.
+           `executor.run_remote` is used to launch multiple ray remote tasks
+            to distributed training the model using the horovod backend.
+        """
+
         # put the model as the ray object
+        # this reduce the memory comsumption
         # and remove the model temporarily from the args
         model = trainer.model
         model_ref = ray.put(model)
@@ -134,6 +146,11 @@ class RayHorovodLauncher(_Launcher):
             kwargs: Any,
             tune_queue: Queue,
     ) -> Any:
+        """Wrapping function to run the function on the workers.
+            `_wrapping_function` is run on each remote worker.
+            `function(*args, **kwargs)` is where the actual training happens.
+        """
+
         self._strategy.set_remote(True)
 
         # `function` is a trainer's class method
@@ -176,6 +193,7 @@ class RayHorovodLauncher(_Launcher):
 
     def _collect_rank_zero_results(self, trainer: "pl.Trainer",
                                    results: Any) -> Optional["_RayOutput"]:
+        """Collect the results from the rank zero process."""
         rank_zero_debug("Finalizing the ray horovod launcher environment.")
         checkpoint_callback = trainer.checkpoint_callback
         best_model_path = checkpoint_callback.best_model_path \
@@ -207,6 +225,7 @@ class RayHorovodLauncher(_Launcher):
 
     def _recover_results_in_main_process(self, ray_output: "_RayOutput",
                                          trainer: "pl.Trainer") -> None:
+        """Recover the results in the main process."""
         # transfer back the best path to the trainer
         if trainer.checkpoint_callback:
             trainer.checkpoint_callback.best_model_path = str(

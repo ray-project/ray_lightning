@@ -17,6 +17,13 @@ def find_free_port():
         return s.getsockname()[1]
 
 
+def get_executable_cls():
+    # Only used for testing purposes, currently.
+    # Only used in `ray_horovod_launcher.py`
+    # We need to override this in tests to ensure test path is set correctly.
+    return None
+
+
 @ray.remote
 class RayExecutor:
     """A class to execute any arbitrary function remotely."""
