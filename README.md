@@ -41,7 +41,8 @@ Here are the supported PyTorch Lightning versions:
 |---|---|
 | 0.1 | 1.4 |
 | 0.2 | 1.5 |
-| master | 1.5 |
+| 0.3 | 1.6 |
+| master | 1.6 |
 
 
 ## PyTorch Distributed Data Parallel Strategy on Ray
