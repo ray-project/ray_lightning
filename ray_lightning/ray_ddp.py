@@ -71,6 +71,7 @@ class RayStrategy(DDPSpawnStrategy):
                  init_hook: Optional[Callable] = None,
                  resources_per_worker: Optional[Dict] = None,
                  **ddp_kwargs: Union[Any, Dict[str, Any]]):
+        """Initialize the Ray strategy."""
         resources_per_worker = resources_per_worker if resources_per_worker \
             else {}
         self.nickname = "ddp_ray"
@@ -113,16 +114,22 @@ class RayStrategy(DDPSpawnStrategy):
             **ddp_kwargs)
 
     def _configure_launcher(self):
+        """Configure the Ray launcher.
+            the distributed training logic is handled by the launcher.
+        """
         self._launcher = RayLauncher(self)
 
     def setup(self, trainer: "pl.Trainer") -> None:
+        """Setup the strategy."""
         super().setup(trainer)
 
     def set_remote(self, remote: bool):
+        """Set the remote flag. (this is useful for the remote workers)"""
         self._is_remote = remote
 
     def set_global_to_local(self,
                             global_to_local: List[Optional[Tuple[int, int]]]):
+        """Set the global to local rank mapping."""
         self.global_to_local = global_to_local
 
     def set_world_ranks(self, process_idx: int = 0):
@@ -138,6 +145,7 @@ class RayStrategy(DDPSpawnStrategy):
                 self.global_rank]
 
     def _worker_setup(self, process_idx: int):
+        """Setup the workers and pytorch DDP connections."""
         reset_seed()
         self.set_world_ranks(process_idx)
         rank_zero_only.rank = self.global_rank
@@ -178,30 +186,37 @@ class RayStrategy(DDPSpawnStrategy):
 
     @property
     def world_size(self) -> int:
+        """Return the world size."""
         return self.num_workers
 
     @property
     def local_rank(self) -> int:
+        """Return the local rank."""
         return self._local_rank
 
     @local_rank.setter
     def local_rank(self, value: int):
+        """Set the local rank."""
         self._local_rank = value
 
     @property
     def global_rank(self) -> int:
+        """Return the global rank."""
         return self._global_rank
 
     @global_rank.setter
     def global_rank(self, value: int):
+        """Set the global rank."""
         self._global_rank = value
 
     @property
     def node_rank(self) -> int:
+        """Return the node rank."""
         return self._node_rank
 
     @property
     def root_device(self):
+        """Return the root device."""
         # get the root device
         # if the root device not set, figure it out
         # thru `get_gpu_ids` if `use_gpu` is True
@@ -251,20 +266,8 @@ class RayStrategy(DDPSpawnStrategy):
 
     @root_device.setter
     def root_device(self, device):
+        """Set the root device."""
         self._device = device
-
-    def set_cuda_device_if_used(self):
-        """Set the CUDA device to use for the root node."""
-        if self.use_gpu:
-            # overwrite the logger
-            gpu_available = True
-            gpu_type = " (cuda)"
-            gpu_used = True
-            rank_zero_info(
-                f"GPU available: {gpu_available}{gpu_type}, used: {gpu_used} "
-                "(Please ignore the previous info [GPU used: False]).")
-
-            torch.cuda.set_device(self.root_device)
 
     @property
     def distributed_sampler_kwargs(self):
@@ -275,8 +278,10 @@ class RayStrategy(DDPSpawnStrategy):
 
     @property
     def _is_single_process_single_device(self):
+        """Return True if the process is single process and single device."""
         return True
 
     def teardown(self) -> None:
+        """Teardown the workers and pytorch DDP connections."""
         self.accelerator = None
         super().teardown()

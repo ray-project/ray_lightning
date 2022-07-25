@@ -16,7 +16,6 @@ except (ModuleNotFoundError, ImportError):
     hvd = Unavailable
 else:
     HOROVOD_AVAILABLE = True
-from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
 from ray_lightning.launchers import RayHorovodLauncher
 from ray_lightning.accelerators import \
@@ -75,7 +74,7 @@ class HorovodRayStrategy(HorovodStrategy):
                  num_workers: int,
                  num_cpus_per_worker: int = 1,
                  use_gpu: bool = False):
-
+        """Initialize HorovodRayStrategy."""
         if not HOROVOD_AVAILABLE:
             raise RuntimeError("Please intall Horovod to use this strategy.")
         if not ray.is_initialized():
@@ -92,6 +91,9 @@ class HorovodRayStrategy(HorovodStrategy):
         self._is_remote = False
 
     def _configure_launcher(self):
+        """Configure the Ray launcher.
+            The horovod launcher is used to launch the Ray actors.
+        """
         settings = RayExecutor.create_settings(timeout_s=30)
         self.executor = RayExecutor(
             settings,
@@ -103,36 +105,43 @@ class HorovodRayStrategy(HorovodStrategy):
 
     @property
     def global_rank(self) -> int:
+        """Return the global rank of the current process."""
         if not hvd.is_initialized():
             return 0
         return hvd.rank()
 
     @property
     def local_rank(self) -> int:
+        """Return the local rank of the current process."""
         if not hvd.is_initialized():
             return 0
         return hvd.local_rank()
 
     @property
     def world_size(self) -> int:
+        """Return the world size of the current process."""
         if not hvd.is_initialized():
             return self.num_workers
         return hvd.size()
 
     def teardown(self) -> None:
+        """Teardown the strategy."""
         self.join()
         self.accelerator = None
         super().teardown()
 
     @property
     def is_distributed(self):
+        """Return whether the strategy is distributed."""
         return True
 
     def set_remote(self, remote: bool):
+        """Set the remote flag."""
         self._is_remote = remote
 
     @property
     def root_device(self):
+        """Return the root device."""
         if self.use_gpu and torch.cuda.is_available():
             if hvd.is_initialized():
                 return torch.device("cuda", hvd.local_rank())
@@ -140,13 +149,3 @@ class HorovodRayStrategy(HorovodStrategy):
                 return torch.device("cuda", 0)
         else:
             return torch.device("cpu")
-
-    def set_cuda_device_if_used(self):
-        """Set the CUDA device to use for the root node."""
-        if self.use_gpu:
-            # overwrite the logger
-            rank_zero_info(
-                "GPU available: True (cuda), used: True "
-                "(Please ignore the previous info [GPU used: False]).")
-
-            torch.cuda.set_device(self.root_device)
