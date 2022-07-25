@@ -15,7 +15,7 @@ from typing import Dict, List
 
 import torch
 
-from pytorch_lightning.accelerators.accelerator import Accelerator,\
+from pytorch_lightning.accelerators import Accelerator,\
     GPUAccelerator
 
 
