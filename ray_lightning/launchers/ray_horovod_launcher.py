@@ -84,10 +84,10 @@ class RayHorovodLauncher(_Launcher):
             function, *args, trainer=trainer, **kwargs)
 
         if trainer is None:
-            return_value = spawn_output
-        else:
-            self._recover_results_in_main_process(spawn_output, trainer)
-            return_value = spawn_output.trainer_results
+            raise NotImplementedError(
+                "Ray launcher does not support trainer is None!")
+        self._recover_results_in_main_process(spawn_output, trainer)
+        return_value = spawn_output.trainer_results
 
         return return_value
 

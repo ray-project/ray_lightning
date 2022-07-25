@@ -63,10 +63,10 @@ class RayLauncher(_Launcher):
             function, *args, trainer=trainer, **kwargs)
 
         if trainer is None:
-            return_value = ray_output
-        else:
-            self._recover_results_in_main_process(ray_output, trainer)
-            return_value = ray_output.trainer_results
+            raise NotImplementedError(
+                "Ray launcher does not support trainer is None!")
+        self._recover_results_in_main_process(ray_output, trainer)
+        return_value = ray_output.trainer_results
 
         self.teardown_workers()
         self._strategy.teardown()
