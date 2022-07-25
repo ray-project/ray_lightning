@@ -1,9 +1,7 @@
 from typing import Callable, List, Any, Tuple, Optional
 
 from collections import defaultdict
-from contextlib import closing
 import os
-import socket
 
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.launchers import _Launcher
@@ -24,12 +22,7 @@ from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 from pytorch_lightning.strategies import Strategy
 from ray_lightning.launchers.utils import _RayOutput
 
-
-def find_free_port():
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(("", 0))
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return s.getsockname()[1]
+from ray_lightning.launchers.utils import find_free_port
 
 
 class RayLauncher(_Launcher):
