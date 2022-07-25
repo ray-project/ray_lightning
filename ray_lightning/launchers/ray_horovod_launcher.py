@@ -4,7 +4,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.strategies.launchers import _Launcher
 from pytorch_lightning.utilities.apply_func import apply_to_collection, \
     move_data_to_device
-from torch import Tensor
 import numpy as np
 import torch
 
@@ -17,10 +16,6 @@ from ray_lightning.session import init_session
 from ray_lightning.util import process_results, Unavailable, to_state_stream, \
     load_state_stream, set_cuda_device_if_used
 
-from pytorch_lightning.utilities.model_helpers import is_overridden
-
-from pytorch_lightning.strategies.launchers.spawn import _FakeQueue, \
-    _SpawnOutput
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 
 try:
@@ -36,6 +31,7 @@ else:
 from pytorch_lightning.utilities import rank_zero_only
 from ray_lightning.accelerators import \
     _GPUAccelerator  # noqa: F401
+from ray_lightning.launchers.utils import _RayOutput
 
 
 def get_executable_cls():
@@ -179,8 +175,8 @@ class RayHorovodLauncher(_Launcher):
         return None
 
     def _collect_rank_zero_results(self, trainer: "pl.Trainer",
-                                   results: Any) -> Optional["_SpawnOutput"]:
-        rank_zero_debug("Finalizing the DDP spawn environment.")
+                                   results: Any) -> Optional["_RayOutput"]:
+        rank_zero_debug("Finalizing the ray horovod launcher environment.")
         checkpoint_callback = trainer.checkpoint_callback
         best_model_path = checkpoint_callback.best_model_path \
             if checkpoint_callback else None
@@ -196,25 +192,28 @@ class RayHorovodLauncher(_Launcher):
         # model state stream directly.
         model_state_stream = to_state_stream(state_dict)
 
-        # adds the `callback_metrics` to the queue
-        extra = _FakeQueue()
-        if is_overridden("add_to_queue", trainer.lightning_module):
-            # TODO: Remove the if in v1.7
-            trainer.lightning_module.add_to_queue(extra)
-        self.add_to_queue(trainer, extra)
+        # adds the `callback_metrics`
+        callback_metrics: dict = apply_to_collection(
+            trainer.callback_metrics, torch.Tensor, lambda x: x.cpu().numpy(
+            ))  # send as numpy to avoid issues with memory sharing
 
-        return _SpawnOutput(best_model_path, model_state_stream, trainer.state,
-                            results, extra)
+        # Same for logged_metrics
+        logged_metrics: dict = apply_to_collection(
+            trainer.logged_metrics, torch.Tensor, lambda x: x.cpu().numpy(
+            ))  # send as numpy to avoid issues with memory sharing
 
-    def _recover_results_in_main_process(self, spawn_output: "_SpawnOutput",
+        return _RayOutput(best_model_path, model_state_stream, trainer.state,
+                          results, callback_metrics, logged_metrics)
+
+    def _recover_results_in_main_process(self, ray_output: "_RayOutput",
                                          trainer: "pl.Trainer") -> None:
         # transfer back the best path to the trainer
         if trainer.checkpoint_callback:
             trainer.checkpoint_callback.best_model_path = str(
-                spawn_output.best_model_path)
+                ray_output.best_model_path)
 
-        if spawn_output.weights_path is not None:
-            state_stream = spawn_output.weights_path
+        if ray_output.weights_path is not None:
+            state_stream = ray_output.weights_path
             # DDPSpawnPlugin.__recover_child_process_weights begin
             # Difference here is that instead of writing the model weights to a
             # file and loading it, we use the state dict of the model directly.
@@ -223,39 +222,11 @@ class RayHorovodLauncher(_Launcher):
             # Set the state for PTL using the output from remote training.
             trainer.lightning_module.load_state_dict(state_dict)
 
-        trainer.state = spawn_output.trainer_state
+        trainer.state = ray_output.trainer_state
 
-        # get the `callback_metrics` and set it to the trainer
-        if is_overridden("get_from_queue", trainer.lightning_module):
-            # only in case the user does not override it.
-            # TODO: Remove the if in v1.7
-            trainer.lightning_module.get_from_queue(spawn_output.extra)
-        self.get_from_queue(trainer, spawn_output.extra)
-
-    def add_to_queue(self, trainer: "pl.Trainer", queue: "_FakeQueue") -> None:
-        """Appends the :attr:`trainer.callback_metrics` dictionary to the
-        given queue. To avoid issues with memory
-        sharing, we cast the data to numpy.
-        Args:
-            trainer: reference to the Trainer.
-            queue: the instance of the queue to append the data.
-        """
-        callback_metrics: dict = apply_to_collection(
-            trainer.callback_metrics, Tensor, lambda x: x.cpu().numpy(
-            ))  # send as numpy to avoid issues with memory sharing
-        queue.put(callback_metrics)
-
-    def get_from_queue(self, trainer: "pl.Trainer",
-                       queue: "_FakeQueue") -> None:
-        """Retrieve the :attr:`trainer.callback_metrics` dictionary
-        from the given queue. To preserve consistency,
-        we cast back the data to ``torch.Tensor``.
-        Args:
-            trainer: reference to the Trainer.
-            queue: the instance of the queue from where to get the data.
-        """
-        # NOTE: `add_to_queue` needs to be called before
-        callback_metrics: dict = queue.get()
         trainer.callback_metrics.update(
-            apply_to_collection(callback_metrics,
+            apply_to_collection(ray_output.callback_metrics,
+                                np.ndarray, lambda x: torch.tensor(x)))
+        trainer.logged_metrics.update(
+            apply_to_collection(ray_output.logged_metrics,
                                 np.ndarray, lambda x: torch.tensor(x)))

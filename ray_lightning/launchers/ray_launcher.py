@@ -1,5 +1,4 @@
-from typing import Callable, List, Any, Tuple, Optional, \
-    NamedTuple, Dict
+from typing import Callable, List, Any, Tuple, Optional
 
 from collections import defaultdict
 from contextlib import closing
@@ -8,10 +7,8 @@ import socket
 
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.launchers import _Launcher
-from pytorch_lightning.trainer.states import TrainerState
 from pytorch_lightning.utilities.apply_func import apply_to_collection,\
     move_data_to_device
-from pytorch_lightning.utilities.types import _PATH
 import numpy as np
 import torch
 
@@ -25,6 +22,7 @@ from ray_lightning.util import process_results, to_state_stream, \
     load_state_stream, set_cuda_device_if_used
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 from pytorch_lightning.strategies import Strategy
+from ray_lightning.launchers.utils import _RayOutput
 
 
 def find_free_port():
@@ -361,12 +359,3 @@ class RayExecutor:
     def execute(self, fn: Callable, *args, **kwargs):
         """Execute the provided function and return the result."""
         return fn(*args, **kwargs)
-
-
-class _RayOutput(NamedTuple):
-    best_model_path: Optional[_PATH]
-    weights_path: Optional[_PATH]
-    trainer_state: TrainerState
-    trainer_results: Any
-    callback_metrics: Dict[str, Any]
-    logged_metrics: Dict[str, Any]
