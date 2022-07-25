@@ -208,6 +208,9 @@ class RayLauncher(_Launcher):
                                 *args: Any,
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
+
+        # put the model as the ray object
+        # and remove the model temporarily from the args
         model = trainer.model
         model_ref = ray.put(model)
         trainer.model = None

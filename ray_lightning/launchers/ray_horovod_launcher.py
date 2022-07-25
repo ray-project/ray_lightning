@@ -94,12 +94,16 @@ class RayHorovodLauncher(_Launcher):
                                 *args: Any,
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
-
+        # put the model as the ray object
+        # and remove the model temporarily from the args
         model = trainer.model
         model_ref = ray.put(model)
         trainer.model = None
         new_args = tuple([None] + list(args[1:]))
 
+        # remove the executor temporarily from the args
+        # in order to avoid the ray.get() call in the function
+        # because executor is not pickleable
         executor = self._executor
         self._executor = None
         self._strategy.executor = None
@@ -110,12 +114,10 @@ class RayHorovodLauncher(_Launcher):
             # Create communication queue and send to all the workers.
             self.tune_queue = Queue(actor_options={"num_cpus": 0})
 
-        def _func():
-            return self._wrapping_function(function, model_ref, new_args,
-                                           kwargs, self.tune_queue)
+        self._futures = executor.run_remote(lambda: self._wrapping_function(
+            function, model_ref, new_args, kwargs, self.tune_queue))
 
-        self._futures = executor.run_remote(_func)
-
+        # put back the executor and model
         self._executor = executor
         self._strategy.executor = executor
         trainer.model = model
