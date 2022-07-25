@@ -20,13 +20,13 @@ from ray_lightning.util import process_results, to_state_stream, \
     load_state_stream, set_cuda_device_if_used
 from ray_lightning.tune import TUNE_INSTALLED, is_session_enabled
 from pytorch_lightning.strategies import Strategy
-from ray_lightning.launchers.utils import _RayOutput
-
-from ray_lightning.launchers.utils import find_free_port
+from ray_lightning.launchers.utils import _RayOutput, find_free_port,\
+    RayExecutor
 
 
 class RayLauncher(_Launcher):
     def __init__(self, strategy: "Strategy") -> None:
+        """Initializes RayLauncher."""
         self._strategy = strategy
         self._start_method = "ray"
         self._workers = []
@@ -36,12 +36,13 @@ class RayLauncher(_Launcher):
 
         self._global_to_local = None
 
-        self.queue = None
+        self.tune_queue = None
 
         if not ray.is_initialized():
             ray.init()
 
     def is_interactive_compatible(self) -> bool:
+        """Returns True if the launcher is interactive compatible."""
         return True
 
     def launch(self,
@@ -49,6 +50,7 @@ class RayLauncher(_Launcher):
                *args: Any,
                trainer: Optional["pl.Trainer"] = None,
                **kwargs: Any) -> Any:
+        """Launches the function on the workers from the driver node."""
         self.setup_workers()
         ray_output = self.run_function_on_workers(
             function, *args, trainer=trainer, **kwargs)
@@ -64,7 +66,9 @@ class RayLauncher(_Launcher):
         return return_value
 
     def setup_workers(self, tune_enabled: bool = True) -> None:
-        """Sets up PTL Trainer and creates the Ray actors."""
+        """Creates the Ray actors and sets up PTL Trainer environment
+            on the worker nodes.
+        """
         self._workers = [
             self._create_worker() for _ in range(self._strategy.num_workers)
         ]
@@ -90,13 +94,12 @@ class RayLauncher(_Launcher):
         self._global_to_local = self.get_local_ranks()
         # Todo: put model into object store?
 
-        self.tune_queue = None
         if tune_enabled and TUNE_INSTALLED and is_session_enabled():
             # Create communication queue and send to all the workers.
             self.tune_queue = Queue(actor_options={"num_cpus": 0})
 
     def _create_worker(self) -> ray.actor.ActorHandle:
-        """Creates Ray actor."""
+        """Creates Ray actor workers."""
         worker = RayExecutor.options(
             num_cpus=self._strategy.num_cpus_per_worker,
             num_gpus=self._strategy.num_gpus_per_worker,
@@ -104,6 +107,7 @@ class RayLauncher(_Launcher):
         return worker
 
     def teardown_workers(self):
+        """Tears down the Ray actors and PTL Trainer environment"""
         if self.tune_queue:
             # Shutdown the queue.
             self.tune_queue.shutdown()
@@ -114,7 +118,9 @@ class RayLauncher(_Launcher):
         self._workers = []
 
     def get_local_ranks(self) -> List[Optional[Tuple[int, int]]]:
-        """Creates a mapping of global ranks to local ranks/node ranks."""
+        """Creates a mapping of global ranks to local ranks/node ranks.
+            this method is to run on the worker nodes.
+        """
         # Get the local ranks for all the workers and store as a list.
         # First get the IP address of each remote worker.
         node_ips = ray.get([w.get_node_ip.remote() for w in self._workers])
@@ -140,6 +146,7 @@ class RayLauncher(_Launcher):
         return global_to_local
 
     def _setup_env_vars(self):
+        """Sets environment variables for all workers."""
         # Get rank 0 worker address and port for DDP connection.
         os.environ["MASTER_ADDR"] = self._master_addr
         os.environ["MASTER_PORT"] = self._master_port
@@ -199,7 +206,9 @@ class RayLauncher(_Launcher):
                                 *args: Any,
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
-
+        """launch a function on all workers.
+            The actual training parts are run inside `_wrapping_function`
+        """
         # put the model as the ray object
         # and remove the model temporarily from the args
         model = trainer.model
@@ -207,6 +216,7 @@ class RayLauncher(_Launcher):
         trainer.model = None
         new_args = tuple([None] + list(args[1:]))
 
+        # train the model and get the result to rank 0 node
         self._futures = [
             w.execute.remote(self._wrapping_function, i, self._global_to_local,
                              function, model_ref, new_args, kwargs,
@@ -229,6 +239,10 @@ class RayLauncher(_Launcher):
             kwargs: Any,
             tune_queue: Queue,
     ) -> Any:
+        """Wraps the function to run on the workers.
+            `results = function(*args, **kwargs)` is where the
+            actual training parts are run.
+        """
         self._strategy.set_remote(True)
         self._strategy.set_global_to_local(global_to_local)
 
@@ -270,6 +284,7 @@ class RayLauncher(_Launcher):
 
     def _collect_rank_zero_results(self, trainer: "pl.Trainer",
                                    results: Any) -> Optional["_RayOutput"]:
+        """Collects the results from the worker node 0."""
         rank_zero_debug("Finalizing the Ray launcher environment.")
         checkpoint_callback = trainer.checkpoint_callback
         best_model_path = checkpoint_callback.best_model_path \
@@ -301,6 +316,7 @@ class RayLauncher(_Launcher):
 
     def _recover_results_in_main_process(self, ray_output: "_RayOutput",
                                          trainer: "pl.Trainer") -> None:
+        """Recovers the results in the main process."""
         # transfer back the best path to the trainer
         if trainer.checkpoint_callback:
             trainer.checkpoint_callback.best_model_path = str(
@@ -324,31 +340,3 @@ class RayLauncher(_Launcher):
         trainer.logged_metrics.update(
             apply_to_collection(ray_output.logged_metrics,
                                 np.ndarray, lambda x: torch.tensor(x)))
-
-
-@ray.remote
-class RayExecutor:
-    """A class to execute any arbitrary function remotely."""
-
-    def set_env_var(self, key: str, value: str):
-        """Set an environment variable with the provided values."""
-        if value is not None:
-            value = str(value)
-            os.environ[key] = value
-
-    def set_env_vars(self, keys: List[str], values: List[str]):
-        """Sets multiple env vars with the provided values"""
-        assert len(keys) == len(values)
-        for key, value in zip(keys, values):
-            self.set_env_var(key, value)
-
-    def get_node_ip(self):
-        """Returns the IP address of the node that this Ray actor is on."""
-        return ray.util.get_node_ip_address()
-
-    def get_node_and_gpu_ids(self):
-        return ray.get_runtime_context().node_id.hex(), ray.get_gpu_ids()
-
-    def execute(self, fn: Callable, *args, **kwargs):
-        """Execute the provided function and return the result."""
-        return fn(*args, **kwargs)
