@@ -33,7 +33,7 @@ class _GPUAccelerator(GPUAccelerator):
         and call `torch.cuda.set_device(self.device)` at the later time
         inside the `ray_launcher` or `horovod_launcher`
         """
-        Accelerator().setup_environment(root_device)
+        Accelerator.setup_environment(self, root_device)
 
     @staticmethod
     def get_parallel_devices(devices: List[int]) -> List[torch.device]:
