@@ -10,7 +10,7 @@ from pl_bolts.models.vision import ImageGPT
 import pytorch_lightning as pl
 from pytorch_lightning import Callback
 
-from ray_lightning import RayShardedPlugin
+from ray_lightning import RayShardedStrategy
 
 
 class CUDACallback(Callback):
@@ -53,7 +53,7 @@ def train(data_dir, num_workers, use_gpu, batch_size, embed_dim, max_epochs,
         with FileLock(os.path.join(data_dir, ".lock")):
             MNISTDataModule(data_dir=data_dir).prepare_data()
 
-    strategy = RayShardedPlugin(
+    strategy = RayShardedStrategy(
         num_workers=num_workers, use_gpu=use_gpu, init_hook=download_data)
 
     dm = MNISTDataModule(data_dir, batch_size=batch_size)
