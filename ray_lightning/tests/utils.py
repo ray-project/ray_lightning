@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 import pytorch_lightning as pl
-from pytorch_lightning.plugins import PLUGIN_INPUT
+from pytorch_lightning.strategies import Strategy
 from pytorch_lightning import LightningModule, Callback, Trainer, \
     LightningDataModule
 
@@ -119,7 +119,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         x = self.layer_2(x)
         x = torch.relu(x)
         x = self.layer_3(x)
-        x = F.softmax(x, dim=1)
+        x = F.log_softmax(x, dim=1)
         return x
 
     def configure_optimizers(self):
@@ -128,7 +128,7 @@ class LightningMNISTClassifier(pl.LightningModule):
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch
         logits = self.forward(x)
-        loss = F.nll_loss(logits, y)
+        loss = F.nll_loss(logits, y.long())
         acc = self.accuracy(logits, y)
         self.log("ptl/train_loss", loss)
         self.log("ptl/train_accuracy", acc)
@@ -137,7 +137,7 @@ class LightningMNISTClassifier(pl.LightningModule):
     def validation_step(self, val_batch, batch_idx):
         x, y = val_batch
         logits = self.forward(x)
-        loss = F.nll_loss(logits, y)
+        loss = F.nll_loss(logits, y.long())
         acc = self.accuracy(logits, y)
         return {"val_loss": loss, "val_accuracy": acc}
 
@@ -211,7 +211,7 @@ class XORDataModule(LightningDataModule):
 
 
 def get_trainer(dir,
-                plugins: List[PLUGIN_INPUT],
+                strategy: Strategy,
                 max_epochs: int = 1,
                 limit_train_batches: int = 10,
                 limit_val_batches: int = 10,
@@ -223,7 +223,7 @@ def get_trainer(dir,
     trainer = pl.Trainer(
         default_root_dir=dir,
         callbacks=callbacks,
-        plugins=plugins,
+        strategy=strategy,
         max_epochs=max_epochs,
         limit_train_batches=limit_train_batches,
         limit_val_batches=limit_val_batches,

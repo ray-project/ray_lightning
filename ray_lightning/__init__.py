@@ -1,5 +1,5 @@
-from ray_lightning.ray_ddp import RayPlugin
-from ray_lightning.ray_horovod import HorovodRayPlugin
-from ray_lightning.ray_ddp_sharded import RayShardedPlugin
+from ray_lightning.ray_ddp import RayStrategy
+from ray_lightning.ray_horovod import HorovodRayStrategy
+from ray_lightning.ray_ddp_sharded import RayShardedStrategy
 
-__all__ = ["RayPlugin", "HorovodRayPlugin", "RayShardedPlugin"]
+__all__ = ["RayStrategy", "HorovodRayStrategy", "RayShardedStrategy"]

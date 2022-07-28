@@ -4,6 +4,8 @@ from typing import Callable
 import torch
 from pytorch_lightning.accelerators import GPUAccelerator
 from pytorch_lightning import Trainer
+from pytorch_lightning.strategies import Strategy
+from pytorch_lightning.utilities.rank_zero import rank_zero_info
 
 import ray
 
@@ -88,3 +90,13 @@ def load_state_stream(state_stream, to_gpu):
         map_location=("cpu"
                       if not to_gpu else lambda storage, loc: storage.cuda()))
     return state_dict
+
+
+def set_cuda_device_if_used(strategy: "Strategy") -> None:
+    """Set the CUDA device to use for the root node."""
+    if strategy.use_gpu:
+        # overwrite the logger
+        rank_zero_info("GPU available: True (cuda), used: True "
+                       "(Please ignore the previous info [GPU used: False]).")
+
+        torch.cuda.set_device(strategy.root_device)
