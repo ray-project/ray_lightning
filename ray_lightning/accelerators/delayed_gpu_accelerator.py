@@ -20,7 +20,7 @@ from pytorch_lightning.accelerators import Accelerator,\
 
 
 class _GPUAccelerator(GPUAccelerator):
-    """Accelerator for GPU devices.
+    """Accelerator for **delayed** GPU devices.
 
     adapted from:
     https://github.com/Lightning-AI/lightning/blob/master/src/pytorch_lightning/accelerators/gpu.py#L43
@@ -28,7 +28,8 @@ class _GPUAccelerator(GPUAccelerator):
     """
 
     def setup_environment(self, root_device: torch.device) -> None:
-        """
+        """set up the environment for delayed devices.
+
         modified: remove `torch.cuda.set_device(root_device)`
         and call `torch.cuda.set_device(self.device)` at the later time
         inside the `ray_launcher` or `horovod_launcher`
