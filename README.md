@@ -11,15 +11,17 @@ This library also comes with an integration with <!--$UNCOMMENT{ref}`Ray Tune <t
 
 <!--$REMOVE-->
 # Table of Contents
-1. [Installation](#installation)
-2. [PyTorch Lightning Compatibility](#pytorch-lightning-compatibility)
-3. [PyTorch Distributed Data Parallel Plugin on Ray](#pytorch-distributed-data-parallel-plugin-on-ray)
-4. [Multi-Node Distributed Training](#multinode-distributed-training)
-5. [Multi-Node Training from your Laptop](#multinode-training-from-your-laptop)
-5. [Horovod Plugin on Ray](#horovod-plugin-on-ray)
-6. [Model Parallel Sharded Training on Ray](#model-parallel-sharded-training-on-ray)
-7. [Hyperparameter Tuning with Ray Tune](#hyperparameter-tuning-with-ray-tune)
-8. [FAQ](#faq)
+- [Distributed PyTorch Lightning Training on Ray](#distributed-pytorch-lightning-training-on-ray)
+- [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [PyTorch Lightning Compatibility](#pytorch-lightning-compatibility)
+  - [PyTorch Distributed Data Parallel Strategy on Ray](#pytorch-distributed-data-parallel-strategy-on-ray)
+  - [Multi-node Distributed Training](#multi-node-distributed-training)
+  - [Multi-node Training from your Laptop](#multi-node-training-from-your-laptop)
+  - [Horovod Strategy on Ray](#horovod-strategy-on-ray)
+  - [Model Parallel Sharded Training on Ray](#model-parallel-sharded-training-on-ray)
+  - [Hyperparameter Tuning with Ray Tune](#hyperparameter-tuning-with-ray-tune)
+  - [FAQ](#faq)
 <!--$END_REMOVE-->
 
 
@@ -36,11 +38,11 @@ Or to install master:
 Here are the supported PyTorch Lightning versions:
 
 | Ray Lightning | PyTorch Lightning |
-|---|---|
-| 0.1 | 1.4 |
-| 0.2 | 1.5 |
-| 0.3 | 1.6 |
-| master | 1.6 |
+|---------------|-------------------|
+| 0.1           | 1.4               |
+| 0.2           | 1.5               |
+| 0.3           | 1.6               |
+| master        | 1.6               |
 
 
 ## PyTorch Distributed Data Parallel Strategy on Ray
@@ -194,7 +196,7 @@ As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment
 Neither of these should be an issue with the `RayStrategy` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this strategy, your model does have to be serializable/pickleable.
 
 > Horovod installation issue
-please see [details](./docs/horovod_faq.md)
+please see [details](docs/horovod_faq.md)
 
 <!--$UNCOMMENT## API Reference
 
