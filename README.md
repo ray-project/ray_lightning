@@ -160,7 +160,7 @@ def train_mnist(config):
     trainer = pl.Trainer(
         max_epochs=4,
         callbacks=callbacks,
-        strategy=[RayStrategy(num_workers=4, use_gpu=False)])
+        strategy=RayStrategy(num_workers=4, use_gpu=False))
     trainer.fit(model)
     
 config = {
