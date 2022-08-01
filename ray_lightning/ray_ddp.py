@@ -23,6 +23,7 @@ import os
 @PublicAPI(stability="beta")
 class RayStrategy(DDPSpawnStrategy):
     """Pytorch Lightning strategy for DDP training on a Ray cluster.
+
     This strategy is used to manage distributed training using DDP and
     Ray for process launching. Internally, the specified number of
     Ray actors are launched in the cluster and are registered as part of a
@@ -35,6 +36,7 @@ class RayStrategy(DDPSpawnStrategy):
     script: ``python train.py``, and only on the head node if running in a
     distributed Ray cluster. There is no need to run this script on every
     single node.
+
     Args:
         num_workers (int): Number of training workers to use.
         num_cpus_per_worker (int): Number of CPUs per worker.
@@ -51,6 +53,7 @@ class RayStrategy(DDPSpawnStrategy):
             ``DistributedDataParallel`` initialization
     Example:
         .. code-block:: python
+
             import pytorch_lightning as ptl
             from ray_lightning import RayAccelerator
             ptl_model = MNISTClassifier(...)

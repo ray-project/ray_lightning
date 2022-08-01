@@ -36,11 +36,11 @@ Or to install master:
 Here are the supported PyTorch Lightning versions:
 
 | Ray Lightning | PyTorch Lightning |
-|---|---|
-| 0.1 | 1.4 |
-| 0.2 | 1.5 |
-| 0.3 | 1.6 |
-| master | 1.6 |
+|---------------|-------------------|
+| 0.1           | 1.4               |
+| 0.2           | 1.5               |
+| 0.3           | 1.6               |
+| master        | 1.6               |
 
 
 ## PyTorch Distributed Data Parallel Strategy on Ray
@@ -194,7 +194,7 @@ As discussed [here](https://github.com/pytorch/pytorch/issues/51688#issuecomment
 Neither of these should be an issue with the `RayStrategy` due to Ray's serialization mechanisms. The only thing to keep in mind is that when using this strategy, your model does have to be serializable/pickleable.
 
 > Horovod installation issue
-please see [details](./docs/horovod_faq.md)
+please see [details](https://github.com/ray-project/ray_lightning/blob/main/docs/horovod_faq.md)
 
 <!--$UNCOMMENT## API Reference
 
