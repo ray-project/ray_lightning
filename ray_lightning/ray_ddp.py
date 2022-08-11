@@ -4,7 +4,6 @@ import warnings
 
 import torch
 
-import pytorch_lightning as pl
 from pytorch_lightning.strategies import DDPSpawnStrategy
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
@@ -118,25 +117,37 @@ class RayStrategy(DDPSpawnStrategy):
 
     def _configure_launcher(self):
         """Configure the Ray launcher.
-            the distributed training logic is handled by the launcher.
+
+        This function is overriding ddp_spawn_strategy's method.
+        It is run on the driver process.
+
+        the distributed training logic is handled by the launcher.
         """
         self._launcher = RayLauncher(self)
 
-    def setup(self, trainer: "pl.Trainer") -> None:
-        """Setup the strategy."""
-        super().setup(trainer)
-
     def set_remote(self, remote: bool):
-        """Set the remote flag. (this is useful for the remote workers)"""
+        """Set the remote flag. (this is useful for the remote workers)
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         self._is_remote = remote
 
     def set_global_to_local(self,
                             global_to_local: List[Optional[Tuple[int, int]]]):
-        """Set the global to local rank mapping."""
+        """Set the global to local rank mapping.
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         self.global_to_local = global_to_local
 
     def set_world_ranks(self, process_idx: int = 0):
-        """Set the appropriate rank attributes for the trainer."""
+        """Set the appropriate rank attributes for the trainer.
+
+        This function is overriding ddp_spawn_strategy's method.
+        It is run on the worker processes.
+        """
         # Ranks should only be set once all the actors are created and
         # training has begun (otherwise self.global_to_local has not been
         # initialized).
@@ -148,7 +159,11 @@ class RayStrategy(DDPSpawnStrategy):
                 self.global_rank]
 
     def _worker_setup(self, process_idx: int):
-        """Setup the workers and pytorch DDP connections."""
+        """Setup the workers and pytorch DDP connections.
+
+        This function is overriding ddp_spawn_strategy's method.
+        It is run on the worker processes.
+        """
         reset_seed()
         self.set_world_ranks(process_idx)
         rank_zero_only.rank = self.global_rank
@@ -189,37 +204,65 @@ class RayStrategy(DDPSpawnStrategy):
 
     @property
     def world_size(self) -> int:
-        """Return the world size."""
+        """Return the world size.
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         return self.num_workers
 
     @property
     def local_rank(self) -> int:
-        """Return the local rank."""
+        """Return the local rank.
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         return self._local_rank
 
     @local_rank.setter
     def local_rank(self, value: int):
-        """Set the local rank."""
+        """Set the local rank.
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         self._local_rank = value
 
     @property
     def global_rank(self) -> int:
-        """Return the global rank."""
+        """Return the global rank.
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         return self._global_rank
 
     @global_rank.setter
     def global_rank(self, value: int):
-        """Set the global rank."""
+        """Set the global rank.
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         self._global_rank = value
 
     @property
     def node_rank(self) -> int:
-        """Return the node rank."""
+        """Return the node rank.
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         return self._node_rank
 
     @property
     def root_device(self):
-        """Return the root device."""
+        """Return the root device.
+
+        This function is overriding ddp_spawn_strategy's method.
+        It is run on the worker processes.
+        """
         # get the root device
         # if the root device not set, figure it out
         # thru `get_gpu_ids` if `use_gpu` is True
@@ -269,22 +312,29 @@ class RayStrategy(DDPSpawnStrategy):
 
     @root_device.setter
     def root_device(self, device):
-        """Set the root device."""
+        """Set the root device.
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         self._device = device
 
     @property
     def distributed_sampler_kwargs(self):
-        """Returns the args to use for torch.data.DistributedSampler."""
+        """Returns the args to use for torch.data.DistributedSampler.
+
+        This function is overriding ddp_spawn_strategy's method.
+        It is run on the worker processes.
+        """
         distributed_sampler_kwargs = dict(
             num_replicas=self.num_workers, rank=self.global_rank)
         return distributed_sampler_kwargs
 
-    @property
-    def _is_single_process_single_device(self):
-        """Return True if the process is single process and single device."""
-        return True
-
     def teardown(self) -> None:
-        """Teardown the workers and pytorch DDP connections."""
+        """Teardown the workers and pytorch DDP connections.
+
+        This function is overriding ddp_spawn_strategy's method.
+        It is run on the driver processes.
+        """
         self.accelerator = None
         super().teardown()
