@@ -283,8 +283,3 @@ class RayStrategy(DDPSpawnStrategy):
     def _is_single_process_single_device(self):
         """Return True if the process is single process and single device."""
         return True
-
-    def teardown(self) -> None:
-        """Teardown the workers and pytorch DDP connections."""
-        self.accelerator = None
-        super().teardown()
