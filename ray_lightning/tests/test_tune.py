@@ -31,7 +31,7 @@ def train_func(dir, strategy, callbacks=None):
             dir,
             callbacks=callbacks,
             strategy=strategy,
-            checkpoint_callback=False,
+            enable_checkpointing=False,
             **config)
         trainer.fit(model)
 
