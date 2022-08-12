@@ -36,6 +36,8 @@ def train_mnist(config,
             num_workers=num_workers, use_gpu=use_gpu, init_hook=download_data))
     dm = MNISTDataModule(
         data_dir=data_dir, num_workers=1, batch_size=config["batch_size"])
+    dm.train_transforms = None
+    dm.val_transforms = None
     trainer.fit(model, dm)
 
 
