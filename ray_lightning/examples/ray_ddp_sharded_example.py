@@ -132,4 +132,4 @@ if __name__ == "__main__":
             batch_size=args.batch_size,
             embed_dim=args.embed_dim,
             max_epochs=args.num_epochs,
-            max_steps=None)
+            max_steps=-1)
