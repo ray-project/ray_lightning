@@ -31,7 +31,7 @@ def train_mnist(config,
     trainer = pl.Trainer(
         max_epochs=num_epochs,
         callbacks=callbacks,
-        progress_bar_refresh_rate=0,
+        enable_progress_bar=False,
         strategy=RayStrategy(
             num_workers=num_workers, use_gpu=use_gpu, init_hook=download_data))
     dm = MNISTDataModule(
