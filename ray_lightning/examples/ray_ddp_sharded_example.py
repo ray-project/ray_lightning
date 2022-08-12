@@ -59,7 +59,7 @@ def train(data_dir, num_workers, use_gpu, batch_size, embed_dim, max_epochs,
     dm = MNISTDataModule(data_dir, batch_size=batch_size)
     dm.train_transforms = None
     dm.val_transforms = None
-    
+
     model = ImageGPT(
         embed_dim=embed_dim, layers=16, heads=4, vocab_size=32, num_pixels=28)
 
