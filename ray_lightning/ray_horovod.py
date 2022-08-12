@@ -127,7 +127,6 @@ class HorovodRayStrategy(HorovodStrategy):
     def teardown(self) -> None:
         """Teardown the strategy."""
         self.join()
-        self.accelerator = None
         super().teardown()
 
     @property
