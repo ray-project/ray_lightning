@@ -258,8 +258,8 @@ def predict_test(trainer: Trainer, model: LightningModule,
     """Checks if the trained model has high accuracy on the test set."""
     trainer.fit(model, datamodule=dm)
     model = trainer.lightning_module
-    dm.setup(stage="test")
     dm.test_transforms = None
+    dm.setup(stage="test")
     test_loader = dm.test_dataloader()
     acc = torchmetrics.Accuracy()
     for batch in test_loader:
