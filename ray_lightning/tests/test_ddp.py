@@ -304,8 +304,7 @@ def test_early_stop(tmpdir, ray_start_2_cpus):
         callbacks=[early_stop],
         num_sanity_val_steps=0,
         limit_train_batches=1.0,
-        limit_val_batches=1.0,
-        progress_bar_refresh_rate=1)
+        limit_val_batches=1.0)
     trainer.fit(model)
     trained_model = BoringModel.load_from_checkpoint(
         trainer.checkpoint_callback.best_model_path)
