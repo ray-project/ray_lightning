@@ -243,6 +243,7 @@ class RayLauncher(_Launcher):
             `results = function(*args, **kwargs)` is where the
             actual training parts are run.
         """
+        self._strategy.set_remote(True)
         self._strategy.set_global_to_local(global_to_local)
 
         # `function` is a trainer's class method

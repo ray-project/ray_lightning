@@ -150,6 +150,7 @@ class RayHorovodLauncher(_Launcher):
             `_wrapping_function` is run on each remote worker.
             `function(*args, **kwargs)` is where the actual training happens.
         """
+        self._strategy.set_remote(True)
 
         # `function` is a trainer's class method
         # in the ray remote tasks, its object `trainer` will also
