@@ -128,6 +128,8 @@ class HorovodRayStrategy(HorovodStrategy):
         """Teardown the strategy."""
         self.join()
         super().teardown()
+        if not self._is_remote:
+            self.accelerator = None
 
     @property
     def is_distributed(self):

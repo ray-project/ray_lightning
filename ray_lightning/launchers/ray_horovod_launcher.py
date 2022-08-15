@@ -151,8 +151,6 @@ class RayHorovodLauncher(_Launcher):
             `function(*args, **kwargs)` is where the actual training happens.
         """
 
-        self._strategy.set_remote(True)
-
         # `function` is a trainer's class method
         # in the ray remote tasks, its object `trainer` will also
         # be copied when the function is remoted.
@@ -173,6 +171,7 @@ class RayHorovodLauncher(_Launcher):
         rank_zero_only.rank = self.global_rank
         set_cuda_device_if_used(trainer.strategy)
 
+        trainer.strategy.set_remote(True)
         # Move the model to the appropriate device.
         trainer.strategy.model_to_device()
 
