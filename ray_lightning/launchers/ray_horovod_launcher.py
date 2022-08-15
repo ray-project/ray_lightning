@@ -173,7 +173,7 @@ class RayHorovodLauncher(_Launcher):
         # will also be copied when the function is remoted.
         #
         # ALERT: passing the trainer as an argument of `_wrapping_function`
-        # does not filfullied our purpose. Ray remote tasks will
+        # does not fulfill our purpose. Ray remote tasks will
         # create another copy of trainer so that
         # `function.__self__ != trainer`, in which the side effect only
         # happens to `function.__self__` when running
