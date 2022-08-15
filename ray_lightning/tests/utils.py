@@ -259,6 +259,7 @@ def predict_test(trainer: Trainer, model: LightningModule,
     trainer.fit(model, datamodule=dm)
     model = trainer.lightning_module
     dm.setup(stage="test")
+    dm.test_transforms = None
     test_loader = dm.test_dataloader()
     acc = torchmetrics.Accuracy()
     for batch in test_loader:
