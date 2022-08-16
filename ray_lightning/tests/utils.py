@@ -256,6 +256,8 @@ def load_test(trainer: Trainer, model: LightningModule):
 def predict_test(trainer: Trainer, model: LightningModule,
                  dm: LightningDataModule):
     """Checks if the trained model has high accuracy on the test set."""
+    dm.train_transforms = None
+    dm.val_transforms = None
     trainer.fit(model, datamodule=dm)
     model = trainer.lightning_module
     dm.test_transforms = None
