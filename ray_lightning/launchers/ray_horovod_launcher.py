@@ -48,7 +48,8 @@ class RayHorovodLauncher(_Launcher):
     @property
     def global_rank(self) -> int:
         """Return the global rank of the current process.
-            run on the worker node.
+
+        This function is run on the worker process.
         """
         if not hvd.is_initialized():
             return 0
@@ -57,7 +58,8 @@ class RayHorovodLauncher(_Launcher):
     @property
     def local_rank(self) -> int:
         """Return the local rank of the current process.
-            run on the worker node.
+
+        This function is run on the worker process.
         """
         if not hvd.is_initialized():
             return 0
@@ -66,7 +68,8 @@ class RayHorovodLauncher(_Launcher):
     @property
     def world_size(self) -> int:
         """Return the world size of the current process.
-            run on the worker node.
+
+        This function is run on the worker process.
         """
         if not hvd.is_initialized():
             return self.num_workers
@@ -81,13 +84,18 @@ class RayHorovodLauncher(_Launcher):
                *args: Any,
                trainer: Optional["pl.Trainer"] = None,
                **kwargs: Any) -> Any:
-        """Launch the function on the workers and collect the results."""
+        """Launch the function on the workers and collect the results.
+
+        This function is run on the driver process.
+        """
         ray_output = self.run_function_on_workers(
             function, *args, trainer=trainer, **kwargs)
 
         if trainer is None:
             raise NotImplementedError(
-                "Ray launcher does not support trainer is None!")
+                "Ray launcher does not support trainer is None! "
+                "Did you override the `trainer` variable? "
+                "If not, please help file an issue on Github.")
         self._recover_results_in_main_process(ray_output, trainer)
         return_value = ray_output.trainer_results
 
@@ -99,8 +107,11 @@ class RayHorovodLauncher(_Launcher):
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
         """Run the function on the workers and collect the results.
-           `executor.run_remote` is used to launch multiple ray remote tasks
-            to distributed training the model using the horovod backend.
+
+        This function is run on the driver process.
+
+        `executor.run_remote` is used to launch multiple ray remote tasks
+        to distributed training the model using the horovod backend.
         """
 
         # put the model as the ray object
@@ -109,6 +120,7 @@ class RayHorovodLauncher(_Launcher):
         model = trainer.model
         model_ref = ray.put(model)
         trainer.model = None
+        # the model always be at the 0th position in the args
         new_args = tuple([None] + list(args[1:]))
 
         # remove the executor temporarily from the args
@@ -147,21 +159,29 @@ class RayHorovodLauncher(_Launcher):
             tune_queue: Queue,
     ) -> Any:
         """Wrapping function to run the function on the workers.
-            `_wrapping_function` is run on each remote worker.
-            `function(*args, **kwargs)` is where the actual training happens.
+
+        This function is run on the worker process.
+
+        `_wrapping_function` is run on each remote worker.
+        `function(*args, **kwargs)` is where the actual training happens.
         """
 
         self._strategy.set_remote(True)
 
-        # `function` is a trainer's class method
-        # in the ray remote tasks, its object `trainer` will also
-        # be copied when the function is remoted.
+        # `function` is a trainer's instance method
+        # in the ray remote tasks, its bound instance `trainer`
+        # will also be copied when the function is remoted.
+        #
         # ALERT: passing the trainer as an argument of `_wrapping_function`
-        # does not fillfullied our purpose. Ray remote tasks will
+        # does not fulfill our purpose. Ray remote tasks will
         # create another copy of trainer so that
         # `function.__self__ != trainer`, in which the side effect only
         # happens to `function.__self__` when running
-        # `function(*args, **kwargs)`
+        # `function(*args, **kwargs)` (see SOLUTION below).
+        #
+        # SOLUTION: we find the trainer directly from `function`
+        # by calling `function.__self__` so that we can restore
+        # all the side effects happened to `function.__self__`
         trainer = function.__self__
         model = ray.get(model_ref)
         trainer.model = model
@@ -193,7 +213,10 @@ class RayHorovodLauncher(_Launcher):
 
     def _collect_rank_zero_results(self, trainer: "pl.Trainer",
                                    results: Any) -> Optional["_RayOutput"]:
-        """Collect the results from the rank zero process."""
+        """Collect the results from the rank zero process.
+
+        This function is run on the worker process.
+        """
         rank_zero_debug("Finalizing the ray horovod launcher environment.")
         checkpoint_callback = trainer.checkpoint_callback
         best_model_path = checkpoint_callback.best_model_path \
@@ -225,7 +248,10 @@ class RayHorovodLauncher(_Launcher):
 
     def _recover_results_in_main_process(self, ray_output: "_RayOutput",
                                          trainer: "pl.Trainer") -> None:
-        """Recover the results in the main process."""
+        """Recover the results in the main process.
+
+        This function is run on the worker process.
+        """
         # transfer back the best path to the trainer
         if trainer.checkpoint_callback:
             trainer.checkpoint_callback.best_model_path = str(

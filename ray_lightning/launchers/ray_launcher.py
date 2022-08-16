@@ -50,7 +50,10 @@ class RayLauncher(_Launcher):
                *args: Any,
                trainer: Optional["pl.Trainer"] = None,
                **kwargs: Any) -> Any:
-        """Launches the function on the workers from the driver node."""
+        """Launches the function on the workers from the driver node.
+
+        This function is run on the driver process.
+        """
         self.setup_workers()
         ray_output = self.run_function_on_workers(
             function, *args, trainer=trainer, **kwargs)
@@ -66,8 +69,9 @@ class RayLauncher(_Launcher):
         return return_value
 
     def setup_workers(self, tune_enabled: bool = True) -> None:
-        """Creates the Ray actors and sets up PTL Trainer environment
-            on the worker nodes.
+        """Creates the Ray actors and sets up PTL Trainer environment.
+
+        This function is run on the driver process.
         """
         self._workers = [
             self._create_worker() for _ in range(self._strategy.num_workers)
@@ -99,7 +103,10 @@ class RayLauncher(_Launcher):
             self.tune_queue = Queue(actor_options={"num_cpus": 0})
 
     def _create_worker(self) -> ray.actor.ActorHandle:
-        """Creates Ray actor workers."""
+        """Creates Ray actor workers.
+
+        This function is run on the driver process.
+        """
         worker = RayExecutor.options(
             num_cpus=self._strategy.num_cpus_per_worker,
             num_gpus=self._strategy.num_gpus_per_worker,
@@ -107,7 +114,10 @@ class RayLauncher(_Launcher):
         return worker
 
     def teardown_workers(self):
-        """Tears down the Ray actors and PTL Trainer environment"""
+        """Tears down the Ray actors and PTL Trainer environment
+
+        This function is run on the driver process.
+        """
         if self.tune_queue:
             # Shutdown the queue.
             self.tune_queue.shutdown()
@@ -119,7 +129,8 @@ class RayLauncher(_Launcher):
 
     def get_local_ranks(self) -> List[Optional[Tuple[int, int]]]:
         """Creates a mapping of global ranks to local ranks/node ranks.
-            this method is to run on the worker nodes.
+
+        This function is run on the driver process.
         """
         # Get the local ranks for all the workers and store as a list.
         # First get the IP address of each remote worker.
@@ -146,7 +157,10 @@ class RayLauncher(_Launcher):
         return global_to_local
 
     def _setup_env_vars(self):
-        """Sets environment variables for all workers."""
+        """Sets environment variables for all workers.
+
+        This function is run on the driver process.
+        """
         # Get rank 0 worker address and port for DDP connection.
         os.environ["MASTER_ADDR"] = self._master_addr
         os.environ["MASTER_PORT"] = self._master_port
@@ -162,6 +176,9 @@ class RayLauncher(_Launcher):
 
     def _share_cuda_visible_devices(self):
         """Sets CUDA_VISIBLE_DEVICES on all workers.
+
+        This function is run on the driver process.
+
         For each worker, CUDA_VISIBLE_DEVICES will be set to the GPU IDs
         visible to all workers on that worker's node.
         This allows GPU workers on the same node to communicate with one
@@ -207,7 +224,10 @@ class RayLauncher(_Launcher):
                                 trainer: Optional["pl.Trainer"] = None,
                                 **kwargs: Any):
         """launch a function on all workers.
-            The actual training parts are run inside `_wrapping_function`
+
+        This function is run on the driver process.
+
+        The actual training parts are run inside `_wrapping_function`
         """
         # put the model as the ray object
         # and remove the model temporarily from the args
@@ -240,21 +260,29 @@ class RayLauncher(_Launcher):
             tune_queue: Queue,
     ) -> Any:
         """Wraps the function to run on the workers.
-            `results = function(*args, **kwargs)` is where the
-            actual training parts are run.
+
+        This function is run on the worker process.
+
+        `results = function(*args, **kwargs)` is where the
+        actual training parts are run.
         """
         self._strategy.set_remote(True)
         self._strategy.set_global_to_local(global_to_local)
 
-        # `function` is a trainer's class method
-        # in the ray remote tasks, its object `trainer` will also
-        # be copied when the function is remoted.
+        # `function` is a trainer's instance method
+        # in the ray remote tasks, its bound instance `trainer`
+        # will also be copied when the function is remoted.
+        #
         # ALERT: passing the trainer as an argument of `_wrapping_function`
-        # does not fillfullied our purpose. Ray remote tasks will
+        # does not fulfill our purpose. Ray remote tasks will
         # create another copy of trainer so that
         # `function.__self__ != trainer`, in which the side effect only
         # happens to `function.__self__` when running
-        # `function(*args, **kwargs)`
+        # `function(*args, **kwargs)` (see SOLUTION below).
+        #
+        # SOLUTION: we find the trainer directly from `function`
+        # by calling `function.__self__` so that we can restore
+        # all the side effects happened to `function.__self__`
         trainer = function.__self__
         trainer.model = model_ref
         args = tuple([model_ref] + list(args[1:]))
@@ -284,7 +312,10 @@ class RayLauncher(_Launcher):
 
     def _collect_rank_zero_results(self, trainer: "pl.Trainer",
                                    results: Any) -> Optional["_RayOutput"]:
-        """Collects the results from the worker node 0."""
+        """Collects the results from the worker node 0.
+
+        This function is run on the worker process.
+        """
         rank_zero_debug("Finalizing the Ray launcher environment.")
         checkpoint_callback = trainer.checkpoint_callback
         best_model_path = checkpoint_callback.best_model_path \
@@ -316,7 +347,10 @@ class RayLauncher(_Launcher):
 
     def _recover_results_in_main_process(self, ray_output: "_RayOutput",
                                          trainer: "pl.Trainer") -> None:
-        """Recovers the results in the main process."""
+        """Recovers the results in the main process.
+
+        This function is run on the worker process.
+        """
         # transfer back the best path to the trainer
         if trainer.checkpoint_callback:
             trainer.checkpoint_callback.best_model_path = str(

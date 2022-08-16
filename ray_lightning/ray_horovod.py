@@ -92,7 +92,11 @@ class HorovodRayStrategy(HorovodStrategy):
 
     def _configure_launcher(self):
         """Configure the Ray launcher.
-            The horovod launcher is used to launch the Ray actors.
+
+        This function is overriding horovod_strategy's method.
+        It is run on the driver processes.
+
+        The horovod launcher is used to launch the Ray actors.
         """
         settings = RayExecutor.create_settings(timeout_s=30)
         self.executor = RayExecutor(
@@ -105,43 +109,71 @@ class HorovodRayStrategy(HorovodStrategy):
 
     @property
     def global_rank(self) -> int:
-        """Return the global rank of the current process."""
+        """Return the global rank of the current process.
+
+        This function is overriding horovod_strategy's method.
+        It is run on the worker processes.
+        """
         if not hvd.is_initialized():
             return 0
         return hvd.rank()
 
     @property
     def local_rank(self) -> int:
-        """Return the local rank of the current process."""
+        """Return the local rank of the current process.
+
+        This function is overriding horovod_strategy's method.
+        It is run on the worker processes.
+        """
         if not hvd.is_initialized():
             return 0
         return hvd.local_rank()
 
     @property
     def world_size(self) -> int:
-        """Return the world size of the current process."""
+        """Return the world size of the current process.
+
+        This function is overriding horovod_strategy's method.
+        It is run on the worker processes.
+        """
         if not hvd.is_initialized():
             return self.num_workers
         return hvd.size()
 
     def teardown(self) -> None:
-        """Teardown the strategy."""
+        """Teardown the strategy.
+
+        This function is overriding horovod_strategy's method.
+        It is run on the driver process.
+        """
         self.join()
         self.accelerator = None
         super().teardown()
 
     @property
     def is_distributed(self):
-        """Return whether the strategy is distributed."""
+        """Return whether the strategy is distributed.
+
+        This function is a new HorovodStrategy method.
+        It is run on the worker processes.
+        """
         return True
 
     def set_remote(self, remote: bool):
-        """Set the remote flag."""
+        """Set the remote flag.
+
+        This function is a new RayStrategy method.
+        It is run on the worker processes.
+        """
         self._is_remote = remote
 
     @property
     def root_device(self):
-        """Return the root device."""
+        """Return the root device.
+
+        This function is overriding horovod_strategy's method.
+        It is run on the worker processes.
+        """
         if self.use_gpu and torch.cuda.is_available():
             if hvd.is_initialized():
                 return torch.device("cuda", hvd.local_rank())
