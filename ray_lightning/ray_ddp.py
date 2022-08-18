@@ -332,7 +332,7 @@ class RayStrategy(DDPSpawnStrategy):
 
     def teardown(self) -> None:
         """Teardown the workers and pytorch DDP connections.
-        
+
         This function is overriding ddp_spawn_strategy's method.
         It is run on the driver processes.
         """
