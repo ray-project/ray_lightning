@@ -338,3 +338,4 @@ class RayStrategy(DDPSpawnStrategy):
         """
         self.accelerator = None
         super().teardown()
+
