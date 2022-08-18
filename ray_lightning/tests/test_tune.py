@@ -12,7 +12,7 @@ from ray_lightning.tune import TuneReportCallback, \
 
 @pytest.fixture
 def ray_start_4_cpus():
-    address_info = ray.init(num_cpus=4)
+    address_info = ray.init(num_cpus=6)
     yield address_info
     ray.shutdown()
 
