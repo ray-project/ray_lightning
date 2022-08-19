@@ -73,7 +73,7 @@ jobs:
 
   test_linux_ray_master_3:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python 3.7
