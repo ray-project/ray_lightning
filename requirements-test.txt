@@ -4,7 +4,7 @@ flake8-comprehensions
 flake8-quotes
 yapf==0.23.0
 pytest
-pytorch-lightning==1.6.4
+pytorch-lightning==1.7.2
 lightning-bolts==0.3.3
 ray[tune]
 torch==1.12.0
