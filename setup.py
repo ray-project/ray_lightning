@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 setup(
     name="ray_lightning",
     packages=find_packages(where=".", include="ray_lightning*"),
-    version="0.3.0",
+    version="0.4.0",
     author="Ray Team",
     description="Ray distributed strategies for Pytorch Lightning.",
     long_description="Custom Pytorch Lightning distributed strategies "
