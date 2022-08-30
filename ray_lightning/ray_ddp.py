@@ -289,7 +289,7 @@ class RayStrategy(DDPSpawnStrategy):
 
                 # Adjust to support multiple GPUs per worker or fractional
                 # GPUs per worker.
-                gpu_id = ray.get_gpu_ids()[0]
+                gpu_id = int(ray.get_gpu_ids()[0])
                 cuda_visible_str = os.environ.get("CUDA_VISIBLE_DEVICES", "")
                 if cuda_visible_str and cuda_visible_str != "NoDevFiles":
                     cuda_visible_list = [
