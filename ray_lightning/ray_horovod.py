@@ -146,9 +146,8 @@ class HorovodRayStrategy(HorovodStrategy):
         This function is overriding horovod_strategy's method.
         It is run on the driver process.
         """
-        self.join()
-        self.accelerator = None
         super().teardown()
+        self.accelerator = None
 
     @property
     def is_distributed(self):

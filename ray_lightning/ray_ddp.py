@@ -336,5 +336,5 @@ class RayStrategy(DDPSpawnStrategy):
         This function is overriding ddp_spawn_strategy's method.
         It is run on the driver processes.
         """
-        self.accelerator = None
         super().teardown()
+        self.accelerator = None
