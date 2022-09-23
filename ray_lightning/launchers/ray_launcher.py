@@ -298,6 +298,10 @@ class RayLauncher(_Launcher):
         trainer.strategy.local_rank = self._strategy.local_rank
         set_cuda_device_if_used(trainer.strategy)
 
+        # Set operations to deterministic in this worker when required
+        if trainer._accelerator_connector.deterministic:
+            trainer._accelerator_connector._init_deterministic(True)
+
         results = function(*args, **kwargs)
 
         if trainer is not None:
