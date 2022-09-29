@@ -301,10 +301,9 @@ class RayLauncher(_Launcher):
         results = function(*args, **kwargs)
 
         if trainer is not None:
-            results = self._collect_rank_zero_results(trainer, results)
-
-        if trainer.strategy.local_rank == 0:
-            return move_data_to_device(results, "cpu")
+            return self._collect_rank_zero_results(trainer, results)
+        else:
+            return None
 
         trainer._teardown()
         trainer._call_teardown_hook()
@@ -325,6 +324,10 @@ class RayLauncher(_Launcher):
 
         if self._strategy.global_rank != 0:
             return None
+
+        # Move state_dict to cpu before converting it to model state stream
+        if trainer.strategy.local_rank == 0:
+            state_dict = move_data_to_device(state_dict, "cpu")
 
         # PyTorch Lightning saves the model weights in a temp file and
         # loads it back on the driver.
