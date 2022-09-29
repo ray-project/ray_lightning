@@ -123,6 +123,7 @@ class RayLauncher(_Launcher):
             self.tune_queue.shutdown()
 
         for w in self._workers:
+            ray.kill(w, no_restart=True)
             del w
         self._workers = []
 

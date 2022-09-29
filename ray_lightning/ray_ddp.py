@@ -337,6 +337,5 @@ class RayStrategy(DDPSpawnStrategy):
         It is run on the driver processes.
         """
         super().teardown()
-        print("teardown", self.accelerator, self._is_remote)
         if not self._is_remote:
             self.accelerator = None
