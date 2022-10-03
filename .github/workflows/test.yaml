@@ -160,7 +160,7 @@ jobs:
           python -m pytest -v --durations=0 -x test_tune.py
 
 
-  test_linux_ray_release_examples:
+  test_linux_ray_release_examples_1:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -187,6 +187,30 @@ jobs:
           echo "running ray_ddp_example.py with Tune" && python ray_ddp_example.py --smoke-test --tune
           echo "running ray_ddp_tune.py" && python ray_ddp_tune.py --smoke-test
           echo "running ray_horovod_example.py" && python ray_horovod_example.py --smoke-test
+      
+  test_linux_ray_release_examples_2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade setuptools
+          python -m pip install codecov
+          python -m pip install -U ray
+          if [ -f requirements-test.txt ]; then python -m pip install -r requirements-test.txt; fi
+          HOROVOD_WITH_GLOO=1 HOROVOD_WITHOUT_MPI=1 HOROVOD_WITHOUT_MXNET=1 pip install -U git+https://github.com/horovod/horovod.git
+      - name: Install package
+        run: |
+          python -m pip install -e .
+      - name: Run Examples
+        run: |
+          pushd ray_lightning/examples
           echo "running ray_horovod_example.py with Tune" && python ray_horovod_example.py --smoke-test --tune
           popd
           pushd ray_lightning/tests
