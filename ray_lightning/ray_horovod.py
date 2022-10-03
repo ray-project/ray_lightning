@@ -147,8 +147,9 @@ class HorovodRayStrategy(HorovodStrategy):
         It is run on the driver process.
         """
         self.join()
-        self.accelerator = None
         super().teardown()
+        if not self._is_remote:
+            self.accelerator = None
 
     @property
     def is_distributed(self):

@@ -216,7 +216,7 @@ def get_trainer(dir,
                 limit_train_batches: int = 10,
                 limit_val_batches: int = 10,
                 callbacks: Optional[List[Callback]] = None,
-                checkpoint_callback: bool = True,
+                enable_checkpointing: bool = True,
                 **trainer_kwargs) -> Trainer:
     """Returns a Pytorch Lightning Trainer with the provided arguments."""
     callbacks = [] if not callbacks else callbacks
@@ -228,7 +228,7 @@ def get_trainer(dir,
         limit_train_batches=limit_train_batches,
         limit_val_batches=limit_val_batches,
         enable_progress_bar=False,
-        checkpoint_callback=checkpoint_callback,
+        enable_checkpointing=enable_checkpointing,
         **trainer_kwargs)
     return trainer
 
@@ -256,8 +256,11 @@ def load_test(trainer: Trainer, model: LightningModule):
 def predict_test(trainer: Trainer, model: LightningModule,
                  dm: LightningDataModule):
     """Checks if the trained model has high accuracy on the test set."""
+    dm.train_transforms = None
+    dm.val_transforms = None
     trainer.fit(model, datamodule=dm)
     model = trainer.lightning_module
+    dm.test_transforms = None
     dm.setup(stage="test")
     test_loader = dm.test_dataloader()
     acc = torchmetrics.Accuracy()

@@ -293,6 +293,7 @@ class RayLauncher(_Launcher):
             init_session(rank=global_rank, queue=tune_queue)
 
         self._strategy._worker_setup(process_idx=global_rank)
+        trainer.strategy.set_remote(True)
         trainer.strategy.root_device = self._strategy.root_device
         trainer.strategy.global_rank = self._strategy.global_rank
         trainer.strategy.local_rank = self._strategy.local_rank

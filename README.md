@@ -93,7 +93,7 @@ ray.init("ray://<head_node_host>:10001")
 ```
 Now you can run your training script on the laptop, but have it execute as if your laptop has all the resources of the cluster essentially providing you with an **infinite laptop**.
 
-**Note:** When using with Ray Client, you must disable checkpointing and logging for your Trainer by setting `checkpoint_callback` and `logger` to `False`.
+**Note:** When using with Ray Client, you must disable checkpointing and logging for your Trainer by setting `enable_checkpointing` and `logger` to `False`.
 
 ## Horovod Strategy on Ray
 Or if you prefer to use Horovod as the distributed training protocol, use the `HorovodRayStrategy` instead.
