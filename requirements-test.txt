@@ -1,3 +1,4 @@
+importlib-metadata<5.0
 fairscale
 flake8==3.9.1
 flake8-comprehensions
