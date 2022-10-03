@@ -12,7 +12,7 @@ from ray_lightning.tune import TuneReportCallback, \
 
 @pytest.fixture
 def ray_start_4_cpus():
-    address_info = ray.init(num_cpus=4)
+    address_info = ray.init(num_cpus=6)
     yield address_info
     ray.shutdown()
 
@@ -31,7 +31,7 @@ def train_func(dir, strategy, callbacks=None):
             dir,
             callbacks=callbacks,
             strategy=strategy,
-            checkpoint_callback=False,
+            enable_checkpointing=False,
             **config)
         trainer.fit(model)
 
