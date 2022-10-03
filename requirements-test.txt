@@ -11,4 +11,4 @@ torch==1.12.1
 torchmetrics
 torchvision
 protobuf<=3.20.1
-jsonargparse>=4.13.2
+jsonargparse[signatures]>=4.13.2
