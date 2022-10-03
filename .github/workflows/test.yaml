@@ -224,3 +224,4 @@ jobs:
           pushd ray_lightning/tests
           python -m pytest -v --durations=0 -x test_ddp.py
           python -m pytest -v --durations=0 -x test_horovod.py
+          
