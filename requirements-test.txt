@@ -10,5 +10,5 @@ ray[tune]
 torch==1.12.0
 torchmetrics
 torchvision
-protobuf<=3.20.1
+protobuf<4.21.12
 jsonargparse>=4.13.2
