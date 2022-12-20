@@ -7,8 +7,8 @@ from pl_bolts.datamodules.mnist_datamodule import MNISTDataModule
 import pytorch_lightning as pl
 import ray
 from ray import tune
-from ray_lightning.tune import TuneReportCallback, get_tune_ddp_resources
-from ray_lightning import RayPlugin
+from ray_lightning.tune import TuneReportCallback, get_tune_resources
+from ray_lightning import RayStrategy
 from ray_lightning.tests.utils import LightningMNISTClassifier
 
 
@@ -32,12 +32,8 @@ def train_mnist(config,
         max_epochs=num_epochs,
         callbacks=callbacks,
         progress_bar_refresh_rate=0,
-        plugins=[
-            RayPlugin(
-                num_workers=num_workers,
-                use_gpu=use_gpu,
-                init_hook=download_data)
-        ])
+        strategy=RayStrategy(
+            num_workers=num_workers, use_gpu=use_gpu, init_hook=download_data))
     dm = MNISTDataModule(
         data_dir=data_dir, num_workers=1, batch_size=config["batch_size"])
     trainer.fit(model, dm)
@@ -71,7 +67,7 @@ def tune_mnist(data_dir,
         mode="min",
         config=config,
         num_samples=num_samples,
-        resources_per_trial=get_tune_ddp_resources(
+        resources_per_trial=get_tune_resources(
             num_workers=num_workers, use_gpu=use_gpu),
         name="tune_mnist")
 

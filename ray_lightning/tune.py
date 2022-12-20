@@ -1,4 +1,5 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Optional
+import warnings
 
 import fsspec
 import os
@@ -21,21 +22,33 @@ except ImportError:
     def is_session_enabled():
         return False
 
-    get_tune_ddp_resources = Unavailable
+    get_tune_resources = Unavailable
 
     TUNE_INSTALLED = False
 
 if TUNE_INSTALLED:
 
     @PublicAPI(stability="beta")
-    def get_tune_ddp_resources(num_workers: int = 1,
-                               cpus_per_worker: int = 1,
-                               use_gpu: bool = False) -> Dict[str, int]:
+    def get_tune_resources(
+            num_workers: int = 1,
+            num_cpus_per_worker: int = 1,
+            use_gpu: bool = False,
+            # Deprecated args.
+            cpus_per_worker: Optional[int] = None,
+    ) -> Dict[str, int]:
         """Returns the PlacementGroupFactory to use for Ray Tune."""
         from ray.tune import PlacementGroupFactory
 
+        if cpus_per_worker is not None:
+            # TODO(amogkam): Remove `cpus_per_worker` on next major release.
+            num_cpus_per_worker = cpus_per_worker
+            warnings.warn(
+                "`cpus_per_worker` will be deprecated in the "
+                "future. Use "
+                "`num_cpus_per_worker` instead.", PendingDeprecationWarning)
+
         head_bundle = {"CPU": 1}
-        child_bundle = {"CPU": cpus_per_worker, "GPU": int(use_gpu)}
+        child_bundle = {"CPU": num_cpus_per_worker, "GPU": int(use_gpu)}
         child_bundles = [child_bundle.copy() for _ in range(num_workers)]
         bundles = [head_bundle] + child_bundles
         placement_group_factory = PlacementGroupFactory(
@@ -66,19 +79,19 @@ if TUNE_INSTALLED:
             .. code-block:: python
 
                 import pytorch_lightning as pl
-                from ray_lightning import RayPlugin
+                from ray_lightning import RayStrategy
                 from ray_lightning.tune import TuneReportCallback
 
-                # Create plugin.
-                ray_plugin = RayPlugin(num_workers=4, use_gpu=True)
+                # Create strategy.
+                ray_plugin = RayStrategy(num_workers=4, use_gpu=True)
 
                 # Report loss and accuracy to Tune after each validation epoch:
-                trainer = pl.Trainer(plugins=[ray_plugin], callbacks=[
+                trainer = pl.Trainer(strategy=[ray_plugin], callbacks=[
                     TuneReportCallback(["val_loss", "val_acc"],
                         on="validation_end")])
 
                 # Same as above, but report as `loss` and `mean_accuracy`:
-                trainer = pl.Trainer(plugins=[ray_plugin], callbacks=[
+                trainer = pl.Trainer(strategy=[ray_plugin], callbacks=[
                     TuneReportCallback(
                         {"loss": "val_loss", "mean_accuracy": "val_acc"},
                         on="validation_end")])
@@ -97,7 +110,7 @@ if TUNE_INSTALLED:
         def _get_report_dict(self, trainer: Trainer,
                              pl_module: LightningModule):
             # Don't report if just doing initial validation sanity checks.
-            if trainer.running_sanity_check:
+            if trainer.sanity_checking:
                 return
             if not self._metrics:
                 report_dict = {
@@ -124,7 +137,7 @@ if TUNE_INSTALLED:
         """Distributed PyTorch Lightning to Ray Tune checkpoint callback
 
             Saves checkpoints after each validation step. To be used
-            specifically with the plugins in this library.
+            specifically with the strategies in this library.
 
             Checkpoint are currently not registered if no ``tune.report()``
             call is made afterwards. Consider using
@@ -154,9 +167,9 @@ if TUNE_INSTALLED:
                     f.write(checkpoint_stream)
 
         def _handle(self, trainer: Trainer, pl_module: LightningModule):
-            if trainer.running_sanity_check:
+            if trainer.sanity_checking:
                 return
-            checkpoint_dict = trainer.checkpoint_connector.dump_checkpoint()
+            checkpoint_dict = trainer._checkpoint_connector.dump_checkpoint()
             # Convert to a state stream first.
             checkpoint_stream = to_state_stream(checkpoint_dict)
             global_step = trainer.global_step
@@ -170,7 +183,7 @@ if TUNE_INSTALLED:
 
             Saves checkpoints after each validation step. Also reports metrics
             to Tune, which is needed for checkpoint registration. To be used
-            specifically with the plugins in this library.
+            specifically with the strategies in this library.
 
             Args:
                 metrics (str|list|dict): Metrics to report to Tune.
@@ -192,15 +205,15 @@ if TUNE_INSTALLED:
             .. code-block:: python
 
                 import pytorch_lightning as pl
-                from ray_lightning import RayPlugin
+                from ray_lightning import RayStrategy
                 from ray_lightning.tune import TuneReportCheckpointCallback.
 
-                # Create the Ray plugin.
-                ray_plugin = RayPlugin()
+                # Create the Ray strategy.
+                ray_plugin = RayStrategy()
 
                 # Save checkpoint after each training batch and after each
                 # validation epoch.
-                trainer = pl.Trainer(plugins=[ray_plugin], callbacks=[
+                trainer = pl.Trainer(strategy=[ray_plugin], callbacks=[
                     TuneReportCheckpointCallback(
                         metrics={"loss": "val_loss",
                                 "mean_accuracy": "val_acc"},

@@ -3,12 +3,14 @@ from typing import Optional, List
 
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.plugins import Plugin
 from torch.utils.data import Dataset
 
 import pytorch_lightning as pl
+from pytorch_lightning.strategies import Strategy
 from pytorch_lightning import LightningModule, Callback, Trainer, \
     LightningDataModule
+
+import torchmetrics
 
 
 class RandomDataset(Dataset):
@@ -84,7 +86,8 @@ class BoringModel(LightningModule):
         return torch.utils.data.DataLoader(RandomDataset(32, 64))
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(RandomDataset(32, 64))
+        return torch.utils.data.DataLoader(
+            RandomDataset(32, 64), num_workers=1)
 
     def on_save_checkpoint(self, checkpoint):
         checkpoint["val_epoch"] = self.val_epoch
@@ -106,7 +109,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         self.layer_1 = torch.nn.Linear(28 * 28, layer_1)
         self.layer_2 = torch.nn.Linear(layer_1, layer_2)
         self.layer_3 = torch.nn.Linear(layer_2, 10)
-        self.accuracy = pl.metrics.Accuracy()
+        self.accuracy = torchmetrics.Accuracy()
 
     def forward(self, x):
         batch_size, channels, width, height = x.size()
@@ -116,7 +119,7 @@ class LightningMNISTClassifier(pl.LightningModule):
         x = self.layer_2(x)
         x = torch.relu(x)
         x = self.layer_3(x)
-        x = F.softmax(x, dim=1)
+        x = F.log_softmax(x, dim=1)
         return x
 
     def configure_optimizers(self):
@@ -125,7 +128,7 @@ class LightningMNISTClassifier(pl.LightningModule):
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch
         logits = self.forward(x)
-        loss = F.nll_loss(logits, y)
+        loss = F.nll_loss(logits, y.long())
         acc = self.accuracy(logits, y)
         self.log("ptl/train_loss", loss)
         self.log("ptl/train_accuracy", acc)
@@ -134,7 +137,7 @@ class LightningMNISTClassifier(pl.LightningModule):
     def validation_step(self, val_batch, batch_idx):
         x, y = val_batch
         logits = self.forward(x)
-        loss = F.nll_loss(logits, y)
+        loss = F.nll_loss(logits, y.long())
         acc = self.accuracy(logits, y)
         return {"val_loss": loss, "val_accuracy": acc}
 
@@ -145,13 +148,73 @@ class LightningMNISTClassifier(pl.LightningModule):
         self.log("ptl/val_accuracy", avg_acc)
 
 
+class XORModel(LightningModule):
+    def __init__(self, input_dim=2, output_dim=1):
+        super(XORModel, self).__init__()
+        self.save_hyperparameters()
+        self.lin1 = torch.nn.Linear(input_dim, 8)
+        self.lin2 = torch.nn.Linear(8, output_dim)
+
+    def forward(self, features):
+        x = features.float()
+        x = self.lin1(x)
+        x = torch.tanh(x)
+        x = self.lin2(x)
+        x = torch.sigmoid(x)
+        return x
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=0.02)
+
+    def training_step(self, batch, batch_nb):
+        x, y = batch["x"], batch["y"].unsqueeze(1)
+        y_hat = self(x)
+        loss = F.binary_cross_entropy(y_hat, y.float())
+        return loss
+
+    def validation_step(self, batch, batch_nb):
+        x, y = batch["x"], batch["y"].unsqueeze(1)
+        y_hat = self(x)
+        loss = F.binary_cross_entropy(y_hat, y.float())
+        self.log("val_loss", loss, on_step=True)
+        # Log a constant for test purpose
+        self.log("val_bar", torch.tensor(5.678), on_step=True)
+        return loss
+
+    def validation_epoch_end(self, outputs):
+        avg_loss = torch.stack(outputs).mean()
+        self.log("avg_val_loss", avg_loss)
+        # Log a constant for test purpose
+        self.log("val_foo", torch.tensor(1.234))
+
+
+class XORDataModule(LightningDataModule):
+    def train_dataloader(self):
+        input_train = [{
+            "x": torch.tensor([[0.0, 0.0]]),
+            "y": torch.tensor([0])
+        }, {
+            "x": torch.tensor([[1.0, 1.0]]),
+            "y": torch.tensor([0])
+        }]
+        return iter(input_train)
+
+    def val_dataloader(self):
+        input_val = [{
+            "x": torch.tensor([[0.0, 1.0]]),
+            "y": torch.tensor([1])
+        }, {
+            "x": torch.tensor([[1.0, 0.0]]),
+            "y": torch.tensor([1])
+        }]
+        return iter(input_val)
+
+
 def get_trainer(dir,
-                plugins: List[Plugin],
-                use_gpu: bool = False,
+                strategy: Strategy,
                 max_epochs: int = 1,
                 limit_train_batches: int = 10,
                 limit_val_batches: int = 10,
-                progress_bar_refresh_rate: int = 0,
                 callbacks: Optional[List[Callback]] = None,
                 checkpoint_callback: bool = True,
                 **trainer_kwargs) -> Trainer:
@@ -159,13 +222,12 @@ def get_trainer(dir,
     callbacks = [] if not callbacks else callbacks
     trainer = pl.Trainer(
         default_root_dir=dir,
-        gpus=1 if use_gpu else 0,
         callbacks=callbacks,
-        plugins=plugins,
+        strategy=strategy,
         max_epochs=max_epochs,
         limit_train_batches=limit_train_batches,
         limit_val_batches=limit_val_batches,
-        progress_bar_refresh_rate=progress_bar_refresh_rate,
+        enable_progress_bar=False,
         checkpoint_callback=checkpoint_callback,
         **trainer_kwargs)
     return trainer
@@ -198,7 +260,7 @@ def predict_test(trainer: Trainer, model: LightningModule,
     model = trainer.lightning_module
     dm.setup(stage="test")
     test_loader = dm.test_dataloader()
-    acc = pl.metrics.Accuracy()
+    acc = torchmetrics.Accuracy()
     for batch in test_loader:
         x, y = batch
         with torch.no_grad():

@@ -10,7 +10,7 @@ from pl_bolts.models.vision import ImageGPT
 import pytorch_lightning as pl
 from pytorch_lightning import Callback
 
-from ray_lightning import RayShardedPlugin
+from ray_lightning import RayShardedStrategy
 
 
 class CUDACallback(Callback):
@@ -20,7 +20,7 @@ class CUDACallback(Callback):
         torch.cuda.synchronize(trainer.root_gpu)
         self.start_time = time.time()
 
-    def on_train_epoch_end(self, trainer, pl_module, outputs):
+    def on_train_epoch_end(self, trainer, pl_module):
         torch.cuda.synchronize(trainer.root_gpu)
         max_memory = torch.cuda.max_memory_allocated(trainer.root_gpu) / 2**20
         epoch_time = time.time() - self.start_time
@@ -53,7 +53,7 @@ def train(data_dir, num_workers, use_gpu, batch_size, embed_dim, max_epochs,
         with FileLock(os.path.join(data_dir, ".lock")):
             MNISTDataModule(data_dir=data_dir).prepare_data()
 
-    plugin = RayShardedPlugin(
+    strategy = RayShardedStrategy(
         num_workers=num_workers, use_gpu=use_gpu, init_hook=download_data)
 
     dm = MNISTDataModule(data_dir, batch_size=batch_size)
@@ -65,7 +65,7 @@ def train(data_dir, num_workers, use_gpu, batch_size, embed_dim, max_epochs,
         max_epochs=max_epochs,
         precision=16 if use_gpu else 32,
         callbacks=[CUDACallback()] if use_gpu else [],
-        plugins=plugin,
+        strategy=strategy,
         max_steps=max_steps)
 
     trainer.fit(model, dm)

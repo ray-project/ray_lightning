@@ -10,8 +10,8 @@ from torchvision import transforms
 
 import ray
 from ray import tune
-from ray_lightning.tune import TuneReportCallback
-from ray_lightning import HorovodRayPlugin
+from ray_lightning.tune import TuneReportCallback, get_tune_resources
+from ray_lightning import HorovodRayStrategy
 from ray_lightning.tests.utils import LightningMNISTClassifier
 
 
@@ -63,8 +63,7 @@ class MNISTClassifier(LightningMNISTClassifier):
 def train_mnist(config,
                 data_dir=None,
                 num_epochs=10,
-                num_hosts=1,
-                num_slots=4,
+                num_workers=4,
                 use_gpu=False,
                 callbacks=None):
     model = MNISTClassifier(config, data_dir)
@@ -74,18 +73,14 @@ def train_mnist(config,
     trainer = pl.Trainer(
         max_epochs=num_epochs,
         callbacks=callbacks,
-        plugins=[
-            HorovodRayPlugin(
-                num_hosts=num_hosts, num_slots=num_slots, use_gpu=use_gpu)
-        ])
+        strategy=HorovodRayStrategy(num_workers=num_workers, use_gpu=use_gpu))
     trainer.fit(model)
 
 
 def tune_mnist(data_dir,
                num_samples=10,
                num_epochs=10,
-               num_hosts=1,
-               num_slots=4,
+               num_workers=4,
                use_gpu=False):
     config = {
         "layer_1": tune.choice([32, 64, 128]),
@@ -101,8 +96,7 @@ def tune_mnist(data_dir,
         train_mnist,
         data_dir=data_dir,
         num_epochs=num_epochs,
-        num_hosts=num_hosts,
-        num_slots=num_slots,
+        num_workers=num_workers,
         use_gpu=use_gpu,
         callbacks=callbacks)
     analysis = tune.run(
@@ -111,13 +105,8 @@ def tune_mnist(data_dir,
         mode="min",
         config=config,
         num_samples=num_samples,
-        resources_per_trial={
-            "cpu": 1,
-            # Assume 1 cpu per slot.
-            "extra_cpu": num_hosts * num_slots,
-            # Assume 1 gpu per slot.
-            "extra_gpu": num_hosts * num_slots * int(use_gpu)
-        },
+        resources_per_trial=get_tune_resources(
+            num_workers=num_workers, use_gpu=use_gpu),
         name="tune_mnist")
 
     print("Best hyperparameters found were: ", analysis.best_config)
@@ -128,18 +117,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--num-hosts",
+        "--num-workers",
         type=int,
-        help="Number of machines to train on. If using Tune, then each "
-        "trial will use this many machines.",
-        default=1)
-    parser.add_argument(
-        "--num-slots",
-        type=int,
-        help="Number of workers to "
-        "place on each "
-        "machine. If using "
-        "Tune, then each trial will use this many slots per machine.",
+        help="Number of training workers to use.",
         default=1)
     parser.add_argument(
         "--use-gpu", action="store_true", help="Use GPU for "
@@ -176,8 +156,7 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
 
     num_epochs = 1 if args.smoke_test else args.num_epochs
-    num_hosts = 1 if args.smoke_test else args.num_hosts
-    num_slots = 1 if args.smoke_test else args.num_slots
+    num_workers = 1 if args.smoke_test else args.num_workers
     use_gpu = False if args.smoke_test else args.use_gpu
     num_samples = 1 if args.smoke_test else args.num_samples
 
@@ -189,9 +168,7 @@ if __name__ == "__main__":
     data_dir = os.path.join(tempfile.gettempdir(), "mnist_data_")
 
     if args.tune:
-        tune_mnist(data_dir, num_samples, num_epochs, num_hosts, num_slots,
-                   use_gpu)
+        tune_mnist(data_dir, num_samples, num_epochs, num_workers, use_gpu)
     else:
         config = {"layer_1": 32, "layer_2": 64, "lr": 1e-1, "batch_size": 32}
-        train_mnist(config, data_dir, num_epochs, num_hosts, num_slots,
-                    use_gpu)
+        train_mnist(config, data_dir, num_epochs, num_workers, use_gpu)

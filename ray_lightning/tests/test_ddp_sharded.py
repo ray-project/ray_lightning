@@ -8,7 +8,7 @@ from pytorch_lightning import Callback, Trainer
 
 import ray
 
-from ray_lightning import RayShardedPlugin
+from ray_lightning import RayShardedStrategy
 from ray_lightning.tests.utils import BoringModel
 
 
@@ -25,22 +25,21 @@ def seed():
 
 
 def test_ddp_choice_sharded(tmpdir, ray_start_2_cpus, seed):
-    """Tests if sharded plugin is properly recognized."""
+    """Tests if sharded strategy is properly recognized."""
 
     class CB(Callback):
         def on_fit_start(self, trainer, pl_module):
-            assert isinstance(trainer.accelerator.training_type_plugin,
-                              RayShardedPlugin)
-            raise SystemExit()
+            assert isinstance(trainer.strategy, RayShardedStrategy)
+            raise ValueError()
 
     model = BoringModel()
     trainer = Trainer(
         fast_dev_run=True,
-        plugins=[RayShardedPlugin(num_workers=2)],
+        strategy=RayShardedStrategy(num_workers=2),
         callbacks=[CB()],
     )
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(ValueError):
         trainer.fit(model)
 
 
@@ -48,7 +47,7 @@ def test_ddp_sharded_plugin_checkpoint(tmpdir, ray_start_2_cpus, seed):
     """Tests if checkpoint is saved correctly."""
     model = BoringModel()
     trainer = Trainer(
-        plugins=[RayShardedPlugin(num_workers=2)],
+        strategy=RayShardedStrategy(num_workers=2),
         fast_dev_run=True,
     )
 
@@ -68,7 +67,7 @@ def test_ddp_sharded_plugin_finetune(tmpdir, ray_start_2_cpus, seed):
     """Tests if we can save and restart training."""
     model = BoringModel()
     trainer = Trainer(
-        plugins=[RayShardedPlugin(num_workers=2)],
+        strategy=RayShardedStrategy(num_workers=2),
         fast_dev_run=True,
     )
     trainer.fit(model)
@@ -86,7 +85,7 @@ def test_ddp_sharded_plugin_resume_from_checkpoint(tmpdir, ray_start_2_cpus,
     """Tests if resuming from checkpoint works."""
     model = BoringModel()
     trainer = Trainer(
-        plugins=[RayShardedPlugin(num_workers=2)],
+        strategy=RayShardedStrategy(num_workers=2),
         fast_dev_run=True,
     )
 
@@ -98,7 +97,7 @@ def test_ddp_sharded_plugin_resume_from_checkpoint(tmpdir, ray_start_2_cpus,
     model = BoringModel()
 
     trainer = Trainer(
-        plugins=[RayShardedPlugin(num_workers=2)],
+        strategy=RayShardedStrategy(num_workers=2),
         fast_dev_run=True,
         resume_from_checkpoint=checkpoint_path)
 
@@ -109,7 +108,7 @@ def test_ddp_sharded_plugin_test(tmpdir, ray_start_2_cpus, seed):
     """Tests if test works without fit."""
     model = BoringModel()
     trainer = Trainer(
-        plugins=[RayShardedPlugin(num_workers=2)],
+        strategy=RayShardedStrategy(num_workers=2),
         fast_dev_run=True,
     )
 
@@ -121,7 +120,7 @@ def test_ddp_sharded_plugin_resume_from_checkpoint_downsize(
     """Tests if we can save and resume training with less workers."""
     model = BoringModel()
     trainer = Trainer(
-        plugins=[RayShardedPlugin(num_workers=2)], fast_dev_run=True)
+        strategy=RayShardedStrategy(num_workers=2), fast_dev_run=True)
 
     trainer.fit(model)
 
@@ -131,7 +130,7 @@ def test_ddp_sharded_plugin_resume_from_checkpoint_downsize(
     model = BoringModel()
 
     trainer = Trainer(
-        plugins=[RayShardedPlugin(num_workers=1)],
+        strategy=RayShardedStrategy(num_workers=1),
         fast_dev_run=True,
         resume_from_checkpoint=checkpoint_path)
 
