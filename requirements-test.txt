@@ -1,9 +1,4 @@
 fairscale
-flake8==3.9.1
-flake8-comprehensions
-flake8-quotes
-importlib_metadata==4.13.0
-yapf==0.23.0
 pytest
 pytorch-lightning==1.6.4
 lightning-bolts==0.3.3
