@@ -270,43 +270,36 @@ class RayStrategy(DDPSpawnStrategy):
             return self._device
         if self.use_gpu and torch.cuda.is_available():
             if self._is_remote:
-                # Gets the correct torch device to use for training.
-                # Assumes that `CUDA_VISIBLE_DEVICES` is set and is a
-                # superset of the `ray.get_gpu_ids()`.
-                # Example:
-                #     >>> # os.environ["CUDA_VISIBLE_DEVICES"] = "3,4"
-                #     >>> # ray.get_gpu_ids() == [3]
-                #     >>> # torch.cuda.is_available() == True
-                #     >>> # get_device() == torch.device("cuda:0")
-                #     >>> # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4"
-                #     >>> # ray.get_gpu_ids() == [4]
-                #     >>> # torch.cuda.is_available() == True
-                #     >>> # get_device() == torch.device("cuda:4")
-                #     >>> # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5"
-                #     >>> # ray.get_gpu_ids() == [4,5]
-                #     >>> # torch.cuda.is_available() == True
-                #     >>> # get_device() == torch.device("cuda:4")
+                # GPU IDs are assigned by Ray after you specify "use_gpu"
+                # GPU `ray.get_gpu_ids()` may return ints or may return
+                # strings. We should always convert to strings.
+                gpu_ids = [str(id) for id in ray.get_gpu_ids()]
 
-                # Adjust to support multiple GPUs per worker or fractional
-                # GPUs per worker.
-                gpu_id = int(ray.get_gpu_ids()[0])
-                cuda_visible_str = os.environ.get("CUDA_VISIBLE_DEVICES", "")
-                if cuda_visible_str and cuda_visible_str != "NoDevFiles":
-                    cuda_visible_list = [
-                        int(dev) for dev in cuda_visible_str.split(",")
-                    ]
-                    device_id = cuda_visible_list.index(gpu_id)
-                    return torch.device("cuda", device_id)
-                else:
-                    raise RuntimeError(
-                        "CUDA_VISIBLE_DEVICES set incorrectly. "
-                        f"Got {cuda_visible_str}, expected to include "
-                        f"{gpu_id}. Did you override `CUDA_VISIBLE_DEVICES`? "
-                        "If not, please help file an issue on Github.")
+                if len(gpu_ids) > 0:
+                    # By default, there should only be one GPU ID if
+                    # `use_gpu=True`.
+                    # If there are multiple GPUs, use the first one.
+                    # If using fractional GPUs, these IDs are not guaranteed
+                    # to be unique across different processes.
+                    gpu_id = gpu_ids[0]
+
+                    cuda_visible_str = os.environ.get("CUDA_VISIBLE_DEVICES",
+                                                      "")
+                    if cuda_visible_str and cuda_visible_str != "NoDevFiles":
+                        cuda_visible_list = cuda_visible_str.split(",")
+                        device_id = cuda_visible_list.index(gpu_id)
+                    else:
+                        raise RuntimeError(
+                            "CUDA_VISIBLE_DEVICES set incorrectly. "
+                            f"Got {cuda_visible_str}, expected to include "
+                            "{gpu_id}. Did you override the "
+                            "`CUDA_VISIBLE_DEVICES` environment variable? "
+                            "If not, please help file an issue on Github.")
             else:
                 # If the root device is requested on the driver, just return
                 # the 0th device.
-                return torch.device("cuda", 0)
+                device_id = 0
+            return torch.device(f"cuda:{device_id}")
         else:
             return torch.device("cpu")
 
