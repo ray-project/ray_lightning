@@ -42,7 +42,7 @@ class _GPUAccelerator(GPUAccelerator):
         if devices:
             return [torch.device("cuda", i) for i in devices]
         else:
-            return None
+            return []
 
     @staticmethod
     def is_available() -> bool:

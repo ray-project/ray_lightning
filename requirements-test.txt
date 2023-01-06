@@ -1,14 +1,10 @@
 fairscale
-flake8==3.9.1
-flake8-comprehensions
-flake8-quotes
-yapf==0.23.0
 pytest
 pytorch-lightning==1.6.4
 lightning-bolts==0.3.3
 ray[tune]
 torch==1.12.0
-torchmetrics
+torchmetrics==0.9.3
 torchvision
 protobuf<=3.20.1
 jsonargparse>=4.13.2
