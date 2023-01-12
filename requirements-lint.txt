@@ -1,5 +1,5 @@
 flake8==3.9.1
 flake8-comprehensions
 flake8-quotes
-importlib_metadata==4.13.0
+importlib_metadata==6.0.0
 yapf==0.23.0
