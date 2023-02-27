@@ -1,6 +1,6 @@
 fairscale
 pytest
-pytorch-lightning==1.6.4
+pytorch-lightning==1.9.3
 lightning-bolts==0.3.3
 ray[tune]
 torch==1.12.0
