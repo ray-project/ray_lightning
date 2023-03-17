@@ -55,17 +55,19 @@ class RayLauncher(_Launcher):
         This function is run on the driver process.
         """
         self.setup_workers()
-        ray_output = self.run_function_on_workers(
-            function, *args, trainer=trainer, **kwargs)
+        try:
+            ray_output = self.run_function_on_workers(
+                function, *args, trainer=trainer, **kwargs)
 
-        if trainer is None:
-            raise NotImplementedError(
-                "Ray launcher does not support trainer is None!")
-        self._recover_results_in_main_process(ray_output, trainer)
-        return_value = ray_output.trainer_results
+            if trainer is None:
+                raise NotImplementedError(
+                    "Ray launcher does not support trainer is None!")
+            self._recover_results_in_main_process(ray_output, trainer)
+            return_value = ray_output.trainer_results
+        finally:
+            self.teardown_workers()
+            self._strategy.teardown()
 
-        self.teardown_workers()
-        self._strategy.teardown()
         return return_value
 
     def setup_workers(self, tune_enabled: bool = True) -> None:
