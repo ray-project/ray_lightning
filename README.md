@@ -1,6 +1,10 @@
 <!--$UNCOMMENT(ray-lightning)=-->
 
 # Distributed PyTorch Lightning Training on Ray
+
+## Updated for pytorch and pytorch-lightning 2
+
+
 This library adds new PyTorch Lightning strategies for distributed training using the Ray distributed computing framework.
 
 These PyTorch Lightning strategies on Ray enable quick and easy parallel training while still leveraging all the benefits of PyTorch Lightning and using your desired training protocol, either [PyTorch Distributed Data Parallel](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) or [Horovod](https://github.com/horovod/horovod). 
