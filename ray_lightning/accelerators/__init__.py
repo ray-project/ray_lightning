@@ -10,12 +10,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from pytorch_lightning.accelerators.registry import \
-    call_register_accelerators  # noqa: F401
+from pytorch_lightning.accelerators import AcceleratorRegistry
+from lightning_fabric.accelerators.registry import call_register_accelerators
 from ray_lightning.accelerators.delayed_gpu_accelerator import _GPUAccelerator
 
 #  these lines are to register the delayed gpu accelerator as `_gpu`
 ACCELERATORS_BASE_MODULE = "ray_lightning.accelerators"
-call_register_accelerators(ACCELERATORS_BASE_MODULE)
+call_register_accelerators(AcceleratorRegistry, ACCELERATORS_BASE_MODULE)
 
 __all__ = ["_GPUAccelerator"]

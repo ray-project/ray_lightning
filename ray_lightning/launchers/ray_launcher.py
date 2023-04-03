@@ -4,9 +4,8 @@ from collections import defaultdict
 import os
 
 import pytorch_lightning as pl
-from pytorch_lightning.strategies.launchers import _Launcher
-from pytorch_lightning.utilities.apply_func import apply_to_collection,\
-    move_data_to_device
+from pytorch_lightning.strategies.launchers.launcher import _Launcher
+from lightning_utilities.core.apply_func import apply_to_collection
 import numpy as np
 import torch
 
@@ -24,7 +23,19 @@ from ray_lightning.launchers.utils import _RayOutput, find_free_port,\
     RayExecutor
 
 
-class RayLauncher(_Launcher):
+# def to_cpu(d):
+#     if hasattr(d, "cpu"):
+#         return d.cpu()
+#     elif isinstance(d, list):
+#         return [to_cpu(x) for x in d]
+#     elif isinstance(d, tuple):
+#         return tuple([to_cpu(x) for x in d])
+#     elif isinstance(d, dict):
+#         return {k: to_cpu(v) for k,v in d.items()}
+#     else:
+#         return d
+    
+class RayLauncher:
     def __init__(self, strategy: "Strategy") -> None:
         """Initializes RayLauncher."""
         self._strategy = strategy
@@ -54,6 +65,7 @@ class RayLauncher(_Launcher):
 
         This function is run on the driver process.
         """
+        print("RayLauncher.launch", function)
         self.setup_workers()
         ray_output = self.run_function_on_workers(
             function, *args, trainer=trainer, **kwargs)
@@ -231,9 +243,9 @@ class RayLauncher(_Launcher):
         """
         # put the model as the ray object
         # and remove the model temporarily from the args
-        model = trainer.model
+        model = trainer.strategy.model
         model_ref = ray.put(model)
-        trainer.model = None
+        trainer.strategy.model = None
         new_args = tuple([None] + list(args[1:]))
 
         # train the model and get the result to rank 0 node
@@ -244,7 +256,7 @@ class RayLauncher(_Launcher):
             for i, w in enumerate(self._workers)
         ]
 
-        trainer.model = model
+        trainer.strategy.model = model
 
         results = process_results(self._futures, self.tune_queue)
         return results[0]
@@ -284,7 +296,7 @@ class RayLauncher(_Launcher):
         # by calling `function.__self__` so that we can restore
         # all the side effects happened to `function.__self__`
         trainer = function.__self__
-        trainer.model = model_ref
+        trainer.strategy.model = model_ref
         args = tuple([model_ref] + list(args[1:]))
 
         trainer._data_connector.prepare_data()
@@ -293,6 +305,7 @@ class RayLauncher(_Launcher):
             init_session(rank=global_rank, queue=tune_queue)
 
         self._strategy._worker_setup(process_idx=global_rank)
+        trainer.strategy.set_remote(True)
         trainer.strategy.root_device = self._strategy.root_device
         trainer.strategy.global_rank = self._strategy.global_rank
         trainer.strategy.local_rank = self._strategy.local_rank
@@ -327,7 +340,8 @@ class RayLauncher(_Launcher):
 
         # Move state_dict to cpu before converting it to model state stream
         if trainer.strategy.local_rank == 0:
-            state_dict = move_data_to_device(state_dict, "cpu")
+            #state_dict = move_data_to_device(state_dict, "cpu")
+            state_dict = {k: v.cpu() for k, v in state_dict.items()}
 
         # PyTorch Lightning saves the model weights in a temp file and
         # loads it back on the driver.

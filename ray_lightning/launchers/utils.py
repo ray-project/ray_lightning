@@ -1,5 +1,5 @@
 from typing import Any, Optional, NamedTuple, Dict, List, Callable
-from pytorch_lightning.utilities.types import _PATH
+# from pytorch_lightning.utilities.types import _PATH
 from pytorch_lightning.trainer.states import TrainerState
 
 from contextlib import closing
@@ -45,7 +45,7 @@ class RayExecutor:
         return ray.util.get_node_ip_address()
 
     def get_node_and_gpu_ids(self):
-        return ray.get_runtime_context().node_id.hex(), ray.get_gpu_ids()
+        return ray.get_runtime_context().get_node_id(), ray.get_gpu_ids()
 
     def execute(self, fn: Callable, *args, **kwargs):
         """Execute the provided function and return the result."""
@@ -61,8 +61,8 @@ class _RayOutput(NamedTuple):
        - `callback_results`: callback result
        - `logged_metrics`: logged metrics
     """
-    best_model_path: Optional[_PATH]
-    weights_path: Optional[_PATH]
+    best_model_path: Optional[Any]
+    weights_path: Optional[Any]
     trainer_state: TrainerState
     trainer_results: Any
     callback_metrics: Dict[str, Any]
