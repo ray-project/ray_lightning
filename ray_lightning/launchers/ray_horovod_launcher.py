@@ -2,8 +2,7 @@ from typing import Callable, Any, Optional
 
 import pytorch_lightning as pl
 from pytorch_lightning.strategies.launchers import _Launcher
-from pytorch_lightning.utilities.apply_func import apply_to_collection, \
-    move_data_to_device
+from lightning_utilities.core.apply_func import apply_to_collection
 import numpy as np
 import torch
 

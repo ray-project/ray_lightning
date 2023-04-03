@@ -2,7 +2,7 @@ import io
 from typing import Callable
 
 import torch
-from pytorch_lightning.accelerators import GPUAccelerator
+from pytorch_lightning.accelerators import CUDAAccelerator
 from pytorch_lightning import Trainer
 from pytorch_lightning.strategies import Strategy
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
@@ -10,7 +10,7 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_info
 import ray
 
 
-class DelayedGPUAccelerator(GPUAccelerator):
+class DelayedGPUAccelerator(CUDAAccelerator):
     """Same as GPUAccelerator, but doesn't do any CUDA setup.
 
     This allows the driver script to be launched from CPU-only machines (
@@ -21,7 +21,7 @@ class DelayedGPUAccelerator(GPUAccelerator):
         # Don't do any CUDA setup.
         # Directly call the setup_environment method of the superclass of
         # GPUAccelerator.
-        super(GPUAccelerator, self).setup_environment()
+        super(CUDAAccelerator, self).setup_environment()
 
     def setup(
             self,
@@ -30,7 +30,7 @@ class DelayedGPUAccelerator(GPUAccelerator):
         # Don't do any CUDA setup.
         # Directly call the setup_environment method of the superclass of
         # GPUAccelerator.
-        return super(GPUAccelerator, self).setup(trainer)
+        return super(CUDAAccelerator, self).setup(trainer)
 
     def on_train_start(self) -> None:
         if "cuda" not in str(self.root_device):

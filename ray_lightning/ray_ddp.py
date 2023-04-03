@@ -4,12 +4,13 @@ import warnings
 
 import torch
 
-from pytorch_lightning.strategies import DDPSpawnStrategy
+from pytorch_lightning.strategies import DDPStrategy
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 import ray
 from pytorch_lightning.utilities.rank_zero import rank_zero_info
-from pytorch_lightning.utilities.seed import reset_seed, log
+#from pytorch_lightning.utilities.seed import reset_seed, log
+from lightning_fabric.utilities.seed import reset_seed, log
 from ray.util import PublicAPI
 
 from ray_lightning.launchers import RayLauncher
@@ -20,7 +21,7 @@ import os
 
 
 @PublicAPI(stability="beta")
-class RayStrategy(DDPSpawnStrategy):
+class RayStrategy(DDPStrategy):
     """Pytorch Lightning strategy for DDP training on a Ray cluster.
 
     This strategy is used to manage distributed training using DDP and
@@ -109,6 +110,7 @@ class RayStrategy(DDPSpawnStrategy):
         self._is_remote = False
         self._device = None
 
+        ddp_kwargs["start_method"] = "spawn"
         super().__init__(
             accelerator="_gpu" if use_gpu else "cpu",
             parallel_devices=[],
@@ -155,8 +157,12 @@ class RayStrategy(DDPSpawnStrategy):
         # False, then do a no-op).
         if self._is_remote:
             self._global_rank = process_idx
-            self._local_rank, self._node_rank = self.global_to_local[
-                self.global_rank]
+            self._local_rank, self._node_rank = self.global_to_local[self.global_rank]
+    
+    def setup_environment(self) -> None:
+        assert self.accelerator is not None
+        self.accelerator.setup_device(self.root_device)
+        # return super(DDPStrategy).setup_environment()
 
     def _worker_setup(self, process_idx: int):
         """Setup the workers and pytorch DDP connections.
@@ -182,7 +188,7 @@ class RayStrategy(DDPSpawnStrategy):
 
         global_rank = self.global_rank
         world_size = self.world_size
-        torch_distributed_backend = self.torch_distributed_backend
+        torch_distributed_backend = self.process_group_backend
 
         # Taken from pytorch_lightning.utilities.distributed
         if torch.distributed.is_available(
@@ -329,5 +335,6 @@ class RayStrategy(DDPSpawnStrategy):
         This function is overriding ddp_spawn_strategy's method.
         It is run on the driver processes.
         """
-        self.accelerator = None
         super().teardown()
+        if not self._is_remote:
+            self.accelerator = None

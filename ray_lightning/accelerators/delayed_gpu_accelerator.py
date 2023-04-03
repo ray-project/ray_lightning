@@ -16,10 +16,10 @@ from typing import Dict, List
 import torch
 
 from pytorch_lightning.accelerators import Accelerator,\
-    GPUAccelerator
+    CUDAAccelerator
 
 
-class _GPUAccelerator(GPUAccelerator):
+class _GPUAccelerator(CUDAAccelerator):
     """Accelerator for GPU devices.
 
     adapted from:
