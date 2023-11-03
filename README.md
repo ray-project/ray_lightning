@@ -1,6 +1,15 @@
 <!--$UNCOMMENT(ray-lightning)=-->
 
 # Distributed PyTorch Lightning Training on Ray
+
+ ## ⚠️ `ray_lightning` is no longer supported
+ 
+ This project is no longer actively maintained and has been archived. For distributed PyTorch Lightning on Ray, visit [Ray Train](https://docs.ray.io/en/latest/train/train.html).
+ 
+ For more details, see [this issue](https://github.com/ray-project/ray_lightning/issues/258).
+
+## Overview
+
 This library adds new PyTorch Lightning strategies for distributed training using the Ray distributed computing framework.
 
 These PyTorch Lightning strategies on Ray enable quick and easy parallel training while still leveraging all the benefits of PyTorch Lightning and using your desired training protocol, either [PyTorch Distributed Data Parallel](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) or [Horovod](https://github.com/horovod/horovod). 
@@ -10,7 +19,7 @@ Once you add your strategy to the PyTorch Lightning Trainer, you can parallelize
 This library also comes with an integration with <!--$UNCOMMENT{ref}`Ray Tune <tune-main>`--><!--$REMOVE-->[Ray Tune](https://tune.io)<!--$END_REMOVE--> for distributed hyperparameter tuning experiments.
 
 <!--$REMOVE-->
-# Table of Contents
+## Table of Contents
 1. [Installation](#installation)
 2. [PyTorch Lightning Compatibility](#pytorch-lightning-compatibility)
 3. [PyTorch Distributed Data Parallel Plugin on Ray](#pytorch-distributed-data-parallel-plugin-on-ray)
